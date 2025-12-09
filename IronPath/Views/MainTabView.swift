@@ -829,6 +829,8 @@ struct HistoryView: View {
     @State private var showCalendar = true
     @State private var selectedWorkout: Workout?
     @State private var showingAddWorkout = false
+    @State private var workoutToDelete: Workout?
+    @State private var showingDeleteConfirmation = false
 
     var workoutsForSelectedMonth: [Workout] {
         let calendar = Calendar.current
@@ -899,6 +901,22 @@ struct HistoryView: View {
                                     WorkoutHistoryCard(workout: workout)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        workoutToDelete = workout
+                                        showingDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete Workout", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        workoutToDelete = workout
+                                        showingDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                                 .padding(.horizontal)
                             }
                         }
@@ -917,12 +935,25 @@ struct HistoryView: View {
                 }
             }
             .navigationDestination(item: $selectedWorkout) { workout in
-                WorkoutHistoryDetailView(workout: workout)
+                WorkoutHistoryDetailView(workout: workout, onDelete: {
+                    deleteWorkout(workout)
+                    selectedWorkout = nil
+                })
             }
             .sheet(isPresented: $showingAddWorkout) {
                 AddHistoricalWorkoutView {
                     loadWorkouts()
                 }
+            }
+            .alert("Delete Workout?", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
+                Button("Cancel", role: .cancel) {
+                    workoutToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    deleteWorkout(workout)
+                }
+            } message: { workout in
+                Text("Are you sure you want to delete \"\(workout.name)\"? This action cannot be undone.")
             }
             .onAppear {
                 loadWorkouts()
@@ -933,12 +964,26 @@ struct HistoryView: View {
     private func loadWorkouts() {
         workouts = WorkoutDataManager.shared.getWorkoutHistory()
     }
+
+    private func deleteWorkout(_ workout: Workout) {
+        WorkoutDataManager.shared.deleteWorkout(byId: workout.id)
+        workoutToDelete = nil
+        loadWorkouts()
+    }
 }
 
 // MARK: - Workout History Detail View
 
 struct WorkoutHistoryDetailView: View {
     let workout: Workout
+    var onDelete: (() -> Void)?
+    @State private var showingDeleteConfirmation = false
+    @Environment(\.dismiss) var dismiss
+
+    init(workout: Workout, onDelete: (() -> Void)? = nil) {
+        self.workout = workout
+        self.onDelete = onDelete
+    }
 
     var body: some View {
         ScrollView {
@@ -1012,6 +1057,29 @@ struct WorkoutHistoryDetailView: View {
         }
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .destructiveAction) {
+                Button(role: .destructive) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+            }
+        }
+        .alert("Delete Workout?", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let onDelete = onDelete {
+                    onDelete()
+                } else {
+                    // Fallback if no callback provided
+                    WorkoutDataManager.shared.deleteWorkout(byId: workout.id)
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete \"\(workout.name)\"? This action cannot be undone.")
+        }
     }
 
     private func formatVolume(_ volume: Double) -> String {

@@ -163,6 +163,26 @@ class WorkoutDataManager {
     func getWorkout(byId id: UUID) -> Workout? {
         return getWorkoutHistory().first { $0.id == id }
     }
+
+    /// Delete a workout by ID
+    func deleteWorkout(byId id: UUID) {
+        var history = getWorkoutHistory()
+        history.removeAll { $0.id == id }
+
+        if let encoded = try? encoder.encode(history) {
+            UserDefaults.standard.set(encoded, forKey: workoutHistoryKey)
+        }
+    }
+
+    /// Delete multiple workouts by IDs
+    func deleteWorkouts(byIds ids: Set<UUID>) {
+        var history = getWorkoutHistory()
+        history.removeAll { ids.contains($0.id) }
+
+        if let encoded = try? encoder.encode(history) {
+            UserDefaults.standard.set(encoded, forKey: workoutHistoryKey)
+        }
+    }
 }
 
 struct WorkoutStats {
