@@ -159,8 +159,10 @@ class CloudSyncManager {
     func saveWorkoutHistory(_ workouts: [Workout]) {
         guard let data = try? encoder.encode(workouts) else { return }
 
-        // Always save locally first
+        // Always save locally first with timestamp
+        let now = Date()
         UserDefaults.standard.set(data, forKey: "workout_history")
+        UserDefaults.standard.set(now, forKey: "workout_history_updated")
 
         // Save to CloudKit
         Task {
@@ -175,6 +177,12 @@ class CloudSyncManager {
             return workouts
         }
         return []
+    }
+
+    /// Force fetch workout history from CloudKit (useful after reinstall)
+    func fetchWorkoutHistorySync() async -> [Workout] {
+        await fetchWorkoutHistoryFromCloud()
+        return loadWorkoutHistory()
     }
 
     private func saveWorkoutHistoryToCloud(_ data: Data) async {
@@ -204,6 +212,8 @@ class CloudSyncManager {
     }
 
     private func fetchWorkoutHistoryFromCloud() async {
+        guard isICloudAvailable else { return }
+
         let recordID = CKRecord.ID(recordName: "workout_history_v1")
 
         do {
@@ -211,33 +221,40 @@ class CloudSyncManager {
             if let data = record["data"] as? Data,
                let cloudUpdatedAt = record["updatedAt"] as? Date {
 
-                // Check if cloud data is newer than local
+                // Check if local data exists
+                let localData = UserDefaults.standard.data(forKey: "workout_history")
                 let localUpdatedAt = UserDefaults.standard.object(forKey: "workout_history_updated") as? Date ?? Date.distantPast
 
-                if cloudUpdatedAt > localUpdatedAt {
-                    // Cloud is newer, update local
+                // If local is empty (fresh install) or cloud is newer, use cloud data
+                let localIsEmpty = localData == nil || (try? decoder.decode([Workout].self, from: localData!))?.isEmpty ?? true
+
+                if localIsEmpty || cloudUpdatedAt > localUpdatedAt {
+                    // Cloud is newer or local is empty, update local
                     UserDefaults.standard.set(data, forKey: "workout_history")
                     UserDefaults.standard.set(cloudUpdatedAt, forKey: "workout_history_updated")
 
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                     }
-                } else if let localData = UserDefaults.standard.data(forKey: "workout_history"),
-                          localUpdatedAt > cloudUpdatedAt {
-                    // Local is newer, push to cloud
-                    await saveWorkoutHistoryToCloud(localData)
+                    print("CloudSync: Restored \((try? self.decoder.decode([Workout].self, from: data))?.count ?? 0) workouts from iCloud")
+                } else if localData != nil && localUpdatedAt > cloudUpdatedAt {
+                    // Local is newer and not empty, push to cloud
+                    await saveWorkoutHistoryToCloud(localData!)
                 }
             }
         } catch let error as CKError where error.code == .unknownItem {
             // No cloud record exists yet, push local data if available
             if let localData = UserDefaults.standard.data(forKey: "workout_history") {
                 await saveWorkoutHistoryToCloud(localData)
+                print("CloudSync: Pushed local workout history to iCloud (no cloud record existed)")
             }
         } catch let error as CKError where error.code == .notAuthenticated {
             // User not signed into iCloud - silently use local storage only
+            print("CloudSync: User not signed into iCloud")
             return
         } catch {
-            // Other errors - silently fail, local storage is the fallback
+            // Log error for debugging
+            print("CloudSync: Error fetching workout history - \(error.localizedDescription)")
         }
     }
 
@@ -245,6 +262,7 @@ class CloudSyncManager {
 
     func saveGymProfiles(_ data: Data) {
         UserDefaults.standard.set(data, forKey: "gymProfiles")
+        UserDefaults.standard.set(Date(), forKey: "gym_settings_updated")
 
         Task {
             await saveGymSettingsToCloud(data)
@@ -297,6 +315,8 @@ class CloudSyncManager {
     }
 
     private func fetchGymSettingsFromCloud() async {
+        guard isICloudAvailable else { return }
+
         let recordID = CKRecord.ID(recordName: "gym_settings_v1")
 
         do {
@@ -304,29 +324,34 @@ class CloudSyncManager {
             if let data = record["data"] as? Data,
                let cloudUpdatedAt = record["updatedAt"] as? Date {
 
+                let localData = UserDefaults.standard.data(forKey: "gymProfiles")
                 let localUpdatedAt = UserDefaults.standard.object(forKey: "gym_settings_updated") as? Date ?? Date.distantPast
 
-                if cloudUpdatedAt > localUpdatedAt {
+                // If local is empty (fresh install) or cloud is newer, use cloud data
+                let localIsEmpty = localData == nil
+
+                if localIsEmpty || cloudUpdatedAt > localUpdatedAt {
                     UserDefaults.standard.set(data, forKey: "gymProfiles")
                     UserDefaults.standard.set(cloudUpdatedAt, forKey: "gym_settings_updated")
 
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                     }
-                } else if let localData = UserDefaults.standard.data(forKey: "gymProfiles"),
-                          localUpdatedAt > cloudUpdatedAt {
-                    await saveGymSettingsToCloud(localData)
+                    print("CloudSync: Restored gym settings from iCloud")
+                } else if localData != nil && localUpdatedAt > cloudUpdatedAt {
+                    await saveGymSettingsToCloud(localData!)
                 }
             }
         } catch let error as CKError where error.code == .unknownItem {
             if let localData = UserDefaults.standard.data(forKey: "gymProfiles") {
                 await saveGymSettingsToCloud(localData)
+                print("CloudSync: Pushed gym settings to iCloud (no cloud record existed)")
             }
         } catch let error as CKError where error.code == .notAuthenticated {
-            // User not signed into iCloud - silently use local storage only
+            print("CloudSync: User not signed into iCloud")
             return
         } catch {
-            // Other errors - silently fail, local storage is the fallback
+            print("CloudSync: Error fetching gym settings - \(error.localizedDescription)")
         }
     }
 

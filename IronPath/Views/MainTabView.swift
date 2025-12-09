@@ -255,11 +255,19 @@ enum WorkoutType: String, CaseIterable, Identifiable {
 struct WorkoutView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var pendingWorkoutManager = PendingWorkoutManager.shared
+    @ObservedObject private var activeWorkoutManager = ActiveWorkoutManager.shared
     @State private var isGeneratingWorkout = false
-    @State private var activeWorkout: Workout?
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showWorkoutSetup = false
+
+    /// Computed binding for active workout navigation
+    private var activeWorkout: Binding<Workout?> {
+        Binding(
+            get: { activeWorkoutManager.activeWorkout },
+            set: { _ in } // Navigation dismissal handled by onComplete/onCancel
+        )
+    }
 
     /// Convenience accessor for the pending workout
     private var generatedWorkout: Workout? {
@@ -391,12 +399,12 @@ struct WorkoutView: View {
                 }
             }
             .navigationTitle("Workout")
-            .navigationDestination(item: $activeWorkout) { workout in
+            .navigationDestination(item: activeWorkout) { workout in
                 ActiveWorkoutView(workout: workout, userProfile: appState.userProfile, onComplete: { completedWorkout in
-                    activeWorkout = nil
+                    activeWorkoutManager.completeWorkout()
                     pendingWorkoutManager.clearPendingWorkout()
                 }, onCancel: {
-                    activeWorkout = nil
+                    activeWorkoutManager.cancelWorkout()
                 })
             }
             .sheet(isPresented: $showWorkoutSetup) {
@@ -416,9 +424,7 @@ struct WorkoutView: View {
     }
 
     private func startWorkout(_ workout: Workout) {
-        var startedWorkout = workout
-        startedWorkout.startedAt = Date()
-        activeWorkout = startedWorkout
+        activeWorkoutManager.startWorkout(workout)
     }
 
     /// Auto-generate a workout based on the recommended split day
@@ -3059,6 +3065,7 @@ struct ActiveWorkoutView: View {
     let onComplete: (Workout) -> Void
     let onCancel: () -> Void
 
+    @ObservedObject private var activeWorkoutManager = ActiveWorkoutManager.shared
     @State private var currentWorkout: Workout
     @State private var showCancelConfirmation = false
     @State private var selectedExercise: WorkoutExercise?
@@ -3087,7 +3094,9 @@ struct ActiveWorkoutView: View {
         self.onComplete = onComplete
         self.onCancel = onCancel
         _currentWorkout = State(initialValue: workout)
-        _workoutStartTime = State(initialValue: workout.startedAt ?? Date())
+        // Use persisted start time from manager, falling back to workout's startedAt or current time
+        let startTime = ActiveWorkoutManager.shared.workoutStartTime ?? workout.startedAt ?? Date()
+        _workoutStartTime = State(initialValue: startTime)
     }
 
     var completedExercisesCount: Int {
@@ -3261,6 +3270,12 @@ struct ActiveWorkoutView: View {
         var newExercise = exercise
         newExercise.orderIndex = currentWorkout.exercises.count
         currentWorkout.exercises.append(newExercise)
+        persistWorkoutState()
+    }
+
+    /// Persist current workout state to survive app restarts
+    private func persistWorkoutState() {
+        activeWorkoutManager.updateWorkout(currentWorkout)
     }
 
     private func startTimer() {
@@ -3280,6 +3295,7 @@ struct ActiveWorkoutView: View {
             currentWorkout.exercises[index] = updatedExercise
         }
         selectedExercise = nil
+        persistWorkoutState()
     }
 
     private func replaceExercise() {
@@ -3301,6 +3317,7 @@ struct ActiveWorkoutView: View {
                     if let index = currentWorkout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
                         currentWorkout.exercises[index] = replacement
                     }
+                    persistWorkoutState()
                     isReplacingExercise = false
                     showReplacementSheet = false
                     self.exerciseToReplace = nil
@@ -3338,6 +3355,7 @@ struct ActiveWorkoutView: View {
         if let index = currentWorkout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
             currentWorkout.exercises[index] = replacement
         }
+        persistWorkoutState()
 
         showReplacementSheet = false
         self.exerciseToReplace = nil
@@ -3899,7 +3917,7 @@ struct ExerciseDetailSheet: View {
                             Text("Sets")
                                 .font(.headline)
                             Spacer()
-                            Text("Set 1 changes apply to all sets")
+                            Text("Changes propagate to subsequent sets")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -3909,27 +3927,28 @@ struct ExerciseDetailSheet: View {
                             HStack(alignment: .top, spacing: 8) {
                                 SetRowView(
                                     set: updatedExercise.sets[setIndex],
+                                    setIndex: setIndex,
                                     exerciseName: exercise.exercise.name,
                                     equipment: exercise.exercise.equipment,
                                     onUpdate: { updatedSet in
                                         updatedExercise.sets[setIndex] = updatedSet
                                     },
-                                    onWeightChanged: setIndex == 0 ? { newWeight in
+                                    onWeightChanged: { changedSetIndex, newWeight in
                                         // Propagate weight to all subsequent sets that haven't been completed
-                                        for i in 1..<updatedExercise.sets.count {
+                                        for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
                                             if !updatedExercise.sets[i].isCompleted {
                                                 updatedExercise.sets[i].weight = newWeight
                                             }
                                         }
-                                    } : nil,
-                                    onRepsChanged: setIndex == 0 ? { newReps in
+                                    },
+                                    onRepsChanged: { changedSetIndex, newReps in
                                         // Propagate reps to all subsequent sets that haven't been completed
-                                        for i in 1..<updatedExercise.sets.count {
+                                        for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
                                             if !updatedExercise.sets[i].isCompleted {
                                                 updatedExercise.sets[i].actualReps = newReps
                                             }
                                         }
-                                    } : nil
+                                    }
                                 )
 
                                 // Delete set button (only show if more than 1 set)
@@ -4480,11 +4499,12 @@ class CustomExerciseStore: ObservableObject {
 
 struct SetRowView: View {
     let set: ExerciseSet
+    let setIndex: Int  // 0-based index of this set
     let exerciseName: String
     let equipment: Equipment
     let onUpdate: (ExerciseSet) -> Void
-    let onWeightChanged: ((Double) -> Void)?  // Callback when weight changes on set 1
-    let onRepsChanged: ((Int) -> Void)?  // Callback when reps change on set 1
+    let onWeightChanged: ((Int, Double) -> Void)?  // Callback when weight changes (setIndex, newWeight)
+    let onRepsChanged: ((Int, Int) -> Void)?  // Callback when reps change (setIndex, newReps)
 
     @State private var weight: String
     @State private var reps: String
@@ -4494,13 +4514,15 @@ struct SetRowView: View {
 
     init(
         set: ExerciseSet,
+        setIndex: Int,
         exerciseName: String,
         equipment: Equipment = .dumbbells,
         onUpdate: @escaping (ExerciseSet) -> Void,
-        onWeightChanged: ((Double) -> Void)? = nil,
-        onRepsChanged: ((Int) -> Void)? = nil
+        onWeightChanged: ((Int, Double) -> Void)? = nil,
+        onRepsChanged: ((Int, Int) -> Void)? = nil
     ) {
         self.set = set
+        self.setIndex = setIndex
         self.exerciseName = exerciseName
         self.equipment = equipment
         self.onUpdate = onUpdate
@@ -4584,8 +4606,8 @@ struct SetRowView: View {
                                     .stroke(isInvalidCableWeight ? Color.orange : Color.clear, lineWidth: 2)
                             )
                             .onChange(of: weight) { _, newValue in
-                                if let weightValue = Double(newValue), set.setNumber == 1 {
-                                    onWeightChanged?(weightValue)
+                                if let weightValue = Double(newValue) {
+                                    onWeightChanged?(setIndex, weightValue)
                                 }
                             }
                         Text("lbs")
@@ -4649,8 +4671,8 @@ struct SetRowView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 50)
                         .onChange(of: reps) { _, newValue in
-                            if let repsValue = Int(newValue), set.setNumber == 1 {
-                                onRepsChanged?(repsValue)
+                            if let repsValue = Int(newValue) {
+                                onRepsChanged?(setIndex, repsValue)
                             }
                         }
                     Text("× \(set.targetReps)")
@@ -5978,9 +6000,10 @@ struct EditHistoricalExerciseView: View {
                     }
                 }
 
-                Section("Sets") {
+                Section {
                     ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { index, set in
                         HistoricalSetRow(
+                            setIndex: index,
                             setNumber: set.setNumber,
                             weight: Binding(
                                 get: { exercise.sets[index].weight },
@@ -5989,7 +6012,19 @@ struct EditHistoricalExerciseView: View {
                             reps: Binding(
                                 get: { exercise.sets[index].actualReps ?? exercise.sets[index].targetReps },
                                 set: { exercise.sets[index].actualReps = $0 }
-                            )
+                            ),
+                            onWeightChanged: { changedSetIndex, newWeight in
+                                // Propagate weight to all subsequent sets
+                                for i in (changedSetIndex + 1)..<exercise.sets.count {
+                                    exercise.sets[i].weight = newWeight
+                                }
+                            },
+                            onRepsChanged: { changedSetIndex, newReps in
+                                // Propagate reps to all subsequent sets
+                                for i in (changedSetIndex + 1)..<exercise.sets.count {
+                                    exercise.sets[i].actualReps = newReps
+                                }
+                            }
                         )
                     }
                     .onDelete(perform: deleteSet)
@@ -5998,6 +6033,14 @@ struct EditHistoricalExerciseView: View {
                         addSet()
                     } label: {
                         Label("Add Set", systemImage: "plus.circle")
+                    }
+                } header: {
+                    HStack {
+                        Text("Sets")
+                        Spacer()
+                        Text("Changes propagate to subsequent sets")
+                            .font(.caption2)
+                            .textCase(.none)
                     }
                 }
 
@@ -6043,12 +6086,31 @@ struct EditHistoricalExerciseView: View {
 }
 
 struct HistoricalSetRow: View {
+    let setIndex: Int  // 0-based index
     let setNumber: Int
     @Binding var weight: Double?
     @Binding var reps: Int
+    let onWeightChanged: ((Int, Double?) -> Void)?  // (setIndex, newWeight)
+    let onRepsChanged: ((Int, Int) -> Void)?  // (setIndex, newReps)
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
+
+    init(
+        setIndex: Int,
+        setNumber: Int,
+        weight: Binding<Double?>,
+        reps: Binding<Int>,
+        onWeightChanged: ((Int, Double?) -> Void)? = nil,
+        onRepsChanged: ((Int, Int) -> Void)? = nil
+    ) {
+        self.setIndex = setIndex
+        self.setNumber = setNumber
+        self._weight = weight
+        self._reps = reps
+        self.onWeightChanged = onWeightChanged
+        self.onRepsChanged = onRepsChanged
+    }
 
     var body: some View {
         HStack {
@@ -6066,7 +6128,9 @@ struct HistoricalSetRow: View {
                     .frame(width: 60)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: weightText) { _, newValue in
-                        weight = Double(newValue)
+                        let newWeight = Double(newValue)
+                        weight = newWeight
+                        onWeightChanged?(setIndex, newWeight)
                     }
                 Text("lbs")
                     .font(.caption)
@@ -6083,7 +6147,9 @@ struct HistoricalSetRow: View {
                     .frame(width: 50)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: repsText) { _, newValue in
-                        reps = Int(newValue) ?? reps
+                        let newReps = Int(newValue) ?? reps
+                        reps = newReps
+                        onRepsChanged?(setIndex, newReps)
                     }
                 Text("reps")
                     .font(.caption)

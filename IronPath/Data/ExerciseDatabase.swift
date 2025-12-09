@@ -17,6 +17,7 @@ class ExerciseDatabase {
     let chestExercises: [Exercise] = [
         Exercise(
             name: "Barbell Bench Press",
+            alternateNames: ["Flat Bench", "Bench Press", "Flat Barbell Press", "BB Bench"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps, .shoulders],
             equipment: .barbell,
@@ -27,6 +28,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dumbbell Bench Press",
+            alternateNames: ["Flat DB Press", "DB Bench", "Dumbbell Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps, .shoulders],
             equipment: .dumbbells,
@@ -37,6 +39,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Incline Dumbbell Press",
+            alternateNames: ["Incline DB Press", "Incline Press", "Upper Chest Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.shoulders, .triceps],
             equipment: .dumbbells,
@@ -47,6 +50,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Cable Flyes",
+            alternateNames: ["Cable Fly", "Cable Crossover", "Standing Cable Fly"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -57,6 +61,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Push-Ups",
+            alternateNames: ["Pushups", "Press-Ups", "Floor Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps, .shoulders],
             equipment: .bodyweightOnly,
@@ -67,6 +72,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dumbbell Flyes",
+            alternateNames: ["DB Flyes", "Flat Flyes", "Chest Flyes"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -77,6 +83,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Decline Bench Press",
+            alternateNames: ["Decline Barbell Press", "Decline Press", "Lower Chest Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps],
             equipment: .barbell,
@@ -87,6 +94,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Incline Barbell Bench Press",
+            alternateNames: ["Incline Bench", "Incline BB Press", "Incline Barbell Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.shoulders, .triceps],
             equipment: .barbell,
@@ -97,6 +105,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Pec Deck",
+            alternateNames: ["Pec Fly Machine", "Butterfly Machine", "Chest Fly Machine"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [],
             equipment: .bodyweightOnly,
@@ -108,6 +117,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Low Cable Crossover",
+            alternateNames: ["Low to High Cable Fly", "Low Cable Fly", "Upward Cable Fly"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.shoulders],
             equipment: .cables,
@@ -118,6 +128,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Machine Chest Press",
+            alternateNames: ["Chest Press Machine", "Seated Chest Press", "Hammer Strength Chest Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps, .shoulders],
             equipment: .bodyweightOnly,
@@ -134,6 +145,7 @@ class ExerciseDatabase {
     let backExercises: [Exercise] = [
         Exercise(
             name: "Pull-Ups",
+            alternateNames: ["Pullups", "Wide Grip Pull-Up", "Overhand Pull-Up"],
             primaryMuscleGroups: [.back],
             secondaryMuscleGroups: [.biceps],
             equipment: .pullUpBar,
@@ -144,6 +156,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Lat Pulldown",
+            alternateNames: ["Lat Pull Down", "Wide Grip Pulldown", "Cable Pulldown"],
             primaryMuscleGroups: [.back],
             secondaryMuscleGroups: [.biceps],
             equipment: .cables,
@@ -154,6 +167,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Barbell Row",
+            alternateNames: ["Bent Over Row", "BB Row", "Bent Over Barbell Row"],
             primaryMuscleGroups: [.back],
             secondaryMuscleGroups: [.biceps, .lowerBack],
             equipment: .barbell,
@@ -164,6 +178,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dumbbell Row",
+            alternateNames: ["DB Row", "One Arm Row", "Single Arm Dumbbell Row"],
             primaryMuscleGroups: [.back],
             secondaryMuscleGroups: [.biceps],
             equipment: .dumbbells,
@@ -174,6 +189,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Seated Cable Row",
+            alternateNames: ["Cable Row", "Low Row", "Seated Row"],
             primaryMuscleGroups: [.back],
             secondaryMuscleGroups: [.biceps],
             equipment: .cables,
@@ -184,6 +200,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Deadlift",
+            alternateNames: ["Conventional Deadlift", "Barbell Deadlift", "DL"],
             primaryMuscleGroups: [.back, .hamstrings, .glutes],
             secondaryMuscleGroups: [.lowerBack, .traps],
             equipment: .barbell,
@@ -194,6 +211,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Face Pulls",
+            alternateNames: ["Cable Face Pull", "Rope Face Pull", "Rear Delt Pull"],
             primaryMuscleGroups: [.back, .shoulders],
             secondaryMuscleGroups: [.traps],
             equipment: .cables,
@@ -204,6 +222,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Chin-Ups",
+            alternateNames: ["Chinups", "Underhand Pull-Up", "Supinated Pull-Up"],
             primaryMuscleGroups: [.back, .biceps],
             secondaryMuscleGroups: [],
             equipment: .pullUpBar,
@@ -309,6 +328,7 @@ class ExerciseDatabase {
     let shoulderExercises: [Exercise] = [
         Exercise(
             name: "Overhead Press",
+            alternateNames: ["OHP", "Military Press", "Standing Press", "Strict Press"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [.triceps],
             equipment: .barbell,
@@ -319,6 +339,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dumbbell Shoulder Press",
+            alternateNames: ["DB Shoulder Press", "Seated Dumbbell Press", "DB Overhead Press"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [.triceps],
             equipment: .dumbbells,
@@ -329,6 +350,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Lateral Raises",
+            alternateNames: ["Side Raises", "Lateral Delt Raise", "Side Lateral Raise", "Dumbbell Lateral Raise"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -339,6 +361,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Front Raises",
+            alternateNames: ["Front Delt Raise", "Dumbbell Front Raise", "Anterior Delt Raise"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -349,6 +372,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Rear Delt Flyes",
+            alternateNames: ["Reverse Fly", "Bent Over Fly", "Rear Delt Raise", "Posterior Delt Fly"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [.back],
             equipment: .dumbbells,
@@ -359,6 +383,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Arnold Press",
+            alternateNames: ["Arnold Dumbbell Press", "Rotating Shoulder Press"],
             primaryMuscleGroups: [.shoulders],
             secondaryMuscleGroups: [.triceps],
             equipment: .dumbbells,
@@ -456,6 +481,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dumbbell Curl",
+            alternateNames: ["DB Curl", "Bicep Curl", "Standing Dumbbell Curl", "Alternating Dumbbell Curl"],
             primaryMuscleGroups: [.biceps],
             secondaryMuscleGroups: [.forearms],
             equipment: .dumbbells,
@@ -466,6 +492,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Hammer Curls",
+            alternateNames: ["Hammer Curl", "Neutral Grip Curl", "DB Hammer Curl"],
             primaryMuscleGroups: [.biceps],
             secondaryMuscleGroups: [.forearms],
             equipment: .dumbbells,
@@ -476,6 +503,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Preacher Curls",
+            alternateNames: ["Preacher Curl", "Scott Curl", "Preacher Bench Curl"],
             primaryMuscleGroups: [.biceps],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -486,6 +514,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Cable Curls",
+            alternateNames: ["Cable Bicep Curl", "Low Cable Curl", "Standing Cable Curl"],
             primaryMuscleGroups: [.biceps],
             secondaryMuscleGroups: [.forearms],
             equipment: .cables,
@@ -561,6 +590,7 @@ class ExerciseDatabase {
     let tricepExercises: [Exercise] = [
         Exercise(
             name: "Tricep Pushdown",
+            alternateNames: ["Cable Pushdown", "Tricep Pressdown", "Straight Bar Pushdown"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -571,6 +601,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Skull Crushers",
+            alternateNames: ["Lying Tricep Extension", "French Press", "Nose Breakers", "EZ Bar Skull Crusher"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .barbell,
@@ -581,6 +612,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Overhead Tricep Extension",
+            alternateNames: ["DB Overhead Extension", "Tricep Overhead Extension", "French Press"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -591,6 +623,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dips",
+            alternateNames: ["Parallel Bar Dips", "Tricep Dips", "Chest Dips", "Bodyweight Dips"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [.chest, .shoulders],
             equipment: .bodyweightOnly,
@@ -601,6 +634,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Close Grip Bench Press",
+            alternateNames: ["CGBP", "Close Grip Bench", "Narrow Grip Bench Press"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [.chest],
             equipment: .barbell,
@@ -611,6 +645,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Tricep Kickbacks",
+            alternateNames: ["DB Kickback", "Dumbbell Kickback", "Tricep Kickback"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .dumbbells,
@@ -621,6 +656,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Rope Pushdown",
+            alternateNames: ["Tricep Rope Pushdown", "Cable Rope Extension", "Rope Tricep Extension"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -631,6 +667,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Overhead Cable Extension",
+            alternateNames: ["Cable Overhead Tricep Extension", "Rope Overhead Extension"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -641,6 +678,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Dip Machine",
+            alternateNames: ["Assisted Dip Machine", "Machine Dip", "Tricep Dip Machine"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [.chest],
             equipment: .bodyweightOnly,
@@ -652,6 +690,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Diamond Push-Ups",
+            alternateNames: ["Close Grip Push-Up", "Triangle Push-Up"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [.chest],
             equipment: .bodyweightOnly,
@@ -677,6 +716,7 @@ class ExerciseDatabase {
     let legExercises: [Exercise] = [
         Exercise(
             name: "Barbell Squat",
+            alternateNames: ["Back Squat", "Squat", "BB Squat", "High Bar Squat", "Low Bar Squat"],
             primaryMuscleGroups: [.quads, .glutes],
             secondaryMuscleGroups: [.hamstrings, .lowerBack],
             equipment: .squat,
@@ -687,6 +727,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Leg Press",
+            alternateNames: ["Plate Loaded Leg Press", "45 Degree Leg Press", "Sled Leg Press"],
             primaryMuscleGroups: [.quads, .glutes],
             secondaryMuscleGroups: [.hamstrings],
             equipment: .legPress,
@@ -696,7 +737,19 @@ class ExerciseDatabase {
             videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ"
         ),
         Exercise(
+            name: "Cable Leg Press",
+            alternateNames: ["Seated Leg Press", "Machine Leg Press", "Horizontal Leg Press"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Sit at cable/selectorized leg press machine, press platform away.",
+            formTips: "Great for beginners. Controlled path of motion. Don't lock knees.",
+            videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ"
+        ),
+        Exercise(
             name: "Romanian Deadlift",
+            alternateNames: ["RDL", "Stiff Leg Deadlift", "SLDL", "Romanian DL"],
             primaryMuscleGroups: [.hamstrings, .glutes],
             secondaryMuscleGroups: [.lowerBack],
             equipment: .barbell,
@@ -707,6 +760,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Lunges",
+            alternateNames: ["Forward Lunge", "Dumbbell Lunge", "Static Lunge"],
             primaryMuscleGroups: [.quads, .glutes],
             secondaryMuscleGroups: [.hamstrings],
             equipment: .dumbbells,
@@ -716,7 +770,8 @@ class ExerciseDatabase {
             videoURL: "https://www.youtube.com/watch?v=QOVaHwm-Q6U"
         ),
         Exercise(
-            name: "Leg Curls",
+            name: "Lying Leg Curl",
+            alternateNames: ["Prone Leg Curl", "Leg Curl Machine", "Hamstring Curl"],
             primaryMuscleGroups: [.hamstrings],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -726,7 +781,19 @@ class ExerciseDatabase {
             videoURL: "https://www.youtube.com/watch?v=1Tq3QdYUuHs"
         ),
         Exercise(
+            name: "Seated Leg Curl",
+            alternateNames: ["Sitting Leg Curl", "Seated Hamstring Curl"],
+            primaryMuscleGroups: [.hamstrings],
+            secondaryMuscleGroups: [],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Sit at machine with legs extended, curl heels toward glutes.",
+            formTips: "Keep back against pad. Control both phases of movement.",
+            videoURL: "https://www.youtube.com/watch?v=Orxowest56U"
+        ),
+        Exercise(
             name: "Leg Extensions",
+            alternateNames: ["Leg Extension Machine", "Quad Extension", "Seated Leg Extension"],
             primaryMuscleGroups: [.quads],
             secondaryMuscleGroups: [],
             equipment: .cables,
@@ -737,6 +804,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Calf Raises",
+            alternateNames: ["Standing Calf Raise", "Calf Raise", "Bodyweight Calf Raise"],
             primaryMuscleGroups: [.calves],
             secondaryMuscleGroups: [],
             equipment: .bodyweightOnly,
@@ -747,6 +815,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Bulgarian Split Squat",
+            alternateNames: ["BSS", "Rear Foot Elevated Split Squat", "RFESS", "Single Leg Squat"],
             primaryMuscleGroups: [.quads, .glutes],
             secondaryMuscleGroups: [.hamstrings],
             equipment: .dumbbells,
@@ -757,6 +826,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Hip Thrust",
+            alternateNames: ["Barbell Hip Thrust", "Glute Bridge", "Weighted Hip Thrust"],
             primaryMuscleGroups: [.glutes],
             secondaryMuscleGroups: [.hamstrings],
             equipment: .barbell,
@@ -767,6 +837,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Front Squat",
+            alternateNames: ["Barbell Front Squat", "BB Front Squat"],
             primaryMuscleGroups: [.quads],
             secondaryMuscleGroups: [.glutes, .abs],
             equipment: .barbell,
@@ -777,6 +848,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Hack Squat",
+            alternateNames: ["Hack Squat Machine", "Machine Hack Squat", "Reverse Hack Squat"],
             primaryMuscleGroups: [.quads],
             secondaryMuscleGroups: [.glutes],
             equipment: .bodyweightOnly,
@@ -788,6 +860,7 @@ class ExerciseDatabase {
         ),
         Exercise(
             name: "Goblet Squat",
+            alternateNames: ["DB Goblet Squat", "Dumbbell Goblet Squat", "Kettlebell Squat"],
             primaryMuscleGroups: [.quads, .glutes],
             secondaryMuscleGroups: [.abs],
             equipment: .dumbbells,
@@ -795,6 +868,29 @@ class ExerciseDatabase {
             instructions: "Hold dumbbell at chest, squat down between legs.",
             formTips: "Great for learning squat form. Elbows track inside knees.",
             videoURL: "https://www.youtube.com/watch?v=MeIiIdhvXT4"
+        ),
+        Exercise(
+            name: "Pendulum Squat",
+            alternateNames: ["Pendulum Squat Machine"],
+            primaryMuscleGroups: [.quads],
+            secondaryMuscleGroups: [.glutes],
+            equipment: .bodyweightOnly,
+            specificMachine: .hackSquat,
+            difficulty: .intermediate,
+            instructions: "Stand on pendulum squat machine, lower body using the arc motion.",
+            formTips: "Arc motion keeps constant tension on quads. Excellent for knee-friendly squatting.",
+            videoURL: "https://www.youtube.com/watch?v=NqFuU2fYrS8"
+        ),
+        Exercise(
+            name: "Smith Machine Squat",
+            alternateNames: ["Smith Squat", "Guided Squat"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .smithMachine,
+            difficulty: .beginner,
+            instructions: "Position bar on upper back, unrack and squat down.",
+            formTips: "Fixed path allows different foot positions. Good for beginners or isolation.",
+            videoURL: "https://www.youtube.com/watch?v=b0r1LWtAqiU"
         ),
         Exercise(
             name: "Seated Calf Raise",
@@ -1090,11 +1186,18 @@ class ExerciseDatabase {
 
     // MARK: - Search and Filter
 
-    /// Search exercises by name
+    /// Search exercises by name or alternate names
     func search(query: String) -> [Exercise] {
         guard !query.isEmpty else { return exercises }
         let lowercasedQuery = query.lowercased()
-        return exercises.filter { $0.name.lowercased().contains(lowercasedQuery) }
+        return exercises.filter { exercise in
+            // Search primary name
+            if exercise.name.lowercased().contains(lowercasedQuery) {
+                return true
+            }
+            // Search alternate names
+            return exercise.alternateNames.contains { $0.lowercased().contains(lowercasedQuery) }
+        }
     }
 
     /// Filter exercises by muscle group

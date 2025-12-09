@@ -4,6 +4,7 @@ import Foundation
 struct Exercise: Codable, Identifiable, Hashable {
     let id: UUID
     var name: String
+    var alternateNames: [String] // Alternate names for search (e.g., "Flat Bench" for "Barbell Bench Press")
     var primaryMuscleGroups: Set<MuscleGroup>
     var secondaryMuscleGroups: Set<MuscleGroup>
     var equipment: Equipment
@@ -17,6 +18,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     init(
         id: UUID = UUID(),
         name: String,
+        alternateNames: [String] = [],
         primaryMuscleGroups: Set<MuscleGroup>,
         secondaryMuscleGroups: Set<MuscleGroup> = [],
         equipment: Equipment,
@@ -29,6 +31,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     ) {
         self.id = id
         self.name = name
+        self.alternateNames = alternateNames
         self.primaryMuscleGroups = primaryMuscleGroups
         self.secondaryMuscleGroups = secondaryMuscleGroups
         self.equipment = equipment
