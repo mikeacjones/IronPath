@@ -1144,8 +1144,7 @@ struct ExerciseDetailSheet: View {
                                     // Suppress rest timer when in a superset (timer handled by superset completion)
                                     suppressRestTimer: isInSuperset,
                                     onSetCompleted: isInSuperset ? {
-                                        // For supersets, prompt user to move to next exercise
-                                        // The rest timer will be handled when the full round is complete
+                                        handleSupersetSetCompletion(forSetIndex: setIndex)
                                     } : nil
                                 )
 
@@ -1322,6 +1321,40 @@ struct ExerciseDetailSheet: View {
         for i in 0..<updatedExercise.sets.count {
             updatedExercise.sets[i].setNumber = i + 1
         }
+    }
+
+    /// Handles set completion in a superset/circuit context
+    /// Automatically navigates to the next exercise in the group
+    /// Starts rest timer when the last exercise in a round is completed
+    private func handleSupersetSetCompletion(forSetIndex setIndex: Int) {
+        guard let info = groupInfo else { return }
+
+        // Save current exercise state first
+        onUpdate(updatedExercise)
+
+        // Check if this is the last exercise in the superset
+        if info.isLast {
+            // We've completed a full round - start the group rest timer
+            let completedRound = setIndex + 1 // Set index is 0-based, round is 1-based
+
+            // Gather exercise names for the notification
+            var exerciseNames: [String] = []
+            if let firstExerciseName = nextExerciseInGroup?.exercise.name {
+                exerciseNames.append(firstExerciseName)
+            }
+            exerciseNames.append(exercise.exercise.name)
+
+            restTimerManager.startGroupTimer(
+                duration: info.group.restAfterGroup,
+                groupType: info.group.groupType,
+                exerciseNames: exerciseNames,
+                completedRound: completedRound
+            )
+        }
+
+        // Navigate to the next exercise in the superset
+        // (wraps to first exercise after the last one)
+        onNavigateToNextInGroup?()
     }
 }
 
