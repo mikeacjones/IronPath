@@ -73,8 +73,11 @@ struct ActiveWorkoutView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(currentWorkout.exercises.indices, id: \.self) { index in
                             let exercise = currentWorkout.exercises[index]
-                            ActiveExerciseCard(
+                            let groupInfo = getGroupInfo(for: exercise)
+
+                            ExerciseCardWithGrouping(
                                 exercise: exercise,
+                                groupInfo: groupInfo,
                                 currentPreference: ExercisePreferenceManager.shared.getPreference(for: exercise.exercise.name),
                                 onTap: {
                                     selectedExercise = currentWorkout.exercises[index]
@@ -333,6 +336,105 @@ struct ActiveWorkoutView: View {
         WorkoutDataManager.shared.saveWorkout(completedWorkout)
         completedWorkoutForSummary = completedWorkout
         showCompletionSummary = true
+    }
+
+    /// Get grouping information for an exercise
+    private func getGroupInfo(for exercise: WorkoutExercise) -> ExerciseGroupInfo? {
+        guard let group = currentWorkout.group(for: exercise.id) else { return nil }
+
+        let position = group.position(of: exercise.id) ?? 0
+        let isFirst = group.isFirst(exercise.id)
+        let isLast = group.isLast(exercise.id)
+
+        return ExerciseGroupInfo(
+            group: group,
+            position: position,
+            isFirst: isFirst,
+            isLast: isLast
+        )
+    }
+}
+
+// MARK: - Exercise Group Info
+
+/// Information about an exercise's position within a group
+struct ExerciseGroupInfo {
+    let group: ExerciseGroup
+    let position: Int
+    let isFirst: Bool
+    let isLast: Bool
+}
+
+// MARK: - Exercise Card With Grouping
+
+/// Wrapper that adds grouping visual indicators to exercise cards
+struct ExerciseCardWithGrouping: View {
+    let exercise: WorkoutExercise
+    let groupInfo: ExerciseGroupInfo?
+    let currentPreference: ExerciseSuggestionPreference
+    let onTap: () -> Void
+    let onReplace: () -> Void
+    let onRemove: () -> Void
+    let onSetPreference: (ExerciseSuggestionPreference) -> Void
+
+    private var groupColor: Color {
+        guard let info = groupInfo else { return .clear }
+        switch info.group.groupType.color {
+        case "purple": return .purple
+        case "indigo": return .indigo
+        case "pink": return .pink
+        case "teal": return .teal
+        default: return .purple
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Group indicator bar on the left
+            if let info = groupInfo {
+                VStack(spacing: 0) {
+                    // Top connector (hidden for first item)
+                    Rectangle()
+                        .fill(info.isFirst ? Color.clear : groupColor)
+                        .frame(width: 3)
+
+                    // Group type icon (only on first item)
+                    if info.isFirst {
+                        VStack(spacing: 2) {
+                            Image(systemName: info.group.groupType.iconName)
+                                .font(.caption2)
+                                .foregroundStyle(groupColor)
+                            Text(info.group.groupType.displayName)
+                                .font(.system(size: 8))
+                                .foregroundStyle(groupColor)
+                        }
+                        .frame(width: 40)
+                        .padding(.vertical, 4)
+                    }
+
+                    // Bottom connector (hidden for last item)
+                    Rectangle()
+                        .fill(info.isLast ? Color.clear : groupColor)
+                        .frame(width: 3)
+                }
+                .frame(width: 44)
+            }
+
+            // The actual exercise card
+            ActiveExerciseCard(
+                exercise: exercise,
+                currentPreference: currentPreference,
+                onTap: onTap,
+                onReplace: onReplace,
+                onRemove: onRemove,
+                onSetPreference: onSetPreference
+            )
+            .overlay(
+                // Subtle border for grouped exercises
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(groupInfo != nil ? groupColor.opacity(0.3) : Color.clear, lineWidth: 2)
+            )
+        }
     }
 }
 

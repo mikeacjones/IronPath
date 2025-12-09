@@ -5,6 +5,7 @@ struct Workout: Codable, Identifiable, Hashable {
     let id: UUID
     var name: String
     var exercises: [WorkoutExercise]
+    var exerciseGroups: [ExerciseGroup]? // Optional groupings (supersets, circuits, etc.)
     var createdAt: Date
     var startedAt: Date?
     var completedAt: Date?
@@ -27,10 +28,17 @@ struct Workout: Codable, Identifiable, Hashable {
         }
     }
 
+    /// Check if this workout contains any exercise groups
+    var hasGroups: Bool {
+        guard let groups = exerciseGroups else { return false }
+        return !groups.isEmpty
+    }
+
     init(
         id: UUID = UUID(),
         name: String,
         exercises: [WorkoutExercise] = [],
+        exerciseGroups: [ExerciseGroup]? = nil,
         createdAt: Date = Date(),
         startedAt: Date? = nil,
         completedAt: Date? = nil,
@@ -41,6 +49,7 @@ struct Workout: Codable, Identifiable, Hashable {
         self.id = id
         self.name = name
         self.exercises = exercises
+        self.exerciseGroups = exerciseGroups
         self.createdAt = createdAt
         self.startedAt = startedAt
         self.completedAt = completedAt

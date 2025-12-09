@@ -575,8 +575,24 @@ class AnthropicService {
               "primaryMuscles": ["muscle1"],
               "notes": "Optional coaching notes"
             }
+          ],
+          "exerciseGroups": [
+            {
+              "type": "superset|triset|giantSet|circuit",
+              "exerciseIndices": [0, 1],
+              "restBetweenExercises": 0,
+              "restAfterGroup": 90
+            }
           ]
         }
+
+        SUPERSETS & CIRCUITS:
+        You can group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.
+        - Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time
+        - exerciseIndices are 0-based indices into the exercises array
+        - restBetweenExercises is typically 0 for supersets (exercises done back-to-back)
+        - restAfterGroup is rest after completing one round of the group
+        - Only include exerciseGroups if you want to create supersets/circuits; omit for standard workouts
         """
 
         return prompt
@@ -1134,9 +1150,34 @@ class AnthropicService {
             )
         }
 
+        // Build exercise groups if provided
+        var exerciseGroups: [ExerciseGroup]? = nil
+        if let groupsJSON = workoutJSON.exerciseGroups, !groupsJSON.isEmpty {
+            exerciseGroups = groupsJSON.compactMap { groupJSON -> ExerciseGroup? in
+                // Map exercise indices to exercise IDs
+                let exerciseIds = groupJSON.exerciseIndices.compactMap { index -> UUID? in
+                    guard index >= 0 && index < exercises.count else { return nil }
+                    return exercises[index].id
+                }
+
+                // Only create group if we have at least 2 exercises
+                guard exerciseIds.count >= 2 else { return nil }
+
+                return ExerciseGroup(
+                    groupType: groupJSON.groupType,
+                    name: groupJSON.name,
+                    exerciseIds: exerciseIds,
+                    restBetweenExercises: TimeInterval(groupJSON.restBetweenExercises ?? 0),
+                    restAfterGroup: TimeInterval(groupJSON.restAfterGroup ?? 90),
+                    rounds: groupJSON.rounds ?? 1
+                )
+            }
+        }
+
         return Workout(
             name: workoutJSON.name,
             exercises: exercises,
+            exerciseGroups: exerciseGroups,
             claudeGenerationPrompt: prompt,
             isDeload: workoutJSON.isDeload ?? false
         )

@@ -38,16 +38,18 @@ struct ToolInput: Codable {
 struct WorkoutJSON: Codable {
     let name: String
     let exercises: [ExerciseJSON]
+    let exerciseGroups: [ExerciseGroupJSON]? // Optional groupings (supersets, circuits)
     let isDeload: Bool?  // Claude can recommend a deload workout
 
     enum CodingKeys: String, CodingKey {
-        case name, exercises, isDeload
+        case name, exercises, exerciseGroups, isDeload
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
         exercises = try container.decode([ExerciseJSON].self, forKey: .exercises)
+        exerciseGroups = try container.decodeIfPresent([ExerciseGroupJSON].self, forKey: .exerciseGroups)
         // Handle isDeload as optional bool or string
         if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: .isDeload) {
             isDeload = boolValue
@@ -55,6 +57,73 @@ struct WorkoutJSON: Codable {
             isDeload = stringValue.lowercased() == "true"
         } else {
             isDeload = nil
+        }
+    }
+}
+
+// MARK: - Exercise Group JSON Model
+
+struct ExerciseGroupJSON: Codable {
+    let type: String // "superset", "triset", "giantSet", "circuit"
+    let exerciseIndices: [Int] // Indices of exercises in this group (0-based)
+    let name: String? // Optional custom name
+    let restBetweenExercises: Int? // Seconds of rest between exercises in group
+    let restAfterGroup: Int? // Seconds of rest after completing the group
+    let rounds: Int? // Number of rounds (for circuits)
+
+    enum CodingKeys: String, CodingKey {
+        case type, exerciseIndices, name, restBetweenExercises, restAfterGroup, rounds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        rounds = try container.decodeIfPresent(Int.self, forKey: .rounds)
+
+        // Handle exerciseIndices as array of ints or strings
+        if let intArray = try? container.decode([Int].self, forKey: .exerciseIndices) {
+            exerciseIndices = intArray
+        } else if let stringArray = try? container.decode([String].self, forKey: .exerciseIndices) {
+            exerciseIndices = stringArray.compactMap { Int($0) }
+        } else {
+            exerciseIndices = []
+        }
+
+        // Handle rest times
+        if let intRest = try? container.decodeIfPresent(Int.self, forKey: .restBetweenExercises) {
+            restBetweenExercises = intRest
+        } else if let stringRest = try? container.decodeIfPresent(String.self, forKey: .restBetweenExercises),
+                  let parsed = Int(stringRest) {
+            restBetweenExercises = parsed
+        } else {
+            restBetweenExercises = nil
+        }
+
+        if let intRest = try? container.decodeIfPresent(Int.self, forKey: .restAfterGroup) {
+            restAfterGroup = intRest
+        } else if let stringRest = try? container.decodeIfPresent(String.self, forKey: .restAfterGroup),
+                  let parsed = Int(stringRest) {
+            restAfterGroup = parsed
+        } else {
+            restAfterGroup = nil
+        }
+    }
+
+    /// Convert to ExerciseGroupType enum
+    var groupType: ExerciseGroupType {
+        switch type.lowercased() {
+        case "superset", "super-set", "super set":
+            return .superset
+        case "triset", "tri-set", "tri set":
+            return .triset
+        case "giantset", "giant-set", "giant set":
+            return .giantSet
+        case "circuit":
+            return .circuit
+        default:
+            // Infer from count
+            return ExerciseGroupType.suggestedType(for: exerciseIndices.count)
         }
     }
 }
