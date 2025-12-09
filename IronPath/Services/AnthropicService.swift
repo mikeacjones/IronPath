@@ -387,7 +387,9 @@ class AnthropicService {
         isDeload: Bool = false,
         allowDeloadRecommendation: Bool = false
     ) -> String {
-        var prompt = "Please create a workout for me.\n\n"
+        // Add current date for context
+        let todayStr = Date().formatted(date: .complete, time: .omitted)
+        var prompt = "Today's Date: \(todayStr)\n\nPlease create a workout for me.\n\n"
 
         if isDeload {
             prompt += "⚠️ THIS IS A DELOAD WORKOUT - Use lighter weights (50-70% of normal) for recovery.\n\n"
@@ -402,7 +404,7 @@ class AnthropicService {
             prompt += "My Notes: \(notes)\n\n"
         }
 
-        // Add comprehensive workout history
+        // Add comprehensive workout history with full set breakdown
         if !workoutHistory.isEmpty {
             prompt += "RECENT WORKOUT HISTORY:\n"
 
@@ -415,11 +417,12 @@ class AnthropicService {
                 for exercise in workout.exercises {
                     let completedSets = exercise.sets.filter { $0.completedAt != nil }
                     if !completedSets.isEmpty {
-                        let weights = completedSets.compactMap { $0.weight }
-                        let reps = completedSets.compactMap { $0.actualReps }
-                        let maxWeight = weights.max() ?? 0
-                        let totalReps = reps.reduce(0, +)
-                        prompt += "  - \(exercise.exercise.name): \(completedSets.count) sets, \(Int(maxWeight))lbs max, \(totalReps) total reps\n"
+                        prompt += "  - \(exercise.exercise.name):\n"
+                        for (index, set) in completedSets.enumerated() {
+                            let weight = set.weight.map { "\(Int($0))lbs" } ?? "bodyweight"
+                            let reps = set.actualReps.map { "\($0) reps" } ?? "\(set.targetReps) reps (target)"
+                            prompt += "      Set \(index + 1): \(weight) x \(reps)\n"
+                        }
                     }
                 }
             }
