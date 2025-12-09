@@ -70,7 +70,8 @@ class GymProfileManager: ObservableObject {
     @Published var activeProfileId: UUID? {
         didSet {
             guard !isInitializing else { return }
-            UserDefaults.standard.set(activeProfileId?.uuidString, forKey: "activeGymProfileId")
+            // Save to both local and cloud
+            CloudSyncManager.shared.saveActiveGymProfileId(activeProfileId)
             // Notify GymSettings to reload
             GymSettings.shared.loadFromActiveProfile()
         }
@@ -112,7 +113,7 @@ class GymProfileManager: ObservableObject {
     }
 
     private func loadProfiles() {
-        // Try to load from local storage (CloudKit syncs in background)
+        // Try to load from local storage (CloudKit syncs in background and updates UserDefaults)
         if let data = UserDefaults.standard.data(forKey: "gymProfiles"),
            let decoded = try? JSONDecoder().decode([GymProfile].self, from: data) {
             self.profiles = decoded
@@ -121,9 +122,13 @@ class GymProfileManager: ObservableObject {
             self.profiles = [GymProfile.defaultProfile]
         }
 
-        // Load active profile ID
-        if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
-           let id = UUID(uuidString: idString) {
+        // Load active profile ID - try cloud first, then local
+        if let cloudId = CloudSyncManager.shared.loadActiveGymProfileId(),
+           profiles.contains(where: { $0.id == cloudId }) {
+            self.activeProfileId = cloudId
+        } else if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
+           let id = UUID(uuidString: idString),
+           profiles.contains(where: { $0.id == id }) {
             self.activeProfileId = id
         } else {
             self.activeProfileId = profiles.first?.id
@@ -133,8 +138,8 @@ class GymProfileManager: ObservableObject {
     private func saveProfiles() {
         if let data = try? JSONEncoder().encode(profiles) {
             UserDefaults.standard.set(data, forKey: "gymProfiles")
-            // Sync to CloudKit via GymSettings wrapper
-            CloudSyncManager.shared.saveGymSettings(GymSettings.shared)
+            // Sync to CloudKit - use saveGymProfiles which properly handles timestamps
+            CloudSyncManager.shared.saveGymProfiles(data)
         }
     }
 

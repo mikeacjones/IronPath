@@ -43,6 +43,7 @@ class CloudSyncManager: ObservableObject {
         static let userProfile = "cloud_user_profile"
         static let apiKey = "cloud_api_key"
         static let hasCompletedOnboarding = "cloud_has_completed_onboarding"
+        static let activeGymProfileId = "cloud_active_gym_profile_id"
     }
 
     // CloudKit record types (large data)
@@ -336,6 +337,48 @@ class CloudSyncManager: ObservableObject {
                 return
             }
         }
+    }
+
+    // MARK: - Active Gym Profile ID (KV Store)
+
+    func saveActiveGymProfileId(_ id: UUID?) {
+        let idString = id?.uuidString
+
+        // Always save locally
+        UserDefaults.standard.set(idString, forKey: "activeGymProfileId")
+
+        // Sync to iCloud if available
+        if isICloudAvailable {
+            if let idString = idString {
+                kvStore.set(idString, forKey: KVKeys.activeGymProfileId)
+            } else {
+                kvStore.removeObject(forKey: KVKeys.activeGymProfileId)
+            }
+            kvStore.synchronize()
+        }
+    }
+
+    func loadActiveGymProfileId() -> UUID? {
+        // Try iCloud first if available
+        if isICloudAvailable,
+           let idString = kvStore.string(forKey: KVKeys.activeGymProfileId),
+           let id = UUID(uuidString: idString) {
+            UserDefaults.standard.set(idString, forKey: "activeGymProfileId")
+            return id
+        }
+
+        // Fallback to local
+        if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
+           let id = UUID(uuidString: idString) {
+            // Sync to iCloud if available
+            if isICloudAvailable {
+                kvStore.set(idString, forKey: KVKeys.activeGymProfileId)
+                kvStore.synchronize()
+            }
+            return id
+        }
+
+        return nil
     }
 
     // MARK: - Gym Profiles (CloudKit - potentially large)

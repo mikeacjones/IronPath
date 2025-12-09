@@ -183,11 +183,13 @@ enum AIProviderHelpers {
         prompt += "\n\nADVANCED TRAINING TECHNIQUES:\n"
 
         var required: [String] = []
+        var requiredTypes: [String] = []
         var allowed: [String] = []
 
         if warmupEnabled {
             if techniqueOptions.warmupSetMode == .required {
                 required.append("warmup sets (lighter weight to prepare muscles)")
+                requiredTypes.append("warmup")
             } else {
                 allowed.append("warmup sets")
             }
@@ -196,6 +198,7 @@ enum AIProviderHelpers {
         if dropSetEnabled {
             if techniqueOptions.dropSetMode == .required {
                 required.append("drop sets (reduce weight immediately after failure)")
+                requiredTypes.append("dropSet")
             } else {
                 allowed.append("drop sets")
             }
@@ -204,17 +207,20 @@ enum AIProviderHelpers {
         if restPauseEnabled {
             if techniqueOptions.restPauseMode == .required {
                 required.append("rest-pause sets (brief 10-20s rest then continue)")
+                requiredTypes.append("restPause")
             } else {
                 allowed.append("rest-pause sets")
             }
         }
 
         if !required.isEmpty {
-            prompt += "⚠️ REQUIRED: You MUST include the following techniques in this workout:\n"
+            prompt += "⚠️⚠️⚠️ MANDATORY REQUIREMENT ⚠️⚠️⚠️\n"
+            prompt += "You MUST include the following advanced techniques in this workout. This is NOT optional:\n"
             for technique in required {
-                prompt += "- \(technique)\n"
+                prompt += "• \(technique)\n"
             }
-            prompt += "\n"
+            prompt += "\nFAILURE TO INCLUDE THESE TECHNIQUES WILL RESULT IN AN INVALID WORKOUT.\n"
+            prompt += "At least 1-2 exercises MUST use these required techniques via the \"advancedSets\" array.\n\n"
         }
 
         if !allowed.isEmpty {
@@ -222,17 +228,50 @@ enum AIProviderHelpers {
         }
 
         prompt += """
-        To use advanced sets, add an "advancedSets" array to the exercise:
-        "advancedSets": [
-          {"setNumber": 1, "type": "warmup", "reps": "10", "weight": 50},
-          {"setNumber": 2, "type": "standard", "reps": "8", "weight": 100},
-          {"setNumber": 3, "type": "dropSet", "reps": "8", "weight": 100, "numberOfDrops": 2, "dropPercentage": 0.2},
-          {"setNumber": 4, "type": "restPause", "reps": "8", "weight": 100, "numberOfPauses": 2, "pauseDuration": 15}
-        ]
+        To use advanced sets, add an "advancedSets" array to the exercise. When advancedSets is present, it REPLACES the default sets.
+
+        EXAMPLE - Exercise with warmup and drop set:
+        {
+          "name": "Bench Press",
+          "sets": 4,
+          "reps": "8",
+          "weight": 135,
+          "restSeconds": 90,
+          "equipment": "barbell",
+          "primaryMuscles": ["chest"],
+          "advancedSets": [
+            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 65},
+            {"setNumber": 2, "type": "standard", "reps": "8", "weight": 135},
+            {"setNumber": 3, "type": "standard", "reps": "8", "weight": 135},
+            {"setNumber": 4, "type": "dropSet", "reps": "8", "weight": 135, "numberOfDrops": 2, "dropPercentage": 0.2}
+          ]
+        }
+
+        EXAMPLE - Exercise with rest-pause:
+        {
+          "name": "Leg Press",
+          "sets": 3,
+          "reps": "10",
+          "weight": 200,
+          "restSeconds": 120,
+          "equipment": "legPress",
+          "primaryMuscles": ["quadriceps"],
+          "advancedSets": [
+            {"setNumber": 1, "type": "standard", "reps": "10", "weight": 200},
+            {"setNumber": 2, "type": "standard", "reps": "10", "weight": 200},
+            {"setNumber": 3, "type": "restPause", "reps": "10", "weight": 200, "numberOfPauses": 2, "pauseDuration": 15}
+          ]
+        }
+
+        Valid set types: "standard", "warmup", "dropSet", "restPause"
         """
 
         if fitnessLevel == .beginner && required.isEmpty {
             prompt += "\nNote: User is a beginner - only use advanced techniques sparingly unless specifically required."
+        }
+
+        if !required.isEmpty {
+            prompt += "\n\n🔴 REMINDER: You MUST include advancedSets with types [\(requiredTypes.joined(separator: ", "))] on at least 1-2 exercises. Do not omit this requirement."
         }
 
         return prompt

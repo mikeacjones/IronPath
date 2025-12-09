@@ -149,13 +149,15 @@ struct WorkoutView: View {
                 }
             }
             .navigationTitle("Workout")
-            .navigationDestination(item: activeWorkout) { workout in
-                ActiveWorkoutView(workout: workout, userProfile: appState.userProfile, onComplete: { _ in
-                    _ = activeWorkoutManager.completeWorkout()
-                    pendingWorkoutManager.clearPendingWorkout()
-                }, onCancel: {
-                    activeWorkoutManager.cancelWorkout()
-                })
+            .fullScreenCover(item: activeWorkout) { workout in
+                NavigationStack {
+                    ActiveWorkoutView(workout: workout, userProfile: appState.userProfile, onComplete: { _ in
+                        _ = activeWorkoutManager.completeWorkout()
+                        pendingWorkoutManager.clearPendingWorkout()
+                    }, onCancel: {
+                        activeWorkoutManager.cancelWorkout()
+                    })
+                }
             }
             .sheet(isPresented: $showWorkoutSetup) {
                 WorkoutSetupView(

@@ -51,8 +51,6 @@ struct ActiveWorkoutView: View {
         currentWorkout.exercises.allSatisfy { $0.isCompleted }
     }
 
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
-
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -64,9 +62,8 @@ struct ActiveWorkoutView: View {
                 )
 
                 // Global rest timer (visible when timer is active)
-                if restTimerManager.isActive {
-                    GlobalRestTimerBar()
-                }
+                // Isolated in its own view to prevent re-renders from affecting exercise list
+                RestTimerBarContainer()
 
                 // Exercise list
                 ScrollView {
@@ -139,10 +136,8 @@ struct ActiveWorkoutView: View {
                 .background(Color(.systemBackground))
             }
 
-            // Rest complete banner overlay
-            if restTimerManager.showCompletionBanner {
-                RestCompleteBanner()
-            }
+            // Rest complete banner overlay (isolated to prevent re-renders)
+            RestCompleteBannerContainer()
         }
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -153,15 +148,17 @@ struct ActiveWorkoutView: View {
                     showCancelConfirmation = true
                 }
                 .foregroundStyle(.red)
+                .confirmationDialog("Cancel Workout?", isPresented: $showCancelConfirmation) {
+                    Button("Cancel Workout", role: .destructive) {
+                        // Stop any active rest timers and cancel pending notifications
+                        RestTimerManager.shared.skipTimer()
+                        onCancel()
+                    }
+                    Button("Keep Going", role: .cancel) { }
+                } message: {
+                    Text("Are you sure you want to cancel this workout? Your progress will be lost.")
+                }
             }
-        }
-        .confirmationDialog("Cancel Workout?", isPresented: $showCancelConfirmation) {
-            Button("Cancel Workout", role: .destructive) {
-                onCancel()
-            }
-            Button("Keep Going", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to cancel this workout? Your progress will be lost.")
         }
         .confirmationDialog(
             "Remove Exercise?",
@@ -178,18 +175,28 @@ struct ActiveWorkoutView: View {
             Text("Remove \(exercise.exercise.name) from this workout? Any logged sets will be lost.")
         }
         .sheet(item: $selectedExercise) { exercise in
-            let groupInfo = getGroupInfo(for: exercise)
-            let nextExercise = getNextExerciseInGroup(for: exercise)
+            // Get current version of exercise from workout (in case it was updated)
+            let currentExercise = currentWorkout.exercises.first { $0.id == exercise.id } ?? exercise
+            let groupInfo = getGroupInfo(for: currentExercise)
+            let nextExercise = getNextExerciseInGroup(for: currentExercise)
 
             ExerciseDetailSheet(
-                exercise: exercise,
+                exercise: currentExercise,
                 onUpdate: { updatedExercise in
                     updateExercise(updatedExercise)
                 },
+                onUpdateWithoutDismiss: { updatedExercise in
+                    // Update without dismissing - used for superset navigation
+                    updateExercise(updatedExercise, dismissSheet: false)
+                },
                 groupInfo: groupInfo,
-                onNavigateToNextInGroup: nextExercise != nil ? {
-                    // Navigate to the next exercise in the superset
-                    selectedExercise = nextExercise
+                onNavigateToNextInGroup: groupInfo != nil ? {
+                    // Smart navigation: find next exercise with incomplete sets
+                    // Handles rest timer when completing a round
+                    // Get fresh exercise state from currentWorkout
+                    if let freshExercise = currentWorkout.exercises.first(where: { $0.id == currentExercise.id }) {
+                        navigateToNextInSuperset(from: freshExercise)
+                    }
                 } : nil,
                 nextExerciseInGroup: nextExercise
             )
@@ -252,6 +259,27 @@ struct ActiveWorkoutView: View {
         // Don't allow removing the last exercise
         guard currentWorkout.exercises.count > 1 else { return }
 
+        // Remove exercise from any group it belongs to
+        if var groups = currentWorkout.exerciseGroups {
+            for i in groups.indices {
+                if groups[i].exerciseIds.contains(exercise.id) {
+                    // Remove the exercise from this group
+                    groups[i].exerciseIds.removeAll { $0 == exercise.id }
+                }
+            }
+
+            // Remove any groups that now have only 1 or 0 exercises
+            // (a group with 1 exercise is no longer a valid superset/circuit)
+            groups.removeAll { $0.exerciseIds.count <= 1 }
+
+            // Update group types based on new exercise counts
+            for i in groups.indices {
+                groups[i].groupType = ExerciseGroupType.suggestedType(for: groups[i].exerciseIds.count)
+            }
+
+            currentWorkout.exerciseGroups = groups.isEmpty ? nil : groups
+        }
+
         currentWorkout.exercises.removeAll { $0.id == exercise.id }
 
         // Reindex remaining exercises
@@ -268,11 +296,13 @@ struct ActiveWorkoutView: View {
         activeWorkoutManager.updateWorkout(currentWorkout)
     }
 
-    private func updateExercise(_ updatedExercise: WorkoutExercise) {
+    private func updateExercise(_ updatedExercise: WorkoutExercise, dismissSheet: Bool = true) {
         if let index = currentWorkout.exercises.firstIndex(where: { $0.id == updatedExercise.id }) {
             currentWorkout.exercises[index] = updatedExercise
         }
-        selectedExercise = nil
+        if dismissSheet {
+            selectedExercise = nil
+        }
         persistWorkoutState()
     }
 
@@ -341,6 +371,9 @@ struct ActiveWorkoutView: View {
     }
 
     private func finishWorkout() {
+        // Stop any active rest timers and cancel pending notifications
+        RestTimerManager.shared.skipTimer()
+
         var completedWorkout = currentWorkout
         completedWorkout.completedAt = Date()
         WorkoutDataManager.shared.saveWorkout(completedWorkout)
@@ -364,26 +397,72 @@ struct ActiveWorkoutView: View {
         )
     }
 
-    /// Get the next exercise in the group (for superset navigation)
+    /// Get the next exercise in the group that still has incomplete sets (for superset navigation)
+    /// Returns nil if all exercises in the superset are fully complete
     private func getNextExerciseInGroup(for exercise: WorkoutExercise) -> WorkoutExercise? {
+        return findNextExerciseWithIncompleteSets(for: exercise)?.exercise
+    }
+
+    /// Find the next exercise in the group that has incomplete sets
+    /// Returns the exercise, its position, and whether navigation wraps around (completing a round)
+    private func findNextExerciseWithIncompleteSets(for exercise: WorkoutExercise) -> (exercise: WorkoutExercise, position: Int, wrapsAround: Bool)? {
         guard let group = currentWorkout.group(for: exercise.id),
               let currentPosition = group.position(of: exercise.id) else {
             return nil
         }
 
-        // If this is the last exercise in the group, wrap around to the first
-        let nextPosition: Int
-        if currentPosition >= group.exerciseCount - 1 {
-            nextPosition = 0 // Wrap to first exercise for next round
-        } else {
-            nextPosition = currentPosition + 1
+        let exerciseCount = group.exerciseCount
+
+        // Try each position in order, starting from the next one and wrapping around
+        for offset in 1..<exerciseCount {
+            let candidatePosition = (currentPosition + offset) % exerciseCount
+
+            guard candidatePosition < group.exerciseIds.count else { continue }
+            let candidateExerciseId = group.exerciseIds[candidatePosition]
+
+            // Get the exercise and check if it has incomplete sets
+            if let candidateExercise = currentWorkout.exercises.first(where: { $0.id == candidateExerciseId }) {
+                let hasIncompleteSets = candidateExercise.sets.contains { !$0.isCompleted }
+                if hasIncompleteSets {
+                    // Check if we wrapped around (candidate position is <= current position)
+                    let wrapsAround = candidatePosition <= currentPosition
+                    return (candidateExercise, candidatePosition, wrapsAround)
+                }
+            }
         }
 
-        // Get the exercise at the next position
-        guard nextPosition < group.exerciseIds.count else { return nil }
-        let nextExerciseId = group.exerciseIds[nextPosition]
+        // All other exercises in the superset are complete
+        return nil
+    }
 
-        return currentWorkout.exercises.first { $0.id == nextExerciseId }
+    /// Navigate to next exercise in superset, handling rest timer if completing a round
+    private func navigateToNextInSuperset(from exercise: WorkoutExercise) {
+        guard let group = currentWorkout.group(for: exercise.id) else {
+            return
+        }
+
+        // Find the next exercise with incomplete sets
+        guard let nextInfo = findNextExerciseWithIncompleteSets(for: exercise) else {
+            // All exercises complete - don't navigate
+            return
+        }
+
+        // If wrapping around, we've completed a round - start rest timer
+        if nextInfo.wrapsAround {
+            // Count completed sets in current exercise to determine round number
+            let completedSets = exercise.sets.filter { $0.isCompleted }.count
+            let completedRound = completedSets
+
+            RestTimerManager.shared.startGroupTimer(
+                duration: group.restAfterGroup,
+                groupType: group.groupType,
+                exerciseNames: [nextInfo.exercise.exercise.name, exercise.exercise.name],
+                completedRound: completedRound
+            )
+        }
+
+        // Navigate to the next exercise (get fresh from currentWorkout)
+        selectedExercise = currentWorkout.exercises.first { $0.id == nextInfo.exercise.id }
     }
 }
 
@@ -1025,6 +1104,7 @@ struct ActiveExerciseCard: View {
 struct ExerciseDetailSheet: View {
     let exercise: WorkoutExercise
     let onUpdate: (WorkoutExercise) -> Void
+    let onUpdateWithoutDismiss: ((WorkoutExercise) -> Void)?
     let groupInfo: ExerciseGroupInfo?
     let onNavigateToNextInGroup: (() -> Void)?
     let nextExerciseInGroup: WorkoutExercise?
@@ -1042,12 +1122,14 @@ struct ExerciseDetailSheet: View {
     init(
         exercise: WorkoutExercise,
         onUpdate: @escaping (WorkoutExercise) -> Void,
+        onUpdateWithoutDismiss: ((WorkoutExercise) -> Void)? = nil,
         groupInfo: ExerciseGroupInfo? = nil,
         onNavigateToNextInGroup: (() -> Void)? = nil,
         nextExerciseInGroup: WorkoutExercise? = nil
     ) {
         self.exercise = exercise
         self.onUpdate = onUpdate
+        self.onUpdateWithoutDismiss = onUpdateWithoutDismiss
         self.groupInfo = groupInfo
         self.onNavigateToNextInGroup = onNavigateToNextInGroup
         self.nextExerciseInGroup = nextExerciseInGroup
@@ -1066,6 +1148,12 @@ struct ExerciseDetailSheet: View {
                             nextExerciseName: nextExerciseInGroup?.exercise.name
                         )
                         .padding(.horizontal)
+
+                        // Group rest timer (shown when rest is active for superset/circuit)
+                        if restTimerManager.isActive && restTimerManager.isGroupTimer {
+                            GroupRestTimerView()
+                                .padding(.horizontal)
+                        }
                     }
 
                     // Exercise header
@@ -1143,6 +1231,8 @@ struct ExerciseDetailSheet: View {
                                     },
                                     // Suppress rest timer when in a superset (timer handled by superset completion)
                                     suppressRestTimer: isInSuperset,
+                                    // Don't start rest timer after the last set of an exercise
+                                    isLastSet: setIndex == updatedExercise.sets.count - 1,
                                     onSetCompleted: isInSuperset ? {
                                         handleSupersetSetCompletion(forSetIndex: setIndex)
                                     } : nil
@@ -1272,46 +1362,57 @@ struct ExerciseDetailSheet: View {
 
     private func addSet(type: SetType) {
         let lastSet = updatedExercise.sets.last
-        let newSetNumber = updatedExercise.sets.count + 1
+        // Find first working set for warmup weight reference
+        let firstWorkingSet = updatedExercise.sets.first { $0.setType != .warmup }
 
         let newSet: ExerciseSet
         switch type {
         case .standard:
             newSet = ExerciseSet(
-                setNumber: newSetNumber,
+                setNumber: 0, // Will be renumbered
                 setType: .standard,
                 targetReps: lastSet?.targetReps ?? 10,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90
             )
+            updatedExercise.sets.append(newSet)
         case .warmup:
+            // Use working set weight for warmup calculation, or last set as fallback
+            let referenceWeight = firstWorkingSet?.weight ?? lastSet?.weight ?? 100
             newSet = ExerciseSet.createWarmupSet(
-                setNumber: newSetNumber,
+                setNumber: 0, // Will be renumbered
                 targetReps: 10,
-                weight: (lastSet?.weight ?? 100) * 0.5, // 50% of working weight
+                weight: referenceWeight * 0.5, // 50% of working weight
                 restPeriod: 60
             )
+            // Insert warmup at the beginning (before all other sets)
+            updatedExercise.sets.insert(newSet, at: 0)
         case .dropSet:
             newSet = ExerciseSet.createDropSet(
-                setNumber: newSetNumber,
+                setNumber: 0, // Will be renumbered
                 targetReps: lastSet?.targetReps ?? 8,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90,
                 numberOfDrops: 2,
                 dropPercentage: 0.2
             )
+            updatedExercise.sets.append(newSet)
         case .restPause:
             newSet = ExerciseSet.createRestPauseSet(
-                setNumber: newSetNumber,
+                setNumber: 0, // Will be renumbered
                 targetReps: lastSet?.targetReps ?? 8,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90,
                 numberOfPauses: 2,
                 pauseDuration: 15
             )
+            updatedExercise.sets.append(newSet)
         }
 
-        updatedExercise.sets.append(newSet)
+        // Renumber all sets after insertion
+        for i in updatedExercise.sets.indices {
+            updatedExercise.sets[i].setNumber = i + 1
+        }
     }
 
     private func removeSet(at index: Int) {
@@ -1324,36 +1425,20 @@ struct ExerciseDetailSheet: View {
     }
 
     /// Handles set completion in a superset/circuit context
-    /// Automatically navigates to the next exercise in the group
-    /// Starts rest timer when the last exercise in a round is completed
+    /// Automatically navigates to the next exercise in the group that has incomplete sets
+    /// Starts rest timer when completing a round (wrapping back to an earlier exercise)
     private func handleSupersetSetCompletion(forSetIndex setIndex: Int) {
         guard let info = groupInfo else { return }
 
-        // Save current exercise state first
-        onUpdate(updatedExercise)
-
-        // Check if this is the last exercise in the superset
-        if info.isLast {
-            // We've completed a full round - start the group rest timer
-            let completedRound = setIndex + 1 // Set index is 0-based, round is 1-based
-
-            // Gather exercise names for the notification
-            var exerciseNames: [String] = []
-            if let firstExerciseName = nextExerciseInGroup?.exercise.name {
-                exerciseNames.append(firstExerciseName)
-            }
-            exerciseNames.append(exercise.exercise.name)
-
-            restTimerManager.startGroupTimer(
-                duration: info.group.restAfterGroup,
-                groupType: info.group.groupType,
-                exerciseNames: exerciseNames,
-                completedRound: completedRound
-            )
+        // Save current exercise state without dismissing (so navigation works)
+        if let updateWithoutDismiss = onUpdateWithoutDismiss {
+            updateWithoutDismiss(updatedExercise)
+        } else {
+            onUpdate(updatedExercise)
         }
 
-        // Navigate to the next exercise in the superset
-        // (wraps to first exercise after the last one)
+        // Navigation and rest timer are handled by the callback from ActiveWorkoutView
+        // which has access to currentWorkout and can determine if we're completing a round
         onNavigateToNextInGroup?()
     }
 }
@@ -2063,7 +2148,8 @@ struct SetRowView: View {
             // Rest timer appears inline after completing a set (only for this specific set)
             if isRestTimerActiveForThisSet {
                 RestTimerView(
-                    duration: restTimerManager.remainingTime,
+                    duration: restTimerManager.totalDuration,
+                    remainingTime: restTimerManager.remainingTime,
                     onComplete: {
                         // Handled by RestTimerManager
                     },
@@ -2791,27 +2877,28 @@ struct WeightOptionRow: View {
 
 struct RestTimerView: View {
     let duration: TimeInterval
+    let remainingTime: TimeInterval
     let onComplete: () -> Void
     let onSkip: () -> Void
 
-    @State private var remainingTime: TimeInterval
-    @State private var timer: Timer?
-    @State private var isRunning: Bool = true
+    @ObservedObject private var timerManager = RestTimerManager.shared
 
-    init(duration: TimeInterval, onComplete: @escaping () -> Void, onSkip: @escaping () -> Void) {
+    init(duration: TimeInterval, remainingTime: TimeInterval, onComplete: @escaping () -> Void, onSkip: @escaping () -> Void) {
         self.duration = duration
+        self.remainingTime = remainingTime
         self.onComplete = onComplete
         self.onSkip = onSkip
-        _remainingTime = State(initialValue: duration)
     }
 
     var progress: Double {
-        1 - (remainingTime / duration)
+        guard duration > 0 else { return 0 }
+        return 1 - (timerManager.remainingTime / duration)
     }
 
     var formattedTime: String {
-        let minutes = Int(remainingTime) / 60
-        let seconds = Int(remainingTime) % 60
+        let time = timerManager.remainingTime
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
 
@@ -2828,7 +2915,7 @@ struct RestTimerView: View {
                     .stroke(Color.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 50, height: 50)
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: progress)
+                    .animation(.linear(duration: 0.1), value: progress)
 
                 Text(formattedTime)
                     .font(.caption)
@@ -2841,7 +2928,7 @@ struct RestTimerView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
 
-                Text(remainingTime > 0 ? "Take a breather..." : "Ready for next set!")
+                Text(timerManager.remainingTime > 0 ? "Take a breather..." : "Ready for next set!")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -2851,7 +2938,7 @@ struct RestTimerView: View {
             // Control buttons
             HStack(spacing: 12) {
                 Button {
-                    addTime(30)
+                    timerManager.addTime(30)
                 } label: {
                     Text("+30s")
                         .font(.caption)
@@ -2861,7 +2948,7 @@ struct RestTimerView: View {
                 .controlSize(.small)
 
                 Button {
-                    skipTimer()
+                    onSkip()
                 } label: {
                     Text("Skip")
                         .font(.caption)
@@ -2873,37 +2960,119 @@ struct RestTimerView: View {
         }
         .padding()
         .background(Color.blue.opacity(0.1))
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
-        }
     }
+}
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if remainingTime > 0 {
-                remainingTime -= 1
-            } else {
-                stopTimer()
-                onComplete()
+// MARK: - Group Rest Timer View
+
+/// Rest timer displayed in exercise detail sheet for superset/circuit rest periods
+struct GroupRestTimerView: View {
+    @ObservedObject private var timerManager = RestTimerManager.shared
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Timer circle with group type color
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                    .frame(width: 60, height: 60)
+
+                Circle()
+                    .trim(from: 0, to: timerManager.progress)
+                    .stroke(groupColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .frame(width: 60, height: 60)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 0.1), value: timerManager.progress)
+
+                Text(timerManager.formattedTime)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    if let groupType = timerManager.groupType {
+                        Image(systemName: groupType.iconName)
+                            .foregroundStyle(groupColor)
+                    }
+                    Text("\(timerManager.groupType?.displayName ?? "Group") Rest")
+                        .font(.headline)
+                        .foregroundStyle(groupColor)
+                }
+
+                Text("Round \(timerManager.setNumber) complete")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if let nextExercise = timerManager.nextExerciseName {
+                    Text("Next: \(nextExercise)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Control buttons
+            VStack(spacing: 8) {
+                Button {
+                    timerManager.addTime(30)
+                } label: {
+                    Text("+30s")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button {
+                    timerManager.skipTimer()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(groupColor)
+                .controlSize(.small)
             }
         }
+        .padding()
+        .background(groupColor.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(groupColor.opacity(0.3), lineWidth: 1)
+        )
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private var groupColor: Color {
+        timerManager.groupType?.swiftUIColor ?? .blue
     }
+}
 
-    private func addTime(_ seconds: TimeInterval) {
-        remainingTime += seconds
+// MARK: - Rest Timer Container Views
+
+/// Container that isolates rest timer observation from parent view
+/// This prevents timer updates from re-rendering the exercise list and closing menus
+struct RestTimerBarContainer: View {
+    @ObservedObject private var timerManager = RestTimerManager.shared
+
+    var body: some View {
+        if timerManager.isActive {
+            GlobalRestTimerBar()
+        }
     }
+}
 
-    private func skipTimer() {
-        stopTimer()
-        onSkip()
+/// Container that isolates rest completion banner observation from parent view
+struct RestCompleteBannerContainer: View {
+    @ObservedObject private var timerManager = RestTimerManager.shared
+
+    var body: some View {
+        if timerManager.showCompletionBanner {
+            RestCompleteBanner()
+        }
     }
 }
 
@@ -2977,9 +3146,10 @@ struct GlobalRestTimerBar: View {
             GeometryReader { geometry in
                 Rectangle()
                     .fill(Color.blue.opacity(0.3))
-                    .frame(width: geometry.size.width * timerManager.progress)
+                    .frame(width: geometry.size.width * timerManager.progress, alignment: .leading)
             }
-            .allowsHitTesting(false)
+            .allowsHitTesting(false),
+            alignment: .leading
         )
     }
 }

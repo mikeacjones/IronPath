@@ -14,6 +14,8 @@ struct AdvancedSetRowView: View {
     let onRepsChanged: ((Int, Int) -> Void)?
     /// When true, the rest timer will not auto-start after completing a set (used for supersets)
     let suppressRestTimer: Bool
+    /// When true, this is the last set of the exercise (no rest timer needed after)
+    let isLastSet: Bool
     /// Called after a set is completed (used to notify parent for superset handling)
     let onSetCompleted: (() -> Void)?
 
@@ -34,6 +36,7 @@ struct AdvancedSetRowView: View {
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
         suppressRestTimer: Bool = false,
+        isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
@@ -44,6 +47,7 @@ struct AdvancedSetRowView: View {
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
         self.suppressRestTimer = suppressRestTimer
+        self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
 
         let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
@@ -78,6 +82,7 @@ struct AdvancedSetRowView: View {
                     onWeightChanged: onWeightChanged,
                     onRepsChanged: onRepsChanged,
                     suppressRestTimer: suppressRestTimer,
+                    isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted
                 )
 
@@ -92,6 +97,7 @@ struct AdvancedSetRowView: View {
                     isCompleted: $isCompleted,
                     onUpdate: onUpdate,
                     suppressRestTimer: suppressRestTimer,
+                    isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted
                 )
 
@@ -103,6 +109,7 @@ struct AdvancedSetRowView: View {
                     equipment: equipment,
                     onUpdate: onUpdate,
                     suppressRestTimer: suppressRestTimer,
+                    isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted
                 )
 
@@ -113,6 +120,7 @@ struct AdvancedSetRowView: View {
                     exerciseName: exerciseName,
                     equipment: equipment,
                     onUpdate: onUpdate,
+                    isLastSet: isLastSet,
                     suppressRestTimer: suppressRestTimer,
                     onSetCompleted: onSetCompleted
                 )
@@ -121,7 +129,8 @@ struct AdvancedSetRowView: View {
             // Rest timer appears inline after completing a set
             if isRestTimerActiveForThisSet {
                 RestTimerView(
-                    duration: restTimerManager.remainingTime,
+                    duration: restTimerManager.totalDuration,
+                    remainingTime: restTimerManager.remainingTime,
                     onComplete: { },
                     onSkip: {
                         restTimerManager.skipTimer()
@@ -182,6 +191,7 @@ struct StandardSetRow: View {
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
     let suppressRestTimer: Bool
+    let isLastSet: Bool
     let onSetCompleted: (() -> Void)?
 
     @State private var showPlateCalculator = false
@@ -199,6 +209,7 @@ struct StandardSetRow: View {
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
         suppressRestTimer: Bool = false,
+        isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
@@ -212,6 +223,7 @@ struct StandardSetRow: View {
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
         self.suppressRestTimer = suppressRestTimer
+        self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
     }
 
@@ -232,6 +244,10 @@ struct StandardSetRow: View {
                 showPlateCalculator: $showPlateCalculator,
                 onWeightChanged: { newWeight in
                     onWeightChanged?(setIndex, newWeight)
+                    // Sync weight change to parent immediately
+                    var updatedSet = set
+                    updatedSet.weight = newWeight
+                    onUpdate(updatedSet)
                 }
             )
 
@@ -241,6 +257,10 @@ struct StandardSetRow: View {
                 targetReps: set.targetReps,
                 onRepsChanged: { newReps in
                     onRepsChanged?(setIndex, newReps)
+                    // Sync reps change to parent immediately
+                    var updatedSet = set
+                    updatedSet.actualReps = newReps
+                    onUpdate(updatedSet)
                 }
             )
 
@@ -254,11 +274,22 @@ struct StandardSetRow: View {
         .padding()
         .background(isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
         .sheet(isPresented: $showPlateCalculator) {
-            PlateCalculatorView(
-                totalWeight: Double(weight) ?? 0,
-                equipment: equipment,
-                exerciseName: exerciseName
-            )
+            if equipment == .cables {
+                CableWeightCalculatorView(
+                    targetWeight: Double(weight) ?? 0,
+                    exerciseName: exerciseName,
+                    onSelectWeight: { selectedWeight in
+                        weight = String(format: "%.0f", selectedWeight)
+                        showPlateCalculator = false
+                    }
+                )
+            } else {
+                PlateCalculatorView(
+                    totalWeight: Double(weight) ?? 0,
+                    equipment: equipment,
+                    exerciseName: exerciseName
+                )
+            }
         }
     }
 
@@ -274,8 +305,8 @@ struct StandardSetRow: View {
             }
             updatedSet.completedAt = Date()
 
-            // Only start rest timer if not suppressed (e.g., for supersets)
-            if !suppressRestTimer {
+            // Only start rest timer if not suppressed (e.g., for supersets) and not the last set
+            if !suppressRestTimer && !isLastSet {
                 restTimerManager.startTimer(
                     duration: set.restPeriod,
                     exerciseName: exerciseName,
@@ -283,14 +314,20 @@ struct StandardSetRow: View {
                 )
             }
 
-            // Notify parent that set was completed
-            onSetCompleted?()
         } else {
             updatedSet.completedAt = nil
         }
 
         isCompleted.toggle()
+
+        // Update the set data BEFORE notifying completion
+        // This ensures the parent has the updated set when handling superset navigation
         onUpdate(updatedSet)
+
+        // Notify parent that set was completed (for superset navigation)
+        if updatedSet.completedAt != nil {
+            onSetCompleted?()
+        }
     }
 }
 
@@ -306,6 +343,7 @@ struct WarmupSetRow: View {
     @Binding var isCompleted: Bool
     let onUpdate: (ExerciseSet) -> Void
     let suppressRestTimer: Bool
+    let isLastSet: Bool
     let onSetCompleted: (() -> Void)?
 
     @State private var showPlateCalculator = false
@@ -321,6 +359,7 @@ struct WarmupSetRow: View {
         isCompleted: Binding<Bool>,
         onUpdate: @escaping (ExerciseSet) -> Void,
         suppressRestTimer: Bool = false,
+        isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
@@ -332,6 +371,7 @@ struct WarmupSetRow: View {
         self._isCompleted = isCompleted
         self.onUpdate = onUpdate
         self.suppressRestTimer = suppressRestTimer
+        self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
     }
 
@@ -353,14 +393,24 @@ struct WarmupSetRow: View {
                 equipment: equipment,
                 exerciseName: exerciseName,
                 showPlateCalculator: $showPlateCalculator,
-                onWeightChanged: { _ in }
+                onWeightChanged: { newWeight in
+                    // Sync weight change to parent immediately
+                    var updatedSet = set
+                    updatedSet.weight = newWeight
+                    onUpdate(updatedSet)
+                }
             )
 
             // Reps input
             RepsInputView(
                 reps: $reps,
                 targetReps: set.targetReps,
-                onRepsChanged: { _ in }
+                onRepsChanged: { newReps in
+                    // Sync reps change to parent immediately
+                    var updatedSet = set
+                    updatedSet.actualReps = newReps
+                    onUpdate(updatedSet)
+                }
             )
 
             Spacer()
@@ -373,11 +423,22 @@ struct WarmupSetRow: View {
         .padding()
         .background(isCompleted ? Color.orange.opacity(0.1) : Color.orange.opacity(0.05))
         .sheet(isPresented: $showPlateCalculator) {
-            PlateCalculatorView(
-                totalWeight: Double(weight) ?? 0,
-                equipment: equipment,
-                exerciseName: exerciseName
-            )
+            if equipment == .cables {
+                CableWeightCalculatorView(
+                    targetWeight: Double(weight) ?? 0,
+                    exerciseName: exerciseName,
+                    onSelectWeight: { selectedWeight in
+                        weight = String(format: "%.0f", selectedWeight)
+                        showPlateCalculator = false
+                    }
+                )
+            } else {
+                PlateCalculatorView(
+                    totalWeight: Double(weight) ?? 0,
+                    equipment: equipment,
+                    exerciseName: exerciseName
+                )
+            }
         }
     }
 
@@ -393,8 +454,8 @@ struct WarmupSetRow: View {
             }
             updatedSet.completedAt = Date()
 
-            // Only start rest timer if not suppressed (e.g., for supersets)
-            if !suppressRestTimer {
+            // Only start rest timer if not suppressed (e.g., for supersets) and not the last set
+            if !suppressRestTimer && !isLastSet {
                 restTimerManager.startTimer(
                     duration: set.restPeriod,
                     exerciseName: exerciseName,
@@ -402,14 +463,19 @@ struct WarmupSetRow: View {
                 )
             }
 
-            // Notify parent that set was completed
-            onSetCompleted?()
         } else {
             updatedSet.completedAt = nil
         }
 
         isCompleted.toggle()
+
+        // Update the set data BEFORE notifying completion
+        // This ensures the parent has the updated set when handling superset navigation
         onUpdate(updatedSet)
+
+        // Note: Warmup sets do NOT trigger onSetCompleted/superset navigation
+        // Warmup sets should all be completed on an exercise before moving to working sets
+        // The superset rotation only applies to working sets (standard, drop, rest-pause)
     }
 }
 
@@ -422,6 +488,7 @@ struct DropSetRow: View {
     let equipment: Equipment
     let onUpdate: (ExerciseSet) -> Void
     let suppressRestTimer: Bool
+    let isLastSet: Bool
     let onSetCompleted: (() -> Void)?
 
     @State private var localConfig: DropSetConfig
@@ -435,6 +502,7 @@ struct DropSetRow: View {
         equipment: Equipment,
         onUpdate: @escaping (ExerciseSet) -> Void,
         suppressRestTimer: Bool = false,
+        isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
@@ -443,6 +511,7 @@ struct DropSetRow: View {
         self.equipment = equipment
         self.onUpdate = onUpdate
         self.suppressRestTimer = suppressRestTimer
+        self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
         _localConfig = State(initialValue: set.dropSetConfig ?? DropSetConfig())
     }
@@ -495,8 +564,8 @@ struct DropSetRow: View {
                         if updatedDrop.isCompleted && index < localConfig.drops.count - 1 {
                             // No rest between drops - that's the point of drop sets!
                         } else if updatedDrop.isCompleted && index == localConfig.drops.count - 1 {
-                            // Start normal rest after completing the entire drop set (unless suppressed)
-                            if !suppressRestTimer {
+                            // Start normal rest after completing the entire drop set (unless suppressed or last set)
+                            if !suppressRestTimer && !isLastSet {
                                 restTimerManager.startTimer(
                                     duration: set.restPeriod,
                                     exerciseName: exerciseName,
@@ -595,6 +664,12 @@ struct DropEntryRow: View {
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 60)
+                .onChange(of: weight) { _, newValue in
+                    // Sync weight change to parent immediately
+                    var updatedDrop = drop
+                    updatedDrop.actualWeight = Double(newValue)
+                    onUpdate(updatedDrop)
+                }
 
             Text("×")
                 .foregroundStyle(.secondary)
@@ -604,6 +679,12 @@ struct DropEntryRow: View {
                 .keyboardType(.numberPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 50)
+                .onChange(of: reps) { _, newValue in
+                    // Sync reps change to parent immediately
+                    var updatedDrop = drop
+                    updatedDrop.actualReps = Int(newValue)
+                    onUpdate(updatedDrop)
+                }
 
             Spacer()
 
@@ -643,6 +724,7 @@ struct RestPauseSetRow: View {
     let exerciseName: String
     let equipment: Equipment
     let onUpdate: (ExerciseSet) -> Void
+    let isLastSet: Bool
     let suppressRestTimer: Bool
     let onSetCompleted: (() -> Void)?
 
@@ -658,6 +740,7 @@ struct RestPauseSetRow: View {
         exerciseName: String,
         equipment: Equipment,
         onUpdate: @escaping (ExerciseSet) -> Void,
+        isLastSet: Bool = false,
         suppressRestTimer: Bool = false,
         onSetCompleted: (() -> Void)? = nil
     ) {
@@ -666,6 +749,7 @@ struct RestPauseSetRow: View {
         self.exerciseName = exerciseName
         self.equipment = equipment
         self.onUpdate = onUpdate
+        self.isLastSet = isLastSet
         self.suppressRestTimer = suppressRestTimer
         self.onSetCompleted = onSetCompleted
         _localConfig = State(initialValue: set.restPauseConfig ?? RestPauseConfig())
@@ -751,8 +835,8 @@ struct RestPauseSetRow: View {
                                 activePauseTimer = nil
                             }
                         } else if updatedMiniSet.isCompleted && index == localConfig.miniSets.count - 1 {
-                            // Start normal rest after completing the entire rest-pause set (unless suppressed)
-                            if !suppressRestTimer {
+                            // Start normal rest after completing the entire rest-pause set (unless suppressed or last set)
+                            if !suppressRestTimer && !isLastSet {
                                 restTimerManager.startTimer(
                                     duration: set.restPeriod,
                                     exerciseName: exerciseName,
@@ -817,6 +901,8 @@ struct MiniSetRow: View {
     let onUpdate: (RestPauseMiniSet) -> Void
 
     @State private var reps: String
+    @State private var remainingPauseTime: TimeInterval = 0
+    @State private var pauseTimer: Timer?
 
     init(
         miniSet: RestPauseMiniSet,
@@ -836,16 +922,25 @@ struct MiniSetRow: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Pause timer indicator
+            // Pause timer indicator with countdown
             if isPauseTimerActive {
                 HStack {
                     Image(systemName: "timer")
                         .foregroundStyle(.green)
-                    Text("Rest \(Int(pauseDuration))s...")
+                        .symbolEffect(.pulse.wholeSymbol, options: .repeating)
+                    Text("Rest \(Int(remainingPauseTime))s...")
                         .font(.caption)
+                        .fontWeight(.medium)
                         .foregroundStyle(.green)
+                        .monospacedDigit()
                 }
                 .padding(.vertical, 4)
+                .onAppear {
+                    startPauseCountdown()
+                }
+                .onDisappear {
+                    stopPauseCountdown()
+                }
             }
 
             HStack(spacing: 12) {
@@ -876,6 +971,12 @@ struct MiniSetRow: View {
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 50)
+                    .onChange(of: reps) { _, newValue in
+                        // Sync reps change to parent immediately
+                        var updatedMiniSet = miniSet
+                        updatedMiniSet.actualReps = Int(newValue)
+                        onUpdate(updatedMiniSet)
+                    }
 
                 Text("reps")
                     .font(.caption)
@@ -909,6 +1010,23 @@ struct MiniSetRow: View {
 
         onUpdate(updatedMiniSet)
     }
+
+    private func startPauseCountdown() {
+        remainingPauseTime = pauseDuration
+        pauseTimer?.invalidate()
+        pauseTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if remainingPauseTime > 0 {
+                remainingPauseTime -= 1
+            } else {
+                stopPauseCountdown()
+            }
+        }
+    }
+
+    private func stopPauseCountdown() {
+        pauseTimer?.invalidate()
+        pauseTimer = nil
+    }
 }
 
 // MARK: - Shared Components
@@ -920,13 +1038,36 @@ struct WeightInputView: View {
     @Binding var showPlateCalculator: Bool
     let onWeightChanged: (Double) -> Void
 
-    private var showPlateCalcButton: Bool {
+    private var showCalcButton: Bool {
         switch equipment {
         case .barbell, .squat, .legPress, .smithMachine, .cables:
             return true
         default:
             return false
         }
+    }
+
+    /// Icon to show for the calculator button
+    private var calcButtonIcon: String {
+        equipment == .cables ? "slider.horizontal.3" : "circle.grid.2x2"
+    }
+
+    /// Check if current weight is valid for cable machine
+    private var isInvalidCableWeight: Bool {
+        guard equipment == .cables, let weightValue = Double(weight), weightValue > 0 else {
+            return false
+        }
+        let config = GymSettings.shared.cableConfig(for: exerciseName)
+        return !config.isValidWeight(weightValue)
+    }
+
+    /// Get pin location for current weight (cable machines only)
+    private var currentPinLocation: Int? {
+        guard equipment == .cables, let weightValue = Double(weight), weightValue > 0 else {
+            return nil
+        }
+        let config = GymSettings.shared.cableConfig(for: exerciseName)
+        return config.pinLocation(for: weightValue)
     }
 
     var body: some View {
@@ -936,6 +1077,10 @@ struct WeightInputView: View {
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(isInvalidCableWeight ? Color.orange : Color.clear, lineWidth: 2)
+                    )
                     .onChange(of: weight) { _, newValue in
                         if let weightValue = Double(newValue) {
                             onWeightChanged(weightValue)
@@ -945,14 +1090,41 @@ struct WeightInputView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if showPlateCalcButton {
+                if showCalcButton {
                     Button {
                         showPlateCalculator = true
                     } label: {
-                        Image(systemName: "circle.grid.2x2")
+                        Image(systemName: calcButtonIcon)
                             .font(.caption)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(isInvalidCableWeight ? .orange : .blue)
                     }
+                }
+            }
+
+            // Show pin location for valid cable weights
+            if let pin = currentPinLocation {
+                HStack(spacing: 2) {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 8))
+                    Text("Pin \(pin)")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+                .foregroundStyle(.blue)
+            }
+
+            // Show invalid weight warning for cables
+            if isInvalidCableWeight {
+                Button {
+                    showPlateCalculator = true
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 8))
+                        Text("Invalid weight - tap to fix")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.orange)
                 }
             }
         }
