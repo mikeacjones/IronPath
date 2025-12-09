@@ -86,7 +86,7 @@ class HealthKitManager {
 
         try await builder.endCollection(at: endDate)
 
-        // Add metadata
+        // Add metadata before finishing
         var metadata: [String: Any] = [
             HKMetadataKeyWorkoutBrandName: "IronPath",
             "WorkoutName": workout.name,
@@ -97,6 +97,9 @@ class HealthKitManager {
         if workout.isDeload {
             metadata["IsDeload"] = true
         }
+
+        // Add metadata to the workout
+        try await builder.addMetadata(metadata)
 
         // Finish and save the workout
         let hkWorkout = try await builder.finishWorkout()
