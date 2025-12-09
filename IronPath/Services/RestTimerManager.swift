@@ -15,6 +15,11 @@ class RestTimerManager: ObservableObject {
     @Published var setNumber: Int = 0
     @Published var showCompletionBanner: Bool = false
 
+    // Superset/Circuit tracking
+    @Published var isGroupTimer: Bool = false
+    @Published var groupType: ExerciseGroupType?
+    @Published var nextExerciseName: String?  // Next exercise in superset to do
+
     /// The absolute time when the timer should complete
     private var endTime: Date?
     private var timer: Timer?
@@ -58,10 +63,36 @@ class RestTimerManager: ObservableObject {
         self.setNumber = setNumber
         self.isActive = true
         self.showCompletionBanner = false
+        self.isGroupTimer = false
+        self.groupType = nil
+        self.nextExerciseName = nil
 
         // Schedule local notification for when timer completes
         scheduleCompletionNotification(in: duration)
 
+        startDisplayTimer()
+    }
+
+    /// Start a rest timer after completing all exercises in a superset/circuit round
+    func startGroupTimer(
+        duration: TimeInterval,
+        groupType: ExerciseGroupType,
+        exerciseNames: [String],
+        completedRound: Int
+    ) {
+        stopTimer()
+
+        self.totalDuration = duration
+        self.endTime = Date().addingTimeInterval(duration)
+        self.exerciseName = exerciseNames.joined(separator: " → ")
+        self.setNumber = completedRound
+        self.isActive = true
+        self.showCompletionBanner = false
+        self.isGroupTimer = true
+        self.groupType = groupType
+        self.nextExerciseName = exerciseNames.first
+
+        scheduleGroupCompletionNotification(in: duration, groupType: groupType)
         startDisplayTimer()
     }
 
@@ -85,6 +116,9 @@ class RestTimerManager: ObservableObject {
         timer = nil
         endTime = nil
         isActive = false
+        isGroupTimer = false
+        groupType = nil
+        nextExerciseName = nil
     }
 
     /// Start the display timer that updates the UI
@@ -147,6 +181,26 @@ class RestTimerManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Rest Complete"
         content.body = "Time for your next set of \(exerciseName)!"
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "rest_timer_completion",
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func scheduleGroupCompletionNotification(in seconds: TimeInterval, groupType: ExerciseGroupType) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(groupType.displayName) Rest Complete"
+        if let nextExercise = nextExerciseName {
+            content.body = "Time for round \(setNumber + 1)! Start with \(nextExercise)"
+        } else {
+            content.body = "Time for your next round!"
+        }
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)

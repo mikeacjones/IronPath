@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Exercise Group Type
 
@@ -43,6 +44,15 @@ enum ExerciseGroupType: String, Codable, CaseIterable, Equatable {
         case .triset: return "indigo"
         case .giantSet: return "pink"
         case .circuit: return "teal"
+        }
+    }
+
+    var swiftUIColor: Color {
+        switch self {
+        case .superset: return .purple
+        case .triset: return .indigo
+        case .giantSet: return .pink
+        case .circuit: return .teal
         }
     }
 

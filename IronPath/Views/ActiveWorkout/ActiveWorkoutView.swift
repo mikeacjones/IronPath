@@ -178,11 +178,20 @@ struct ActiveWorkoutView: View {
             Text("Remove \(exercise.exercise.name) from this workout? Any logged sets will be lost.")
         }
         .sheet(item: $selectedExercise) { exercise in
+            let groupInfo = getGroupInfo(for: exercise)
+            let nextExercise = getNextExerciseInGroup(for: exercise)
+
             ExerciseDetailSheet(
                 exercise: exercise,
                 onUpdate: { updatedExercise in
                     updateExercise(updatedExercise)
-                }
+                },
+                groupInfo: groupInfo,
+                onNavigateToNextInGroup: nextExercise != nil ? {
+                    // Navigate to the next exercise in the superset
+                    selectedExercise = nextExercise
+                } : nil,
+                nextExerciseInGroup: nextExercise
             )
         }
         .sheet(isPresented: $showReplacementSheet) {
@@ -353,6 +362,28 @@ struct ActiveWorkoutView: View {
             isFirst: isFirst,
             isLast: isLast
         )
+    }
+
+    /// Get the next exercise in the group (for superset navigation)
+    private func getNextExerciseInGroup(for exercise: WorkoutExercise) -> WorkoutExercise? {
+        guard let group = currentWorkout.group(for: exercise.id),
+              let currentPosition = group.position(of: exercise.id) else {
+            return nil
+        }
+
+        // If this is the last exercise in the group, wrap around to the first
+        let nextPosition: Int
+        if currentPosition >= group.exerciseCount - 1 {
+            nextPosition = 0 // Wrap to first exercise for next round
+        } else {
+            nextPosition = currentPosition + 1
+        }
+
+        // Get the exercise at the next position
+        guard nextPosition < group.exerciseIds.count else { return nil }
+        let nextExerciseId = group.exerciseIds[nextPosition]
+
+        return currentWorkout.exercises.first { $0.id == nextExerciseId }
     }
 }
 
@@ -994,13 +1025,32 @@ struct ActiveExerciseCard: View {
 struct ExerciseDetailSheet: View {
     let exercise: WorkoutExercise
     let onUpdate: (WorkoutExercise) -> Void
+    let groupInfo: ExerciseGroupInfo?
+    let onNavigateToNextInGroup: (() -> Void)?
+    let nextExerciseInGroup: WorkoutExercise?
+
     @Environment(\.dismiss) var dismiss
     @State private var updatedExercise: WorkoutExercise
     @State private var showAddSetTypePicker = false
+    @ObservedObject private var restTimerManager = RestTimerManager.shared
 
-    init(exercise: WorkoutExercise, onUpdate: @escaping (WorkoutExercise) -> Void) {
+    /// Check if this exercise is part of a superset/circuit
+    private var isInSuperset: Bool {
+        groupInfo != nil
+    }
+
+    init(
+        exercise: WorkoutExercise,
+        onUpdate: @escaping (WorkoutExercise) -> Void,
+        groupInfo: ExerciseGroupInfo? = nil,
+        onNavigateToNextInGroup: (() -> Void)? = nil,
+        nextExerciseInGroup: WorkoutExercise? = nil
+    ) {
         self.exercise = exercise
         self.onUpdate = onUpdate
+        self.groupInfo = groupInfo
+        self.onNavigateToNextInGroup = onNavigateToNextInGroup
+        self.nextExerciseInGroup = nextExerciseInGroup
         _updatedExercise = State(initialValue: exercise)
     }
 
@@ -1008,6 +1058,16 @@ struct ExerciseDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    // Superset header (if part of a superset)
+                    if let info = groupInfo {
+                        SupersetHeaderView(
+                            groupInfo: info,
+                            currentExerciseName: exercise.exercise.name,
+                            nextExerciseName: nextExerciseInGroup?.exercise.name
+                        )
+                        .padding(.horizontal)
+                    }
+
                     // Exercise header
                     VStack(alignment: .leading, spacing: 8) {
                         Text(exercise.exercise.name)
@@ -1080,7 +1140,13 @@ struct ExerciseDetailSheet: View {
                                                 updatedExercise.sets[i].actualReps = newReps
                                             }
                                         }
-                                    }
+                                    },
+                                    // Suppress rest timer when in a superset (timer handled by superset completion)
+                                    suppressRestTimer: isInSuperset,
+                                    onSetCompleted: isInSuperset ? {
+                                        // For supersets, prompt user to move to next exercise
+                                        // The rest timer will be handled when the full round is complete
+                                    } : nil
                                 )
 
                                 // Delete set button (only show if more than 1 set)
@@ -1161,10 +1227,33 @@ struct ExerciseDetailSheet: View {
                         .cornerRadius(12)
                         .padding(.horizontal)
                     }
+
+                    // Next exercise button for supersets
+                    if isInSuperset, let nextExercise = nextExerciseInGroup {
+                        Button {
+                            // Save current exercise first
+                            onUpdate(updatedExercise)
+                            // Navigate to next exercise
+                            onNavigateToNextInGroup?()
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.right.circle.fill")
+                                Text("Next: \(nextExercise.exercise.name)")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .padding()
+                            .background(groupInfo?.group.groupType.swiftUIColor ?? .blue)
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                    }
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("Log Sets")
+            .navigationTitle(isInSuperset ? (groupInfo?.group.groupType.displayName ?? "Log Sets") : "Log Sets")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -1233,6 +1322,53 @@ struct ExerciseDetailSheet: View {
         for i in 0..<updatedExercise.sets.count {
             updatedExercise.sets[i].setNumber = i + 1
         }
+    }
+}
+
+// MARK: - Superset Header View
+
+/// Header shown in exercise detail sheet when exercise is part of a superset/circuit
+struct SupersetHeaderView: View {
+    let groupInfo: ExerciseGroupInfo
+    let currentExerciseName: String
+    let nextExerciseName: String?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // Group type badge
+            HStack {
+                Image(systemName: groupInfo.group.groupType.iconName)
+                Text(groupInfo.group.groupType.displayName)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                // Position indicator
+                Text("Exercise \(groupInfo.position + 1) of \(groupInfo.group.exerciseCount)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(groupInfo.group.groupType.swiftUIColor)
+
+            // Progress dots
+            HStack(spacing: 6) {
+                ForEach(0..<groupInfo.group.exerciseCount, id: \.self) { index in
+                    Circle()
+                        .fill(index == groupInfo.position ? groupInfo.group.groupType.swiftUIColor : Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+            }
+
+            // Instructions
+            if groupInfo.group.restBetweenExercises == 0 {
+                Text("No rest between exercises - move directly to next")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(groupInfo.group.groupType.swiftUIColor.opacity(0.1))
+        .cornerRadius(12)
     }
 }
 

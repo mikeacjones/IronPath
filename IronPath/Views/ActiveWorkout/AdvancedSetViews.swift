@@ -12,6 +12,10 @@ struct AdvancedSetRowView: View {
     let onUpdate: (ExerciseSet) -> Void
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
+    /// When true, the rest timer will not auto-start after completing a set (used for supersets)
+    let suppressRestTimer: Bool
+    /// Called after a set is completed (used to notify parent for superset handling)
+    let onSetCompleted: (() -> Void)?
 
     @State private var weight: String
     @State private var reps: String
@@ -28,7 +32,9 @@ struct AdvancedSetRowView: View {
         equipment: Equipment = .dumbbells,
         onUpdate: @escaping (ExerciseSet) -> Void,
         onWeightChanged: ((Int, Double) -> Void)? = nil,
-        onRepsChanged: ((Int, Int) -> Void)? = nil
+        onRepsChanged: ((Int, Int) -> Void)? = nil,
+        suppressRestTimer: Bool = false,
+        onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -37,6 +43,8 @@ struct AdvancedSetRowView: View {
         self.onUpdate = onUpdate
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
+        self.suppressRestTimer = suppressRestTimer
+        self.onSetCompleted = onSetCompleted
 
         let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
             for: exerciseName,
@@ -68,7 +76,9 @@ struct AdvancedSetRowView: View {
                     isCompleted: $isCompleted,
                     onUpdate: onUpdate,
                     onWeightChanged: onWeightChanged,
-                    onRepsChanged: onRepsChanged
+                    onRepsChanged: onRepsChanged,
+                    suppressRestTimer: suppressRestTimer,
+                    onSetCompleted: onSetCompleted
                 )
 
             case .warmup:
@@ -80,7 +90,9 @@ struct AdvancedSetRowView: View {
                     weight: $weight,
                     reps: $reps,
                     isCompleted: $isCompleted,
-                    onUpdate: onUpdate
+                    onUpdate: onUpdate,
+                    suppressRestTimer: suppressRestTimer,
+                    onSetCompleted: onSetCompleted
                 )
 
             case .dropSet:
@@ -89,7 +101,9 @@ struct AdvancedSetRowView: View {
                     setIndex: setIndex,
                     exerciseName: exerciseName,
                     equipment: equipment,
-                    onUpdate: onUpdate
+                    onUpdate: onUpdate,
+                    suppressRestTimer: suppressRestTimer,
+                    onSetCompleted: onSetCompleted
                 )
 
             case .restPause:
@@ -98,7 +112,9 @@ struct AdvancedSetRowView: View {
                     setIndex: setIndex,
                     exerciseName: exerciseName,
                     equipment: equipment,
-                    onUpdate: onUpdate
+                    onUpdate: onUpdate,
+                    suppressRestTimer: suppressRestTimer,
+                    onSetCompleted: onSetCompleted
                 )
             }
 
@@ -148,9 +164,39 @@ struct StandardSetRow: View {
     let onUpdate: (ExerciseSet) -> Void
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
+    let suppressRestTimer: Bool
+    let onSetCompleted: (() -> Void)?
 
     @State private var showPlateCalculator = false
     @ObservedObject private var restTimerManager = RestTimerManager.shared
+
+    init(
+        set: ExerciseSet,
+        setIndex: Int,
+        exerciseName: String,
+        equipment: Equipment,
+        weight: Binding<String>,
+        reps: Binding<String>,
+        isCompleted: Binding<Bool>,
+        onUpdate: @escaping (ExerciseSet) -> Void,
+        onWeightChanged: ((Int, Double) -> Void)? = nil,
+        onRepsChanged: ((Int, Int) -> Void)? = nil,
+        suppressRestTimer: Bool = false,
+        onSetCompleted: (() -> Void)? = nil
+    ) {
+        self.set = set
+        self.setIndex = setIndex
+        self.exerciseName = exerciseName
+        self.equipment = equipment
+        self._weight = weight
+        self._reps = reps
+        self._isCompleted = isCompleted
+        self.onUpdate = onUpdate
+        self.onWeightChanged = onWeightChanged
+        self.onRepsChanged = onRepsChanged
+        self.suppressRestTimer = suppressRestTimer
+        self.onSetCompleted = onSetCompleted
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -211,11 +257,17 @@ struct StandardSetRow: View {
             }
             updatedSet.completedAt = Date()
 
-            restTimerManager.startTimer(
-                duration: set.restPeriod,
-                exerciseName: exerciseName,
-                setNumber: set.setNumber
-            )
+            // Only start rest timer if not suppressed (e.g., for supersets)
+            if !suppressRestTimer {
+                restTimerManager.startTimer(
+                    duration: set.restPeriod,
+                    exerciseName: exerciseName,
+                    setNumber: set.setNumber
+                )
+            }
+
+            // Notify parent that set was completed
+            onSetCompleted?()
         } else {
             updatedSet.completedAt = nil
         }
@@ -236,9 +288,35 @@ struct WarmupSetRow: View {
     @Binding var reps: String
     @Binding var isCompleted: Bool
     let onUpdate: (ExerciseSet) -> Void
+    let suppressRestTimer: Bool
+    let onSetCompleted: (() -> Void)?
 
     @State private var showPlateCalculator = false
     @ObservedObject private var restTimerManager = RestTimerManager.shared
+
+    init(
+        set: ExerciseSet,
+        setIndex: Int,
+        exerciseName: String,
+        equipment: Equipment,
+        weight: Binding<String>,
+        reps: Binding<String>,
+        isCompleted: Binding<Bool>,
+        onUpdate: @escaping (ExerciseSet) -> Void,
+        suppressRestTimer: Bool = false,
+        onSetCompleted: (() -> Void)? = nil
+    ) {
+        self.set = set
+        self.setIndex = setIndex
+        self.exerciseName = exerciseName
+        self.equipment = equipment
+        self._weight = weight
+        self._reps = reps
+        self._isCompleted = isCompleted
+        self.onUpdate = onUpdate
+        self.suppressRestTimer = suppressRestTimer
+        self.onSetCompleted = onSetCompleted
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -298,11 +376,17 @@ struct WarmupSetRow: View {
             }
             updatedSet.completedAt = Date()
 
-            restTimerManager.startTimer(
-                duration: set.restPeriod,
-                exerciseName: exerciseName,
-                setNumber: set.setNumber
-            )
+            // Only start rest timer if not suppressed (e.g., for supersets)
+            if !suppressRestTimer {
+                restTimerManager.startTimer(
+                    duration: set.restPeriod,
+                    exerciseName: exerciseName,
+                    setNumber: set.setNumber
+                )
+            }
+
+            // Notify parent that set was completed
+            onSetCompleted?()
         } else {
             updatedSet.completedAt = nil
         }
@@ -320,6 +404,8 @@ struct DropSetRow: View {
     let exerciseName: String
     let equipment: Equipment
     let onUpdate: (ExerciseSet) -> Void
+    let suppressRestTimer: Bool
+    let onSetCompleted: (() -> Void)?
 
     @State private var localConfig: DropSetConfig
     @State private var showEditSheet = false
@@ -330,13 +416,17 @@ struct DropSetRow: View {
         setIndex: Int,
         exerciseName: String,
         equipment: Equipment,
-        onUpdate: @escaping (ExerciseSet) -> Void
+        onUpdate: @escaping (ExerciseSet) -> Void,
+        suppressRestTimer: Bool = false,
+        onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
         self.exerciseName = exerciseName
         self.equipment = equipment
         self.onUpdate = onUpdate
+        self.suppressRestTimer = suppressRestTimer
+        self.onSetCompleted = onSetCompleted
         _localConfig = State(initialValue: set.dropSetConfig ?? DropSetConfig())
     }
 
@@ -388,12 +478,16 @@ struct DropSetRow: View {
                         if updatedDrop.isCompleted && index < localConfig.drops.count - 1 {
                             // No rest between drops - that's the point of drop sets!
                         } else if updatedDrop.isCompleted && index == localConfig.drops.count - 1 {
-                            // Start normal rest after completing the entire drop set
-                            restTimerManager.startTimer(
-                                duration: set.restPeriod,
-                                exerciseName: exerciseName,
-                                setNumber: set.setNumber
-                            )
+                            // Start normal rest after completing the entire drop set (unless suppressed)
+                            if !suppressRestTimer {
+                                restTimerManager.startTimer(
+                                    duration: set.restPeriod,
+                                    exerciseName: exerciseName,
+                                    setNumber: set.setNumber
+                                )
+                            }
+                            // Notify parent that the drop set was completed
+                            onSetCompleted?()
                         }
                     }
                 )
@@ -532,6 +626,8 @@ struct RestPauseSetRow: View {
     let exerciseName: String
     let equipment: Equipment
     let onUpdate: (ExerciseSet) -> Void
+    let suppressRestTimer: Bool
+    let onSetCompleted: (() -> Void)?
 
     @State private var localConfig: RestPauseConfig
     @State private var weight: String
@@ -544,13 +640,17 @@ struct RestPauseSetRow: View {
         setIndex: Int,
         exerciseName: String,
         equipment: Equipment,
-        onUpdate: @escaping (ExerciseSet) -> Void
+        onUpdate: @escaping (ExerciseSet) -> Void,
+        suppressRestTimer: Bool = false,
+        onSetCompleted: (() -> Void)? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
         self.exerciseName = exerciseName
         self.equipment = equipment
         self.onUpdate = onUpdate
+        self.suppressRestTimer = suppressRestTimer
+        self.onSetCompleted = onSetCompleted
         _localConfig = State(initialValue: set.restPauseConfig ?? RestPauseConfig())
         _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? "")
     }
@@ -634,12 +734,16 @@ struct RestPauseSetRow: View {
                                 activePauseTimer = nil
                             }
                         } else if updatedMiniSet.isCompleted && index == localConfig.miniSets.count - 1 {
-                            // Start normal rest after completing the entire rest-pause set
-                            restTimerManager.startTimer(
-                                duration: set.restPeriod,
-                                exerciseName: exerciseName,
-                                setNumber: set.setNumber
-                            )
+                            // Start normal rest after completing the entire rest-pause set (unless suppressed)
+                            if !suppressRestTimer {
+                                restTimerManager.startTimer(
+                                    duration: set.restPeriod,
+                                    exerciseName: exerciseName,
+                                    setNumber: set.setNumber
+                                )
+                            }
+                            // Notify parent that the rest-pause set was completed
+                            onSetCompleted?()
                         }
                     }
                 )
