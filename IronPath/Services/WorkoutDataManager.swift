@@ -35,11 +35,16 @@ class WorkoutDataManager {
     }
 
     /// Get the most recent workout containing a specific exercise
-    func getLastWorkoutWith(exerciseName: String) -> WorkoutExercise? {
+    /// - Parameter excludeDeload: If true, skips deload workouts (default: true for progressive overload tracking)
+    func getLastWorkoutWith(exerciseName: String, excludeDeload: Bool = true) -> WorkoutExercise? {
         let history = getWorkoutHistory()
 
         // Search from most recent to oldest
         for workout in history.reversed() {
+            // Skip deload workouts when tracking progressive overload
+            if excludeDeload && workout.isDeload {
+                continue
+            }
             if let exercise = workout.exercises.first(where: { $0.exercise.name == exerciseName }) {
                 return exercise
             }

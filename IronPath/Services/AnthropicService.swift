@@ -71,7 +71,8 @@ class AnthropicService {
         targetMuscleGroups: Set<MuscleGroup>? = nil,
         workoutHistory: [Workout] = [],
         workoutType: String? = nil,
-        userNotes: String? = nil
+        userNotes: String? = nil,
+        isDeload: Bool = false
     ) async throws -> Workout {
         // Get available equipment from gym profile
         let availableEquipment: Set<Equipment>
@@ -82,12 +83,13 @@ class AnthropicService {
         }
 
         // Build the initial prompt for the agentic flow
-        let systemPrompt = buildAgenticSystemPrompt(profile: profile)
+        let systemPrompt = buildAgenticSystemPrompt(profile: profile, isDeload: isDeload)
         let userPrompt = buildAgenticUserPrompt(
             workoutType: workoutType,
             targetMuscleGroups: targetMuscleGroups,
             userNotes: userNotes,
-            workoutHistory: workoutHistory
+            workoutHistory: workoutHistory,
+            isDeload: isDeload
         )
 
         // Start the agentic conversation
@@ -315,8 +317,8 @@ class AnthropicService {
     }
 
     /// Build system prompt for agentic workout generation
-    private func buildAgenticSystemPrompt(profile: UserProfile) -> String {
-        return """
+    private func buildAgenticSystemPrompt(profile: UserProfile, isDeload: Bool = false) -> String {
+        var prompt = """
         You are a personal fitness trainer creating workout plans. You MUST use the get_available_exercises tool to see what exercises are available before creating a workout.
 
         CRITICAL: Only include exercises that appear in the tool results. The user's gym has LIMITED EQUIPMENT - do not assume any exercise is available.
@@ -326,14 +328,34 @@ class AnthropicService {
         - Goals: \(profile.goals.map { $0.rawValue }.joined(separator: ", "))
         - Preferred Duration: \(profile.workoutPreferences.preferredWorkoutDuration) minutes
         - Rest Time: \(profile.workoutPreferences.preferredRestTime) seconds between sets
+        """
+
+        if isDeload {
+            prompt += """
+
+
+        ⚠️ DELOAD WORKOUT: This is a DELOAD/RECOVERY workout. You MUST:
+        - Use weights at 50-70% of what the user normally lifts (based on history)
+        - Focus on form and muscle activation rather than intensity
+        - Reduce volume slightly (fewer total sets)
+        - Keep rest periods the same or slightly longer
+        - Include "DELOAD" in the workout name
+        - The purpose is active recovery, not progressive overload
+        """
+        }
+
+        prompt += """
+
 
         When creating the workout:
         1. First call get_available_exercises with the muscle groups you want to target
         2. Review the returned exercise list - these are the ONLY exercises you can use
         3. Select 4-7 exercises from the list
-        4. Use the exercise history to suggest appropriate weights (progressive overload)
+        4. Use the exercise history to suggest appropriate weights\(isDeload ? " (reduced to 50-70% for deload)" : " (progressive overload)")
         5. Return the workout in JSON format
         """
+
+        return prompt
     }
 
     /// Build user prompt for agentic workout generation
@@ -341,9 +363,14 @@ class AnthropicService {
         workoutType: String?,
         targetMuscleGroups: Set<MuscleGroup>?,
         userNotes: String?,
-        workoutHistory: [Workout]
+        workoutHistory: [Workout],
+        isDeload: Bool = false
     ) -> String {
         var prompt = "Please create a workout for me.\n\n"
+
+        if isDeload {
+            prompt += "⚠️ THIS IS A DELOAD WORKOUT - Use lighter weights (50-70% of normal) for recovery.\n\n"
+        }
 
         if let workoutType = workoutType {
             prompt += "Workout Type: \(workoutType)\n"
@@ -358,7 +385,9 @@ class AnthropicService {
         }
 
         if !workoutHistory.isEmpty {
-            prompt += "\nRecent workouts: \(workoutHistory.prefix(3).map { $0.name }.joined(separator: ", "))\n"
+            // Filter out deload workouts from history when showing recent workouts for context
+            let relevantHistory = workoutHistory.filter { !$0.isDeload }.prefix(3)
+            prompt += "\nRecent workouts: \(relevantHistory.map { $0.name }.joined(separator: ", "))\n"
         }
 
         prompt += """
@@ -367,13 +396,13 @@ class AnthropicService {
 
         Return the final workout as JSON:
         {
-          "name": "Workout name",
+          "name": "\(isDeload ? "Deload - " : "")Workout name",
           "exercises": [
             {
               "name": "Exercise name (must match exactly from the list)",
               "sets": 3,
               "reps": "8-12",
-              "weight": 135,
+              "weight": \(isDeload ? "reduced weight (50-70% of history)" : "135"),
               "restSeconds": 90,
               "equipment": "equipment type",
               "primaryMuscles": ["muscle1"],

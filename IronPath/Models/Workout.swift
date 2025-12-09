@@ -10,6 +10,7 @@ struct Workout: Codable, Identifiable, Hashable {
     var completedAt: Date?
     var notes: String
     var claudeGenerationPrompt: String? // Store the prompt used to generate this workout
+    var isDeload: Bool // Whether this is a deload/recovery workout (lighter weights, won't affect progressive overload)
 
     var duration: TimeInterval? {
         guard let start = startedAt, let completed = completedAt else { return nil }
@@ -34,7 +35,8 @@ struct Workout: Codable, Identifiable, Hashable {
         startedAt: Date? = nil,
         completedAt: Date? = nil,
         notes: String = "",
-        claudeGenerationPrompt: String? = nil
+        claudeGenerationPrompt: String? = nil,
+        isDeload: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -44,6 +46,7 @@ struct Workout: Codable, Identifiable, Hashable {
         self.completedAt = completedAt
         self.notes = notes
         self.claudeGenerationPrompt = claudeGenerationPrompt
+        self.isDeload = isDeload
     }
 }
 
