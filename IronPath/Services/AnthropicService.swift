@@ -337,7 +337,7 @@ class AnthropicService {
         - Fitness Level: \(profile.fitnessLevel.rawValue)
         - Goals: \(profile.goals.map { $0.rawValue }.joined(separator: ", "))
         - Preferred Duration: \(profile.workoutPreferences.preferredWorkoutDuration) minutes
-        - Rest Time: \(profile.workoutPreferences.preferredRestTime) seconds between sets
+        - Preferred Rest Time: \(profile.workoutPreferences.preferredRestTime) seconds between sets
         """
 
         if isDeload {
@@ -829,7 +829,7 @@ class AnthropicService {
         - Goals: \(profile.goals.map { $0.rawValue }.joined(separator: ", "))
         - Available Equipment: \(availableEquipment.map { $0.rawValue }.joined(separator: ", "))
         - Preferred Duration: \(profile.workoutPreferences.preferredWorkoutDuration) minutes
-        - Rest Time: \(profile.workoutPreferences.preferredRestTime) seconds between sets
+        - Preferred Rest Time: \(profile.workoutPreferences.preferredRestTime) seconds between sets
         """
 
         // Add explicit unavailable equipment warning

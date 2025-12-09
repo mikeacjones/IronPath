@@ -369,7 +369,7 @@ struct WorkoutView: View {
 
         // Build context notes based on training style
         let trainingStyle = profile.workoutPreferences.trainingStyle
-        let styleNotes = "Training style: \(trainingStyle.rawValue) - Target rep range: \(trainingStyle.typicalRepRange), Rest: \(trainingStyle.typicalRestSeconds)s between sets"
+        let styleNotes = "Training style: \(trainingStyle.rawValue)"
 
         Task {
             do {
