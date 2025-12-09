@@ -8,7 +8,12 @@ class AnthropicService {
 
     /// Get the currently configured model from user settings
     private var model: String {
-        ModelConfigManager.shared.modelId
+        // Use AIProviderManager if Anthropic is selected, otherwise fall back to default
+        if AIProviderManager.shared.selectedProviderType == .anthropic {
+            return AIProviderManager.shared.currentModelId
+        }
+        // Fallback for backwards compatibility
+        return ModelConfigManager.shared.modelId
     }
 
     private init() {}
@@ -48,6 +53,11 @@ class AnthropicService {
 
     /// Get the current API key from storage
     private var apiKey: String? {
+        // Try new AIProviderManager first
+        if let key = AIProviderManager.shared.getAPIKey(for: .anthropic), !key.isEmpty {
+            return key
+        }
+        // Fallback to legacy APIKeyManager for backwards compatibility
         return APIKeyManager.shared.getAPIKey()
     }
 

@@ -4,20 +4,15 @@ import UIKit
 struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var gymProfileManager = GymProfileManager.shared
-    @ObservedObject private var debugManager = APIDebugManager.shared
-    @ObservedObject private var modelConfig = ModelConfigManager.shared
-    @State private var showingAPIKeySheet = false
+    @ObservedObject private var providerManager = AIProviderManager.shared
     @State private var showingEditProfile = false
     @State private var showingGymSettings = false
     @State private var showingGymProfileEditor = false
     @State private var showingNewGymProfile = false
     @State private var editingGymProfile: GymProfile?
-    @State private var apiKey = ""
-    @State private var hasAPIKey = APIKeyManager.shared.hasAPIKey
     @State private var showingResetConfirmation = false
     @State private var showingExportOptions = false
     @State private var exportData: ExportData?
-    @State private var showingDebugLog = false
 
     var body: some View {
         NavigationStack {
@@ -129,81 +124,39 @@ struct ProfileView: View {
                 }
 
                 Section {
-                    HStack {
-                        Label("Anthropic API Key", systemImage: "key.fill")
-                        Spacer()
-                        if hasAPIKey {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                    }
-
-                    Button(hasAPIKey ? "Update API Key" : "Add API Key") {
-                        showingAPIKeySheet = true
-                    }
-
-                    if hasAPIKey {
-                        Button("Remove API Key", role: .destructive) {
-                            APIKeyManager.shared.clearAPIKey()
-                            hasAPIKey = false
-                        }
-                    }
-
-                    Picker(selection: $modelConfig.selectedModel) {
-                        ForEach(ClaudeModel.allCases, id: \.self) { model in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(model.displayName)
-                                    Text(model.description)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(model.costTier)
+                    NavigationLink {
+                        AIConfigurationView()
+                    } label: {
+                        HStack {
+                            Label("AI Configuration", systemImage: "cpu")
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(providerManager.currentProvider.displayName)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                            }
-                            .tag(model)
-                        }
-                    } label: {
-                        Label("AI Model", systemImage: "cpu")
-                    }
-
-                    Toggle(isOn: $debugManager.isDebugEnabled) {
-                        Label("Debug Mode", systemImage: "ant.fill")
-                    }
-
-                    if debugManager.isDebugEnabled {
-                        Button {
-                            showingDebugLog = true
-                        } label: {
-                            HStack {
-                                Label("View API Logs", systemImage: "doc.text.magnifyingglass")
-                                Spacer()
-                                if !debugManager.logs.isEmpty {
-                                    Text("\(debugManager.logs.count)")
-                                        .font(.caption)
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(Color.blue)
-                                        .clipShape(Capsule())
+                                if providerManager.isConfigured {
+                                    Text(providerManager.selectedModel?.displayName ?? "")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.secondary)
+                            }
+                            if providerManager.isConfigured {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(.orange)
                             }
                         }
-                        .foregroundStyle(.primary)
                     }
                 } header: {
-                    Text("AI Configuration")
+                    Text("AI Provider")
                 } footer: {
-                    Text(debugManager.isDebugEnabled
-                        ? "Debug mode enabled. API requests/responses will be logged. Disabling will clear all logs."
-                        : "Required for generating personalized workouts with Claude AI. Get your API key from console.anthropic.com")
+                    if providerManager.isConfigured {
+                        Text("Using \(providerManager.currentProvider.displayName) for workout generation.")
+                    } else {
+                        Text("Configure an AI provider to generate personalized workouts.")
+                    }
                 }
 
                 Section {
@@ -233,14 +186,6 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profile")
-            .sheet(isPresented: $showingAPIKeySheet) {
-                APIKeyInputView(apiKey: $apiKey, onSave: {
-                    APIKeyManager.shared.saveAPIKey(apiKey)
-                    hasAPIKey = true
-                    showingAPIKeySheet = false
-                    apiKey = ""
-                })
-            }
             .sheet(isPresented: $showingEditProfile) {
                 if let profile = appState.userProfile {
                     EditProfileView(profile: profile, onSave: { updatedProfile in
@@ -251,9 +196,6 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showingGymSettings) {
                 GymEquipmentSettingsView()
-            }
-            .sheet(isPresented: $showingDebugLog) {
-                APIDebugLogView()
             }
             .sheet(isPresented: $showingNewGymProfile) {
                 GymProfileEditorView(
