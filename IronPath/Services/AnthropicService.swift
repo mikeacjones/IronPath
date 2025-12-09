@@ -395,37 +395,56 @@ class AnthropicService {
 
         if let workoutType = workoutType {
             prompt += "Workout Type: \(workoutType)\n"
-        }
-
-        if let muscles = targetMuscleGroups, !muscles.isEmpty {
-            prompt += "Target Muscles: \(muscles.map { $0.rawValue }.joined(separator: ", "))\n"
+            prompt += "Based on this workout type, decide which muscle groups to target and use the get_available_exercises tool to find appropriate exercises.\n\n"
         }
 
         if let notes = userNotes, !notes.isEmpty {
-            prompt += "My Notes: \(notes)\n"
+            prompt += "My Notes: \(notes)\n\n"
         }
 
+        // Add comprehensive workout history
         if !workoutHistory.isEmpty {
-            // Filter out deload workouts from history when showing recent workouts for context
-            let relevantHistory = workoutHistory.filter { !$0.isDeload }.prefix(3)
-            prompt += "\nRecent workouts: \(relevantHistory.map { $0.name }.joined(separator: ", "))\n"
+            prompt += "RECENT WORKOUT HISTORY:\n"
+
+            // Show detailed history for last 5 workouts
+            let relevantHistory = workoutHistory.filter { !$0.isDeload }.prefix(5)
+            for workout in relevantHistory {
+                let dateStr = workout.completedAt?.formatted(date: .abbreviated, time: .omitted) ?? "recent"
+                prompt += "\n[\(dateStr)] \(workout.name)\n"
+
+                for exercise in workout.exercises {
+                    let completedSets = exercise.sets.filter { $0.completedAt != nil }
+                    if !completedSets.isEmpty {
+                        let weights = completedSets.compactMap { $0.weight }
+                        let reps = completedSets.compactMap { $0.actualReps }
+                        let maxWeight = weights.max() ?? 0
+                        let totalReps = reps.reduce(0, +)
+                        prompt += "  - \(exercise.exercise.name): \(completedSets.count) sets, \(Int(maxWeight))lbs max, \(totalReps) total reps\n"
+                    }
+                }
+            }
 
             // For auto-generate, provide more history context so Claude can recommend deload
             if allowDeloadRecommendation {
+                prompt += "\nDELOAD CONTEXT:\n"
                 let lastDeload = workoutHistory.last { $0.isDeload }
                 if let lastDeload = lastDeload, let completedAt = lastDeload.completedAt {
                     let daysSinceDeload = Calendar.current.dateComponents([.day], from: completedAt, to: Date()).day ?? 0
-                    prompt += "Last deload workout: \(daysSinceDeload) days ago\n"
+                    prompt += "- Last deload workout: \(daysSinceDeload) days ago\n"
                 } else {
-                    prompt += "No recent deload workouts in history\n"
+                    prompt += "- No recent deload workouts in history\n"
                 }
                 let nonDeloadCount = workoutHistory.filter { !$0.isDeload }.count
-                prompt += "Total non-deload workouts in recent history: \(nonDeloadCount)\n"
+                prompt += "- Total non-deload workouts in recent history: \(nonDeloadCount)\n"
             }
+
+            prompt += "\nUse this history to:\n"
+            prompt += "1. Suggest appropriate weights based on past performance (progressive overload)\n"
+            prompt += "2. Vary exercise selection to ensure balanced training\n"
+            prompt += "3. Avoid overtraining muscle groups that were recently worked hard\n\n"
         }
 
         prompt += """
-
         Please use the get_available_exercises tool to see what exercises I can do at my gym, then create a workout plan.
 
         Return the final workout as JSON:
