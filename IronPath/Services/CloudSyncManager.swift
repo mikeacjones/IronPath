@@ -168,10 +168,13 @@ class CloudSyncManager {
                 existingRecord["updatedAt"] = Date() as CKRecordValue
                 _ = try await privateDatabase.save(existingRecord)
             } catch {
-                print("CloudKit update error: \(error)")
+                // Silently fail - local storage is the fallback
             }
+        } catch let error as CKError where error.code == .notAuthenticated {
+            // User not signed into iCloud - silently use local storage only
+            return
         } catch {
-            print("CloudKit save error: \(error)")
+            // Other errors - silently fail, local storage is the fallback
         }
     }
 
@@ -205,8 +208,11 @@ class CloudSyncManager {
             if let localData = UserDefaults.standard.data(forKey: "workout_history") {
                 await saveWorkoutHistoryToCloud(localData)
             }
+        } catch let error as CKError where error.code == .notAuthenticated {
+            // User not signed into iCloud - silently use local storage only
+            return
         } catch {
-            print("CloudKit fetch error: \(error)")
+            // Other errors - silently fail, local storage is the fallback
         }
     }
 
@@ -255,10 +261,13 @@ class CloudSyncManager {
                 existingRecord["updatedAt"] = Date() as CKRecordValue
                 _ = try await privateDatabase.save(existingRecord)
             } catch {
-                print("CloudKit gym settings update error: \(error)")
+                // Silently fail - local storage is the fallback
             }
+        } catch let error as CKError where error.code == .notAuthenticated {
+            // User not signed into iCloud - silently use local storage only
+            return
         } catch {
-            print("CloudKit gym settings save error: \(error)")
+            // Other errors - silently fail, local storage is the fallback
         }
     }
 
@@ -273,23 +282,26 @@ class CloudSyncManager {
                 let localUpdatedAt = UserDefaults.standard.object(forKey: "gym_settings_updated") as? Date ?? Date.distantPast
 
                 if cloudUpdatedAt > localUpdatedAt {
-                    UserDefaults.standard.set(data, forKey: "gym_settings")
+                    UserDefaults.standard.set(data, forKey: "gymProfiles")
                     UserDefaults.standard.set(cloudUpdatedAt, forKey: "gym_settings_updated")
 
                     DispatchQueue.main.async {
                         NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                     }
-                } else if let localData = UserDefaults.standard.data(forKey: "gym_settings"),
+                } else if let localData = UserDefaults.standard.data(forKey: "gymProfiles"),
                           localUpdatedAt > cloudUpdatedAt {
                     await saveGymSettingsToCloud(localData)
                 }
             }
         } catch let error as CKError where error.code == .unknownItem {
-            if let localData = UserDefaults.standard.data(forKey: "gym_settings") {
+            if let localData = UserDefaults.standard.data(forKey: "gymProfiles") {
                 await saveGymSettingsToCloud(localData)
             }
+        } catch let error as CKError where error.code == .notAuthenticated {
+            // User not signed into iCloud - silently use local storage only
+            return
         } catch {
-            print("CloudKit gym settings fetch error: \(error)")
+            // Other errors - silently fail, local storage is the fallback
         }
     }
 
