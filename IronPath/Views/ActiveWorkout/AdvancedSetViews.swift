@@ -134,6 +134,23 @@ struct AdvancedSetRowView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(borderColor, lineWidth: borderWidth)
         )
+        // Sync local state when the set data changes from parent (e.g., propagation from earlier sets)
+        .onChange(of: set.weight) { _, newWeight in
+            if !isCompleted, let newWeight = newWeight {
+                let newWeightString = String(format: "%.0f", newWeight)
+                if weight != newWeightString {
+                    weight = newWeightString
+                }
+            }
+        }
+        .onChange(of: set.actualReps) { _, newReps in
+            if !isCompleted, let newReps = newReps {
+                let newRepsString = String(newReps)
+                if reps != newRepsString {
+                    reps = newRepsString
+                }
+            }
+        }
     }
 
     private var borderColor: Color {
