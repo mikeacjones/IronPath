@@ -475,23 +475,72 @@ class AnthropicService {
             "tools": tools
         ]
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let requestBodyData = try JSONSerialization.data(withJSONObject: requestBody)
+        request.httpBody = requestBodyData
 
+        // Capture request info for debug logging
+        let requestHeaders = [
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01"
+        ]
+        let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
+
+        let startTime = Date()
         let (data, response) = try await URLSession.shared.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            // Log failed request
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                error: "Invalid response type",
+                duration: duration
+            ))
             throw AnthropicError.invalidResponse
         }
 
+        let responseBodyString = String(data: data, encoding: .utf8) ?? ""
+
         guard httpResponse.statusCode == 200 else {
-            // Try to get error details
+            // Log error response
+            var errorMessage: String? = nil
             if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errorInfo = errorJson["error"] as? [String: Any],
                let message = errorInfo["message"] as? String {
+                errorMessage = message
+            }
+
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                responseStatusCode: httpResponse.statusCode,
+                responseBody: responseBodyString,
+                error: errorMessage,
+                duration: duration
+            ))
+
+            if let message = errorMessage {
                 throw AnthropicError.apiErrorWithMessage(statusCode: httpResponse.statusCode, message: message)
             }
             throw AnthropicError.apiError(statusCode: httpResponse.statusCode)
         }
+
+        // Log successful response
+        APIDebugManager.shared.log(APILogEntry(
+            endpoint: url.absoluteString,
+            method: "POST",
+            requestHeaders: requestHeaders,
+            requestBody: requestBodyString,
+            responseStatusCode: httpResponse.statusCode,
+            responseBody: responseBodyString,
+            duration: duration
+        ))
 
         let decoder = JSONDecoder()
         return try decoder.decode(ClaudeResponse.self, from: data)
@@ -663,17 +712,59 @@ class AnthropicService {
             ]
         ]
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let requestBodyData = try JSONSerialization.data(withJSONObject: requestBody)
+        request.httpBody = requestBodyData
 
+        // Capture request info for debug logging
+        let requestHeaders = [
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01"
+        ]
+        let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
+
+        let startTime = Date()
         let (data, response) = try await URLSession.shared.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                error: "Invalid response type",
+                duration: duration
+            ))
             throw AnthropicError.invalidResponse
         }
 
+        let responseBodyString = String(data: data, encoding: .utf8) ?? ""
+
         guard httpResponse.statusCode == 200 else {
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                responseStatusCode: httpResponse.statusCode,
+                responseBody: responseBodyString,
+                error: "HTTP \(httpResponse.statusCode)",
+                duration: duration
+            ))
             throw AnthropicError.apiError(statusCode: httpResponse.statusCode)
         }
+
+        // Log successful response
+        APIDebugManager.shared.log(APILogEntry(
+            endpoint: url.absoluteString,
+            method: "POST",
+            requestHeaders: requestHeaders,
+            requestBody: requestBodyString,
+            responseStatusCode: httpResponse.statusCode,
+            responseBody: responseBodyString,
+            duration: duration
+        ))
 
         let decoder = JSONDecoder()
         return try decoder.decode(ClaudeResponse.self, from: data)
@@ -1019,15 +1110,49 @@ class AnthropicService {
             ]
         ]
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let requestBodyData = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = requestBodyData
 
+        // Capture request info for debug logging
+        let requestHeaders = [
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01"
+        ]
+        let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
+
+        let startTime = Date()
         let (data, response) = try await URLSession.shared.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
+
+        let responseBodyString = String(data: data, encoding: .utf8) ?? ""
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                responseStatusCode: statusCode,
+                responseBody: responseBodyString,
+                error: "HTTP \(statusCode)",
+                duration: duration
+            ))
             throw AnthropicError.apiError(statusCode: statusCode)
         }
+
+        // Log successful response
+        APIDebugManager.shared.log(APILogEntry(
+            endpoint: url.absoluteString,
+            method: "POST",
+            requestHeaders: requestHeaders,
+            requestBody: requestBodyString,
+            responseStatusCode: httpResponse.statusCode,
+            responseBody: responseBodyString,
+            duration: duration
+        ))
 
         let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
 

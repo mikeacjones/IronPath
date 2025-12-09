@@ -1864,6 +1864,7 @@ struct ExerciseProgressSection: View {
 struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var gymProfileManager = GymProfileManager.shared
+    @ObservedObject private var debugManager = APIDebugManager.shared
     @State private var showingAPIKeySheet = false
     @State private var showingEditProfile = false
     @State private var showingGymSettings = false
@@ -1875,6 +1876,7 @@ struct ProfileView: View {
     @State private var showingResetConfirmation = false
     @State private var showingExportOptions = false
     @State private var exportData: ExportData?
+    @State private var showingDebugLog = false
 
     var body: some View {
         NavigationStack {
@@ -2008,10 +2010,39 @@ struct ProfileView: View {
                             hasAPIKey = false
                         }
                     }
+
+                    Toggle(isOn: $debugManager.isDebugEnabled) {
+                        Label("Debug Mode", systemImage: "ant.fill")
+                    }
+
+                    if debugManager.isDebugEnabled {
+                        Button {
+                            showingDebugLog = true
+                        } label: {
+                            HStack {
+                                Label("View API Logs", systemImage: "doc.text.magnifyingglass")
+                                Spacer()
+                                if !debugManager.logs.isEmpty {
+                                    Text("\(debugManager.logs.count)")
+                                        .font(.caption)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue)
+                                        .clipShape(Capsule())
+                                }
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                    }
                 } header: {
                     Text("AI Configuration")
                 } footer: {
-                    Text("Required for generating personalized workouts with Claude AI. Get your API key from console.anthropic.com")
+                    Text(debugManager.isDebugEnabled
+                        ? "Debug mode enabled. API requests/responses will be logged. Disabling will clear all logs."
+                        : "Required for generating personalized workouts with Claude AI. Get your API key from console.anthropic.com")
                 }
 
                 Section {
@@ -2059,6 +2090,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showingGymSettings) {
                 GymEquipmentSettingsView()
+            }
+            .sheet(isPresented: $showingDebugLog) {
+                APIDebugLogView()
             }
             .sheet(isPresented: $showingNewGymProfile) {
                 GymProfileEditorView(
