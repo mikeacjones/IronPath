@@ -5,7 +5,11 @@ class AnthropicService {
     static let shared = AnthropicService()
 
     private let baseURL = "https://api.anthropic.com/v1"
-    private let model = "claude-haiku-4-5-20251001" // Cheapest Claude 4.x model ($1/$5 per M tokens)
+
+    /// Get the currently configured model from user settings
+    private var model: String {
+        ModelConfigManager.shared.modelId
+    }
 
     private init() {}
 
@@ -1128,7 +1132,7 @@ class AnthropicService {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let body: [String: Any] = [
-            "model": "claude-sonnet-4-20250514",
+            "model": model,
             "max_tokens": 50,
             "system": systemPrompt,
             "messages": [

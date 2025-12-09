@@ -1865,6 +1865,7 @@ struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var gymProfileManager = GymProfileManager.shared
     @ObservedObject private var debugManager = APIDebugManager.shared
+    @ObservedObject private var modelConfig = ModelConfigManager.shared
     @State private var showingAPIKeySheet = false
     @State private var showingEditProfile = false
     @State private var showingGymSettings = false
@@ -2009,6 +2010,26 @@ struct ProfileView: View {
                             APIKeyManager.shared.clearAPIKey()
                             hasAPIKey = false
                         }
+                    }
+
+                    Picker(selection: $modelConfig.selectedModel) {
+                        ForEach(ClaudeModel.allCases, id: \.self) { model in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(model.displayName)
+                                    Text(model.description)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(model.costTier)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .tag(model)
+                        }
+                    } label: {
+                        Label("AI Model", systemImage: "cpu")
                     }
 
                     Toggle(isOn: $debugManager.isDebugEnabled) {
