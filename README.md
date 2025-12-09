@@ -21,11 +21,13 @@ An AI-powered iOS workout generation app that creates personalized strength trai
 ### Workout Tracking
 - **Real-time workout logging** with set-by-set tracking
 - **Advanced training techniques** - drop sets, rest-pause, and warmup sets
-- **Supersets & circuits** - group exercises with visual indicators and shared rest times
-- Rest timer with background notifications
+- **Supersets & circuits** - group exercises with automatic navigation and shared rest times
+- **Smart superset flow** - warmup sets complete before superset rotation begins
+- Rest timer with circular progress indicator and background notifications
 - Exercise replacement (AI-powered or quick swap from library)
-- Add exercises mid-workout
+- Add/remove exercises and sets mid-workout
 - **Personal records (PR) detection** for weight and volume
+- Workout state persists even if you switch tabs or leave the app
 
 ### Exercise Library
 - 100+ exercises across all muscle groups
@@ -42,14 +44,14 @@ An AI-powered iOS workout generation app that creates personalized strength trai
 - Export to JSON or CSV
 
 ### Sync & Integration
-- **iCloud sync** across all your devices
+- **iCloud sync** across all your devices (workouts, gym profiles, exercise preferences)
 - **HealthKit integration** for Apple Health workout logging
-- Workouts persist across app restarts
+- Workouts and settings persist across app restarts and reinstalls
 
 ## Requirements
 
 - iOS 17.0+
-- Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com))
+- Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com)) or OpenAI API key
 
 ## Getting Started
 
@@ -90,6 +92,7 @@ IronPath/
 - **CloudKit** - iCloud data synchronization
 - **HealthKit** - Apple Health integration
 - **Anthropic Claude API** - AI workout generation with tool use
+- **OpenAI API** - Alternative AI provider support
 
 ## Contributing
 
@@ -109,6 +112,8 @@ This project is proprietary software. All rights reserved.
 | Workout Templates | Save and reuse favorite workouts without AI generation | Planned |
 | Superset/Circuit Support | Group exercises together with shared rest times | ✅ Implemented |
 | Drop Sets / Rest-Pause / Warm-up Sets | Support for advanced training techniques | ✅ Implemented |
+| Smart Superset Navigation | Automatic exercise rotation with warmup set handling | ✅ Implemented |
+| Required Technique Enforcement | AI generates workouts with mandatory advanced techniques | ✅ Implemented |
 | RPE/RIR Tracking | Rate of Perceived Exertion or Reps in Reserve logging | Planned |
 
 ### Social & Sharing
