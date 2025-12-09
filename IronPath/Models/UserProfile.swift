@@ -307,19 +307,24 @@ struct AdvancedTechniqueSettings: Codable, Equatable {
     /// Whether rest-pause sets can be suggested by AI
     var allowRestPauseSets: Bool
 
+    /// Whether supersets/circuits can be suggested by AI
+    var allowSupersets: Bool
+
     init(
         allowWarmupSets: Bool = true,
         allowDropSets: Bool = true,
-        allowRestPauseSets: Bool = true
+        allowRestPauseSets: Bool = true,
+        allowSupersets: Bool = true
     ) {
         self.allowWarmupSets = allowWarmupSets
         self.allowDropSets = allowDropSets
         self.allowRestPauseSets = allowRestPauseSets
+        self.allowSupersets = allowSupersets
     }
 
     /// Whether any advanced techniques are enabled
     var anyEnabled: Bool {
-        allowWarmupSets || allowDropSets || allowRestPauseSets
+        allowWarmupSets || allowDropSets || allowRestPauseSets || allowSupersets
     }
 }
 
@@ -336,14 +341,19 @@ struct WorkoutGenerationOptions: Codable, Equatable {
     /// Requirement mode for rest-pause sets
     var restPauseMode: TechniqueRequirementMode
 
+    /// Requirement mode for supersets/circuits
+    var supersetMode: TechniqueRequirementMode
+
     init(
         warmupSetMode: TechniqueRequirementMode = .allowed,
         dropSetMode: TechniqueRequirementMode = .allowed,
-        restPauseMode: TechniqueRequirementMode = .allowed
+        restPauseMode: TechniqueRequirementMode = .allowed,
+        supersetMode: TechniqueRequirementMode = .allowed
     ) {
         self.warmupSetMode = warmupSetMode
         self.dropSetMode = dropSetMode
         self.restPauseMode = restPauseMode
+        self.supersetMode = supersetMode
     }
 
     /// Apply global settings to filter out disabled techniques
@@ -351,7 +361,8 @@ struct WorkoutGenerationOptions: Codable, Equatable {
         WorkoutGenerationOptions(
             warmupSetMode: globalSettings.allowWarmupSets ? warmupSetMode : .disabled,
             dropSetMode: globalSettings.allowDropSets ? dropSetMode : .disabled,
-            restPauseMode: globalSettings.allowRestPauseSets ? restPauseMode : .disabled
+            restPauseMode: globalSettings.allowRestPauseSets ? restPauseMode : .disabled,
+            supersetMode: globalSettings.allowSupersets ? supersetMode : .disabled
         )
     }
 }

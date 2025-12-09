@@ -246,7 +246,8 @@ enum AIProviderHelpers {
         workoutHistory: [Workout],
         isDeload: Bool,
         allowDeloadRecommendation: Bool,
-        availableExercises: String
+        availableExercises: String,
+        techniqueOptions: WorkoutGenerationOptions
     ) -> String {
         let todayStr = Date().formatted(date: .complete, time: .omitted)
         var prompt = "Today's Date: \(todayStr)\n\nPlease create a workout for me.\n\n"
@@ -315,41 +316,65 @@ enum AIProviderHelpers {
         prompt += "\n"
 
         // Add JSON format specification
-        prompt += """
-        Return the workout as JSON with this structure:
-        {
-          "name": "\(isDeload ? "Deload - " : "")Workout name",
-          "isDeload": \(isDeload ? "true" : "false")\(allowDeloadRecommendation ? " // Set to true if you recommend a deload based on training history" : ""),
-          "exercises": [
-            {
-              "name": "Exercise name (must match exactly from the list)",
-              "sets": number,
-              "reps": "rep range or target",
-              "weight": \(isDeload ? "reduced weight (50-70% of history)" : "suggested weight based on history or appropriate starting weight"),
-              "restSeconds": number,
-              "equipment": "equipment type",
-              "primaryMuscles": ["muscle1"],
-              "notes": "Optional coaching notes"
-            }
-          ],
-          "exerciseGroups": [
-            {
-              "type": "superset|triset|giantSet|circuit",
-              "exerciseIndices": [0, 1],
-              "restBetweenExercises": 0,
-              "restAfterGroup": 90
-            }
-          ]
+        let supersetEnabled = techniqueOptions.supersetMode != .disabled
+        let supersetRequired = techniqueOptions.supersetMode == .required
+
+        let weightInstruction = isDeload ? "reduced weight (50-70% of history)" : "suggested weight based on history or appropriate starting weight"
+        let deloadComment = allowDeloadRecommendation ? " // Set to true if you recommend a deload based on training history" : ""
+
+        prompt += "Return the workout as JSON with this structure:\n"
+        prompt += "{\n"
+        prompt += "  \"name\": \"\(isDeload ? "Deload - " : "")Workout name\",\n"
+        prompt += "  \"isDeload\": \(isDeload ? "true" : "false")\(deloadComment),\n"
+        prompt += "  \"exercises\": [\n"
+        prompt += "    {\n"
+        prompt += "      \"name\": \"Exercise name (must match exactly from the list)\",\n"
+        prompt += "      \"sets\": number,\n"
+        prompt += "      \"reps\": \"rep range or target\",\n"
+        prompt += "      \"weight\": \(weightInstruction),\n"
+        prompt += "      \"restSeconds\": number,\n"
+        prompt += "      \"equipment\": \"equipment type\",\n"
+        prompt += "      \"primaryMuscles\": [\"muscle1\"],\n"
+        prompt += "      \"notes\": \"Optional coaching notes\"\n"
+        prompt += "    }\n"
+        prompt += "  ]"
+
+        if supersetEnabled {
+            prompt += ",\n"
+            prompt += "  \"exerciseGroups\": [\n"
+            prompt += "    {\n"
+            prompt += "      \"type\": \"superset|triset|giantSet|circuit\",\n"
+            prompt += "      \"exerciseIndices\": [0, 1],\n"
+            prompt += "      \"restBetweenExercises\": 0,\n"
+            prompt += "      \"restAfterGroup\": 90\n"
+            prompt += "    }\n"
+            prompt += "  ]\n"
+        } else {
+            prompt += "\n"
         }
 
-        SUPERSETS & CIRCUITS:
-        You can group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.
-        - Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time
-        - exerciseIndices are 0-based indices into the exercises array
-        - restBetweenExercises is typically 0 for supersets (exercises done back-to-back)
-        - restAfterGroup is rest after completing one round of the group
-        - Only include exerciseGroups if you want to create supersets/circuits; omit for standard workouts
-        """
+        prompt += "}\n"
+
+        // Add superset instructions based on mode
+        if supersetRequired {
+            prompt += "\n⚠️ SUPERSETS REQUIRED:\n"
+            prompt += "You MUST include at least one superset or circuit in this workout.\n"
+            prompt += "Group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.\n"
+            prompt += "- Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time\n"
+            prompt += "- exerciseIndices are 0-based indices into the exercises array\n"
+            prompt += "- restBetweenExercises is typically 0 for supersets (exercises done back-to-back)\n"
+            prompt += "- restAfterGroup is rest after completing one round of the group\n"
+        } else if supersetEnabled {
+            prompt += "\nSUPERSETS & CIRCUITS (optional):\n"
+            prompt += "You can group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.\n"
+            prompt += "- Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time\n"
+            prompt += "- exerciseIndices are 0-based indices into the exercises array\n"
+            prompt += "- restBetweenExercises is typically 0 for supersets (exercises done back-to-back)\n"
+            prompt += "- restAfterGroup is rest after completing one round of the group\n"
+            prompt += "- Only include exerciseGroups if you want to create supersets/circuits; omit for standard workouts\n"
+        } else {
+            prompt += "\nNOTE: Do NOT include exerciseGroups or supersets in this workout. Keep all exercises separate with standard rest periods.\n"
+        }
 
         return prompt
     }

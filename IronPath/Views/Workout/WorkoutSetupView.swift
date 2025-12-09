@@ -17,6 +17,7 @@ struct WorkoutSetupView: View {
     @AppStorage("workout_warmup_mode") private var warmupMode: TechniqueRequirementMode = .allowed
     @AppStorage("workout_dropset_mode") private var dropSetMode: TechniqueRequirementMode = .allowed
     @AppStorage("workout_restpause_mode") private var restPauseMode: TechniqueRequirementMode = .allowed
+    @AppStorage("workout_superset_mode") private var supersetMode: TechniqueRequirementMode = .allowed
 
     private var globalSettings: AdvancedTechniqueSettings {
         appState.userProfile?.workoutPreferences.advancedTechniqueSettings ?? AdvancedTechniqueSettings()
@@ -26,7 +27,8 @@ struct WorkoutSetupView: View {
         WorkoutGenerationOptions(
             warmupSetMode: warmupMode,
             dropSetMode: dropSetMode,
-            restPauseMode: restPauseMode
+            restPauseMode: restPauseMode,
+            supersetMode: supersetMode
         ).applying(globalSettings: globalSettings)
     }
 
@@ -118,6 +120,15 @@ struct WorkoutSetupView: View {
                                 mode: $restPauseMode,
                                 isGloballyEnabled: globalSettings.allowRestPauseSets
                             )
+
+                            // Supersets & Circuits
+                            TechniqueModePicker(
+                                title: "Supersets",
+                                iconName: "arrow.triangle.2.circlepath",
+                                iconColor: .blue,
+                                mode: $supersetMode,
+                                isGloballyEnabled: globalSettings.allowSupersets
+                            )
                         } label: {
                             HStack {
                                 Image(systemName: "sparkles")
@@ -191,7 +202,8 @@ struct WorkoutSetupView: View {
     private var hasActiveRequirements: Bool {
         generationOptions.warmupSetMode == .required ||
         generationOptions.dropSetMode == .required ||
-        generationOptions.restPauseMode == .required
+        generationOptions.restPauseMode == .required ||
+        generationOptions.supersetMode == .required
     }
 
     private var activeRequirementsLabel: String {
@@ -199,6 +211,7 @@ struct WorkoutSetupView: View {
         if generationOptions.warmupSetMode == .required { required.append("W") }
         if generationOptions.dropSetMode == .required { required.append("D") }
         if generationOptions.restPauseMode == .required { required.append("RP") }
+        if generationOptions.supersetMode == .required { required.append("SS") }
         return required.isEmpty ? "" : "Required: \(required.joined(separator: ", "))"
     }
 }

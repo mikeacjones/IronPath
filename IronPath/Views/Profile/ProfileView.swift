@@ -180,6 +180,27 @@ struct ProfileView: View {
                                 }
                             }
                         }
+
+                        Toggle(isOn: Binding(
+                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowSupersets },
+                            set: { newValue in
+                                var updated = profile
+                                updated.workoutPreferences.advancedTechniqueSettings.allowSupersets = newValue
+                                appState.userProfile = updated
+                            }
+                        )) {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .foregroundStyle(.blue)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading) {
+                                    Text("Supersets & Circuits")
+                                    Text("Group exercises with minimal rest between")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     } header: {
                         Text("Advanced Training Techniques")
                     } footer: {
