@@ -13,23 +13,42 @@ struct WorkoutSetupView: View {
     @State private var isDeload: Bool = false
     @State private var showAdvancedOptions: Bool = false
 
-    // Per-workout technique options (persisted between generations)
-    @AppStorage("workout_warmup_mode") private var warmupMode: TechniqueRequirementMode = .allowed
-    @AppStorage("workout_dropset_mode") private var dropSetMode: TechniqueRequirementMode = .allowed
-    @AppStorage("workout_restpause_mode") private var restPauseMode: TechniqueRequirementMode = .allowed
-    @AppStorage("workout_superset_mode") private var supersetMode: TechniqueRequirementMode = .allowed
+    // Per-workout technique overrides (not persisted - reset each time sheet opens)
+    // These start as nil, meaning "use global setting"
+    @State private var warmupModeOverride: TechniqueRequirementMode?
+    @State private var dropSetModeOverride: TechniqueRequirementMode?
+    @State private var restPauseModeOverride: TechniqueRequirementMode?
+    @State private var supersetModeOverride: TechniqueRequirementMode?
 
     private var globalSettings: AdvancedTechniqueSettings {
         appState.userProfile?.workoutPreferences.advancedTechniqueSettings ?? AdvancedTechniqueSettings()
     }
 
+    // Effective modes: use override if set, otherwise use global setting
+    private var effectiveWarmupMode: TechniqueRequirementMode {
+        warmupModeOverride ?? globalSettings.warmupSetMode
+    }
+
+    private var effectiveDropSetMode: TechniqueRequirementMode {
+        dropSetModeOverride ?? globalSettings.dropSetMode
+    }
+
+    private var effectiveRestPauseMode: TechniqueRequirementMode {
+        restPauseModeOverride ?? globalSettings.restPauseSetMode
+    }
+
+    private var effectiveSupersetMode: TechniqueRequirementMode {
+        supersetModeOverride ?? globalSettings.supersetMode
+    }
+
     private var generationOptions: WorkoutGenerationOptions {
+        // Build options from effective modes (which respect overrides)
         WorkoutGenerationOptions(
-            warmupSetMode: warmupMode,
-            dropSetMode: dropSetMode,
-            restPauseMode: restPauseMode,
-            supersetMode: supersetMode
-        ).applying(globalSettings: globalSettings)
+            warmupSetMode: effectiveWarmupMode,
+            dropSetMode: effectiveDropSetMode,
+            restPauseMode: effectiveRestPauseMode,
+            supersetMode: effectiveSupersetMode
+        )
     }
 
     private var isCustomWorkout: Bool {
@@ -99,8 +118,8 @@ struct WorkoutSetupView: View {
                                 title: "Warmup Sets",
                                 iconName: "flame",
                                 iconColor: .orange,
-                                mode: $warmupMode,
-                                isGloballyEnabled: globalSettings.allowWarmupSets
+                                override: $warmupModeOverride,
+                                globalMode: globalSettings.warmupSetMode
                             )
 
                             // Drop Sets
@@ -108,8 +127,8 @@ struct WorkoutSetupView: View {
                                 title: "Drop Sets",
                                 iconName: "arrow.down.circle.fill",
                                 iconColor: .purple,
-                                mode: $dropSetMode,
-                                isGloballyEnabled: globalSettings.allowDropSets
+                                override: $dropSetModeOverride,
+                                globalMode: globalSettings.dropSetMode
                             )
 
                             // Rest-Pause
@@ -117,8 +136,8 @@ struct WorkoutSetupView: View {
                                 title: "Rest-Pause",
                                 iconName: "pause.circle.fill",
                                 iconColor: .green,
-                                mode: $restPauseMode,
-                                isGloballyEnabled: globalSettings.allowRestPauseSets
+                                override: $restPauseModeOverride,
+                                globalMode: globalSettings.restPauseSetMode
                             )
 
                             // Supersets & Circuits
@@ -126,8 +145,8 @@ struct WorkoutSetupView: View {
                                 title: "Supersets",
                                 iconName: "arrow.triangle.2.circlepath",
                                 iconColor: .blue,
-                                mode: $supersetMode,
-                                isGloballyEnabled: globalSettings.allowSupersets
+                                override: $supersetModeOverride,
+                                globalMode: globalSettings.supersetMode
                             )
                         } label: {
                             HStack {
@@ -222,36 +241,68 @@ struct TechniqueModePicker: View {
     let title: String
     let iconName: String
     let iconColor: Color
-    let mode: Binding<TechniqueRequirementMode>
-    let isGloballyEnabled: Bool
+    @Binding var override: TechniqueRequirementMode?
+    let globalMode: TechniqueRequirementMode
+
+    /// The effective mode shown to the user (override if set, otherwise global)
+    private var effectiveMode: TechniqueRequirementMode {
+        override ?? globalMode
+    }
+
+    /// Whether the current setting differs from global (has been overridden)
+    private var isOverridden: Bool {
+        override != nil
+    }
+
+    /// Binding that sets the override when changed
+    private var modeBinding: Binding<TechniqueRequirementMode> {
+        Binding(
+            get: { effectiveMode },
+            set: { newValue in
+                // Only set override if different from global
+                if newValue != globalMode {
+                    override = newValue
+                } else {
+                    // Clear override if user selects the same as global
+                    override = nil
+                }
+            }
+        )
+    }
 
     var body: some View {
         HStack {
             Image(systemName: iconName)
-                .foregroundStyle(isGloballyEnabled ? iconColor : .gray)
+                .foregroundStyle(effectiveMode != .disabled ? iconColor : .gray)
                 .frame(width: 24)
 
             Text(title)
-                .foregroundStyle(isGloballyEnabled ? .primary : .secondary)
+                .foregroundStyle(effectiveMode != .disabled ? .primary : .secondary)
 
             Spacer()
 
-            if isGloballyEnabled {
-                Picker("", selection: mode) {
+            HStack(spacing: 4) {
+                // Show indicator if overridden from global setting
+                if isOverridden {
+                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                Picker("", selection: modeBinding) {
                     ForEach(TechniqueRequirementMode.allCases, id: \.self) { requirementMode in
                         HStack {
                             Image(systemName: requirementMode.iconName)
                             Text(requirementMode.rawValue)
+                            // Show "(Default)" for the global setting
+                            if requirementMode == globalMode {
+                                Text("(Default)")
+                            }
                         }
                         .tag(requirementMode)
                     }
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-            } else {
-                Text("Disabled in settings")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }

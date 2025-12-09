@@ -200,6 +200,9 @@ struct WorkoutView: View {
         let trainingStyle = profile.workoutPreferences.trainingStyle
         let styleNotes = "Training style: \(trainingStyle.rawValue)"
 
+        // Apply global technique settings from profile
+        let effectiveOptions = WorkoutGenerationOptions().applying(globalSettings: profile.workoutPreferences.advancedTechniqueSettings)
+
         Task {
             do {
                 let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(10))
@@ -213,7 +216,7 @@ struct WorkoutView: View {
                     userNotes: styleNotes,
                     isDeload: false,
                     allowDeloadRecommendation: true,  // Let AI recommend deload if needed
-                    techniqueOptions: WorkoutGenerationOptions()
+                    techniqueOptions: effectiveOptions
                 )
                 await MainActor.run {
                     pendingWorkoutManager.pendingWorkout = workout
@@ -244,9 +247,8 @@ struct WorkoutView: View {
 
         isGeneratingWorkout = true
 
-        // Apply global settings to the options
-        let effectiveOptions = options.applying(globalSettings: profile.workoutPreferences.advancedTechniqueSettings)
-
+        // Options passed from WorkoutSetupView already include any per-workout overrides
+        // applied on top of global settings, so use them directly
         Task {
             do {
                 let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(5))
@@ -260,7 +262,7 @@ struct WorkoutView: View {
                     userNotes: notes.isEmpty ? nil : notes,
                     isDeload: isDeload,
                     allowDeloadRecommendation: false,
-                    techniqueOptions: effectiveOptions
+                    techniqueOptions: options
                 )
                 workout.isDeload = isDeload
                 await MainActor.run {

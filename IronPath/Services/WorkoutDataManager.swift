@@ -26,6 +26,12 @@ class WorkoutDataManager {
     /// Save a completed workout to history
     func saveWorkout(_ workout: Workout) {
         var history = getWorkoutHistory()
+
+        // Prevent duplicate saves - check if workout with same ID already exists
+        guard !history.contains(where: { $0.id == workout.id }) else {
+            return
+        }
+
         history.append(workout)
 
         // Keep only the last 100 workouts

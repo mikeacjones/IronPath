@@ -8,6 +8,7 @@ struct ActiveWorkoutView: View {
     let onCancel: () -> Void
 
     @ObservedObject private var activeWorkoutManager = ActiveWorkoutManager.shared
+    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
     @State private var currentWorkout: Workout
     @State private var showCancelConfirmation = false
     @State private var selectedExercise: WorkoutExercise?
@@ -31,6 +32,7 @@ struct ActiveWorkoutView: View {
     // Workout completion state
     @State private var showCompletionSummary = false
     @State private var completedWorkoutForSummary: Workout?
+    @State private var isFinishing = false
 
     init(workout: Workout, userProfile: UserProfile?, onComplete: @escaping (Workout) -> Void, onCancel: @escaping () -> Void) {
         self.workout = workout
@@ -51,6 +53,39 @@ struct ActiveWorkoutView: View {
         currentWorkout.exercises.allSatisfy { $0.isCompleted }
     }
 
+    /// Organizes exercises into display items (standalone or grouped)
+    /// Groups exercises that belong to the same superset/circuit together
+    var exerciseDisplayItems: [ExerciseDisplayItem] {
+        var items: [ExerciseDisplayItem] = []
+        var processedExerciseIds: Set<UUID> = []
+
+        for exercise in currentWorkout.exercises {
+            // Skip if already processed (part of a group we already added)
+            guard !processedExerciseIds.contains(exercise.id) else { continue }
+
+            // Check if this exercise belongs to a group
+            if let group = currentWorkout.group(for: exercise.id) {
+                // Get all exercises in this group, in the order defined by the group
+                let groupExercises = group.exerciseIds.compactMap { exerciseId in
+                    currentWorkout.exercises.first { $0.id == exerciseId }
+                }
+
+                // Mark all exercises in this group as processed
+                for groupExercise in groupExercises {
+                    processedExerciseIds.insert(groupExercise.id)
+                }
+
+                items.append(.group(group, groupExercises))
+            } else {
+                // Standalone exercise
+                processedExerciseIds.insert(exercise.id)
+                items.append(.standalone(exercise))
+            }
+        }
+
+        return items
+    }
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -68,33 +103,51 @@ struct ActiveWorkoutView: View {
                 // Exercise list
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(currentWorkout.exercises.indices, id: \.self) { index in
-                            let exercise = currentWorkout.exercises[index]
-                            let groupInfo = getGroupInfo(for: exercise)
+                        ForEach(exerciseDisplayItems) { item in
+                            switch item {
+                            case .standalone(let exercise):
+                                ActiveExerciseCard(
+                                    exercise: exercise,
+                                    currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                                    onTap: {
+                                        selectedExercise = exercise
+                                    },
+                                    onReplace: {
+                                        exerciseToReplace = exercise
+                                        replacementNotes = ""
+                                        showReplacementSheet = true
+                                    },
+                                    onRemove: {
+                                        exerciseToRemove = exercise
+                                        showRemoveConfirmation = true
+                                    },
+                                    onSetPreference: { preference in
+                                        preferenceManager.setPreference(
+                                            preference,
+                                            for: exercise.exercise.name
+                                        )
+                                    }
+                                )
 
-                            ExerciseCardWithGrouping(
-                                exercise: exercise,
-                                groupInfo: groupInfo,
-                                currentPreference: ExercisePreferenceManager.shared.getPreference(for: exercise.exercise.name),
-                                onTap: {
-                                    selectedExercise = currentWorkout.exercises[index]
-                                },
-                                onReplace: {
-                                    exerciseToReplace = currentWorkout.exercises[index]
-                                    replacementNotes = ""
-                                    showReplacementSheet = true
-                                },
-                                onRemove: {
-                                    exerciseToRemove = currentWorkout.exercises[index]
-                                    showRemoveConfirmation = true
-                                },
-                                onSetPreference: { preference in
-                                    ExercisePreferenceManager.shared.setPreference(
-                                        preference,
-                                        for: exercise.exercise.name
-                                    )
-                                }
-                            )
+                            case .group(let group, let exercises):
+                                SupersetGroupCard(
+                                    group: group,
+                                    exercises: exercises,
+                                    preferenceManager: preferenceManager,
+                                    onExerciseTap: { exercise in
+                                        selectedExercise = exercise
+                                    },
+                                    onExerciseReplace: { exercise in
+                                        exerciseToReplace = exercise
+                                        replacementNotes = ""
+                                        showReplacementSheet = true
+                                    },
+                                    onExerciseRemove: { exercise in
+                                        exerciseToRemove = exercise
+                                        showRemoveConfirmation = true
+                                    }
+                                )
+                            }
                         }
 
                         // Add Exercise button
@@ -131,6 +184,7 @@ struct ActiveWorkoutView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(allExercisesCompleted ? .green : .blue)
+                    .disabled(isFinishing)
                 }
                 .padding()
                 .background(Color(.systemBackground))
@@ -148,7 +202,7 @@ struct ActiveWorkoutView: View {
                     showCancelConfirmation = true
                 }
                 .foregroundStyle(.red)
-                .confirmationDialog("Cancel Workout?", isPresented: $showCancelConfirmation) {
+                .confirmationDialog("Cancel Workout?", isPresented: $showCancelConfirmation, titleVisibility: .visible) {
                     Button("Cancel Workout", role: .destructive) {
                         // Stop any active rest timers and cancel pending notifications
                         RestTimerManager.shared.skipTimer()
@@ -160,12 +214,12 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "Remove Exercise?",
             isPresented: $showRemoveConfirmation,
             presenting: exerciseToRemove
         ) { exercise in
-            Button("Remove \(exercise.exercise.name)", role: .destructive) {
+            Button("Remove", role: .destructive) {
                 removeExercise(exercise)
             }
             Button("Cancel", role: .cancel) {
@@ -233,7 +287,11 @@ struct ActiveWorkoutView: View {
                 }
             )
         }
-        .sheet(isPresented: $showCompletionSummary) {
+        .sheet(isPresented: $showCompletionSummary, onDismiss: {
+            // Reset finishing state when sheet is dismissed
+            // This handles edge cases where the sheet might be dismissed unexpectedly
+            isFinishing = false
+        }) {
             if let completedWorkout = completedWorkoutForSummary {
                 WorkoutCompletionSummaryView(
                     workout: completedWorkout,
@@ -244,6 +302,22 @@ struct ActiveWorkoutView: View {
                     }
                 )
                 .interactiveDismissDisabled()
+            } else {
+                // Fallback view - should not normally appear
+                // If this shows, there's a state synchronization issue
+                VStack(spacing: 20) {
+                    ProgressView()
+                    Text("Loading summary...")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    // If workout data isn't ready, dismiss and retry
+                    if completedWorkoutForSummary == nil {
+                        showCompletionSummary = false
+                        isFinishing = false
+                    }
+                }
             }
         }
     }
@@ -371,13 +445,24 @@ struct ActiveWorkoutView: View {
     }
 
     private func finishWorkout() {
+        // Prevent double-finishing (e.g., from double-tap)
+        guard !isFinishing else { return }
+        isFinishing = true
+
         // Stop any active rest timers and cancel pending notifications
         RestTimerManager.shared.skipTimer()
 
         var completedWorkout = currentWorkout
         completedWorkout.completedAt = Date()
-        WorkoutDataManager.shared.saveWorkout(completedWorkout)
+
+        // Set the workout for summary BEFORE saving and showing sheet
+        // This ensures the sheet content is ready when it appears
         completedWorkoutForSummary = completedWorkout
+
+        // Save to history
+        WorkoutDataManager.shared.saveWorkout(completedWorkout)
+
+        // Show the summary sheet
         showCompletionSummary = true
     }
 
@@ -476,6 +561,23 @@ struct ExerciseGroupInfo {
     let isLast: Bool
 }
 
+// MARK: - Exercise Display Item
+
+/// Represents either a standalone exercise or a group of exercises for display
+enum ExerciseDisplayItem: Identifiable {
+    case standalone(WorkoutExercise)
+    case group(ExerciseGroup, [WorkoutExercise])
+
+    var id: String {
+        switch self {
+        case .standalone(let exercise):
+            return "standalone-\(exercise.id.uuidString)"
+        case .group(let group, _):
+            return "group-\(group.id.uuidString)"
+        }
+    }
+}
+
 // MARK: - Exercise Card With Grouping
 
 /// Wrapper that adds grouping visual indicators to exercise cards
@@ -546,6 +648,96 @@ struct ExerciseCardWithGrouping: View {
                     .stroke(groupInfo != nil ? groupColor.opacity(0.3) : Color.clear, lineWidth: 2)
             )
         }
+    }
+}
+
+// MARK: - Superset Group Card
+
+/// Displays a group of exercises (superset/circuit) with a visual container
+struct SupersetGroupCard: View {
+    let group: ExerciseGroup
+    let exercises: [WorkoutExercise]
+    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    let onExerciseTap: (WorkoutExercise) -> Void
+    let onExerciseReplace: (WorkoutExercise) -> Void
+    let onExerciseRemove: (WorkoutExercise) -> Void
+
+    private var groupColor: Color {
+        group.groupType.swiftUIColor
+    }
+
+    private var completedExercisesInGroup: Int {
+        exercises.filter { $0.isCompleted }.count
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Group header
+            HStack(spacing: 8) {
+                Image(systemName: group.groupType.iconName)
+                    .font(.subheadline)
+                    .foregroundStyle(groupColor)
+
+                Text(group.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(groupColor)
+
+                Spacer()
+
+                // Progress indicator
+                Text("\(completedExercisesInGroup)/\(exercises.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(groupColor.opacity(0.1))
+
+            // Exercise cards within the group
+            VStack(spacing: 8) {
+                ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
+                    ActiveExerciseCard(
+                        exercise: exercise,
+                        currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                        onTap: {
+                            onExerciseTap(exercise)
+                        },
+                        onReplace: {
+                            onExerciseReplace(exercise)
+                        },
+                        onRemove: {
+                            onExerciseRemove(exercise)
+                        },
+                        onSetPreference: { preference in
+                            preferenceManager.setPreference(
+                                preference,
+                                for: exercise.exercise.name
+                            )
+                        }
+                    )
+
+                    // Arrow between exercises (except after last)
+                    if index < exercises.count - 1 {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "arrow.down")
+                                .font(.caption)
+                                .foregroundStyle(groupColor.opacity(0.6))
+                            Spacer()
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+            .padding(8)
+        }
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(groupColor, lineWidth: 2)
+        )
     }
 }
 
@@ -1203,10 +1395,10 @@ struct ExerciseDetailSheet: View {
                         }
                         .padding(.horizontal)
 
-                        ForEach(updatedExercise.sets.indices, id: \.self) { setIndex in
+                        ForEach(Array(updatedExercise.sets.enumerated()), id: \.element.id) { setIndex, set in
                             HStack(alignment: .top, spacing: 8) {
                                 AdvancedSetRowView(
-                                    set: updatedExercise.sets[setIndex],
+                                    set: set,
                                     setIndex: setIndex,
                                     exerciseName: exercise.exercise.name,
                                     equipment: exercise.exercise.equipment,

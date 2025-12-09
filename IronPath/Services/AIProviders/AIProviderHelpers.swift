@@ -220,7 +220,20 @@ enum AIProviderHelpers {
                 prompt += "• \(technique)\n"
             }
             prompt += "\nFAILURE TO INCLUDE THESE TECHNIQUES WILL RESULT IN AN INVALID WORKOUT.\n"
-            prompt += "At least 1-2 exercises MUST use these required techniques via the \"advancedSets\" array.\n\n"
+
+            // Special handling for warmups - they should be on EVERY exercise when required
+            if techniqueOptions.warmupSetMode == .required {
+                prompt += "\n⚠️ WARMUP SETS ARE REQUIRED ON EVERY EXERCISE ⚠️\n"
+                prompt += "When warmup sets are required, EVERY exercise in the workout MUST include at least one warmup set.\n"
+                prompt += "Each exercise should use the \"advancedSets\" array with a warmup set (type: \"warmup\") as the first set.\n"
+                prompt += "Warmup sets should use 40-60% of the working weight with higher reps (10-15).\n\n"
+            }
+
+            // For other techniques, 1-2 exercises is sufficient
+            let otherRequiredTypes = requiredTypes.filter { $0 != "warmup" }
+            if !otherRequiredTypes.isEmpty {
+                prompt += "For \(otherRequiredTypes.joined(separator: ", ")): At least 1-2 exercises MUST use these techniques via the \"advancedSets\" array.\n\n"
+            }
         }
 
         if !allowed.isEmpty {

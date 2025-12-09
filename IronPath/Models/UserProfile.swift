@@ -296,35 +296,49 @@ struct WorkoutPreferences: Codable {
 
 // MARK: - Advanced Training Technique Settings
 
-/// Global settings for whether AI can suggest advanced training techniques
+/// Global settings for how AI should handle advanced training techniques
 struct AdvancedTechniqueSettings: Codable, Equatable {
-    /// Whether warmup sets can be suggested by AI
-    var allowWarmupSets: Bool
+    /// Mode for warmup sets
+    var warmupSetMode: TechniqueRequirementMode
 
-    /// Whether drop sets can be suggested by AI
-    var allowDropSets: Bool
+    /// Mode for drop sets
+    var dropSetMode: TechniqueRequirementMode
 
-    /// Whether rest-pause sets can be suggested by AI
-    var allowRestPauseSets: Bool
+    /// Mode for rest-pause sets
+    var restPauseSetMode: TechniqueRequirementMode
 
-    /// Whether supersets/circuits can be suggested by AI
-    var allowSupersets: Bool
+    /// Mode for supersets/circuits
+    var supersetMode: TechniqueRequirementMode
 
     init(
-        allowWarmupSets: Bool = true,
-        allowDropSets: Bool = true,
-        allowRestPauseSets: Bool = true,
-        allowSupersets: Bool = true
+        warmupSetMode: TechniqueRequirementMode = .allowed,
+        dropSetMode: TechniqueRequirementMode = .allowed,
+        restPauseSetMode: TechniqueRequirementMode = .allowed,
+        supersetMode: TechniqueRequirementMode = .allowed
     ) {
-        self.allowWarmupSets = allowWarmupSets
-        self.allowDropSets = allowDropSets
-        self.allowRestPauseSets = allowRestPauseSets
-        self.allowSupersets = allowSupersets
+        self.warmupSetMode = warmupSetMode
+        self.dropSetMode = dropSetMode
+        self.restPauseSetMode = restPauseSetMode
+        self.supersetMode = supersetMode
     }
 
-    /// Whether any advanced techniques are enabled
+    /// Whether any advanced techniques are enabled (allowed or required)
     var anyEnabled: Bool {
-        allowWarmupSets || allowDropSets || allowRestPauseSets || allowSupersets
+        warmupSetMode != .disabled || dropSetMode != .disabled ||
+        restPauseSetMode != .disabled || supersetMode != .disabled
+    }
+
+    // Legacy compatibility - convert from old boolean format
+    init(
+        allowWarmupSets: Bool,
+        allowDropSets: Bool,
+        allowRestPauseSets: Bool,
+        allowSupersets: Bool
+    ) {
+        self.warmupSetMode = allowWarmupSets ? .allowed : .disabled
+        self.dropSetMode = allowDropSets ? .allowed : .disabled
+        self.restPauseSetMode = allowRestPauseSets ? .allowed : .disabled
+        self.supersetMode = allowSupersets ? .allowed : .disabled
     }
 }
 
@@ -356,14 +370,32 @@ struct WorkoutGenerationOptions: Codable, Equatable {
         self.supersetMode = supersetMode
     }
 
-    /// Apply global settings to filter out disabled techniques
+    /// Apply global settings - combine per-workout options with global profile settings
     func applying(globalSettings: AdvancedTechniqueSettings) -> WorkoutGenerationOptions {
         WorkoutGenerationOptions(
-            warmupSetMode: globalSettings.allowWarmupSets ? warmupSetMode : .disabled,
-            dropSetMode: globalSettings.allowDropSets ? dropSetMode : .disabled,
-            restPauseMode: globalSettings.allowRestPauseSets ? restPauseMode : .disabled,
-            supersetMode: globalSettings.allowSupersets ? supersetMode : .disabled
+            warmupSetMode: effectiveMode(perWorkout: warmupSetMode, global: globalSettings.warmupSetMode),
+            dropSetMode: effectiveMode(perWorkout: dropSetMode, global: globalSettings.dropSetMode),
+            restPauseMode: effectiveMode(perWorkout: restPauseMode, global: globalSettings.restPauseSetMode),
+            supersetMode: effectiveMode(perWorkout: supersetMode, global: globalSettings.supersetMode)
         )
+    }
+
+    /// Determines the effective mode based on global and per-workout settings
+    /// - Global "required" always wins (user wants this on all workouts)
+    /// - Global "disabled" always wins (user never wants this)
+    /// - Global "allowed" defers to per-workout setting
+    private func effectiveMode(perWorkout: TechniqueRequirementMode, global: TechniqueRequirementMode) -> TechniqueRequirementMode {
+        switch global {
+        case .required:
+            // Global required = always required, can't be overridden
+            return .required
+        case .disabled:
+            // Global disabled = always disabled, can't be overridden
+            return .disabled
+        case .allowed:
+            // Global allowed = defer to per-workout setting
+            return perWorkout
+        }
     }
 }
 

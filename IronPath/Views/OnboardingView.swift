@@ -17,10 +17,10 @@ struct OnboardingView: View {
     @State private var showingMachineSelection = false
 
     // Advanced technique settings
-    @State private var allowWarmupSets = true
-    @State private var allowDropSets = true
-    @State private var allowRestPauseSets = true
-    @State private var allowSupersets = true
+    @State private var warmupSetMode: TechniqueRequirementMode = .allowed
+    @State private var dropSetMode: TechniqueRequirementMode = .allowed
+    @State private var restPauseSetMode: TechniqueRequirementMode = .allowed
+    @State private var supersetMode: TechniqueRequirementMode = .allowed
 
     private let totalSteps = 9
 
@@ -60,10 +60,10 @@ struct OnboardingView: View {
                         .tag(7)
 
                     AdvancedTechniquesStep(
-                        allowWarmupSets: $allowWarmupSets,
-                        allowDropSets: $allowDropSets,
-                        allowRestPauseSets: $allowRestPauseSets,
-                        allowSupersets: $allowSupersets
+                        warmupSetMode: $warmupSetMode,
+                        dropSetMode: $dropSetMode,
+                        restPauseSetMode: $restPauseSetMode,
+                        supersetMode: $supersetMode
                     )
                         .tag(8)
                 }
@@ -123,10 +123,10 @@ struct OnboardingView: View {
 
     private func completeOnboarding() {
         let advancedSettings = AdvancedTechniqueSettings(
-            allowWarmupSets: allowWarmupSets,
-            allowDropSets: allowDropSets,
-            allowRestPauseSets: allowRestPauseSets,
-            allowSupersets: allowSupersets
+            warmupSetMode: warmupSetMode,
+            dropSetMode: dropSetMode,
+            restPauseSetMode: restPauseSetMode,
+            supersetMode: supersetMode
         )
 
         let profile = UserProfile(
@@ -594,10 +594,10 @@ struct GymNameStep: View {
 }
 
 struct AdvancedTechniquesStep: View {
-    @Binding var allowWarmupSets: Bool
-    @Binding var allowDropSets: Bool
-    @Binding var allowRestPauseSets: Bool
-    @Binding var allowSupersets: Bool
+    @Binding var warmupSetMode: TechniqueRequirementMode
+    @Binding var dropSetMode: TechniqueRequirementMode
+    @Binding var restPauseSetMode: TechniqueRequirementMode
+    @Binding var supersetMode: TechniqueRequirementMode
 
     var body: some View {
         VStack(spacing: 20) {
@@ -605,44 +605,59 @@ struct AdvancedTechniquesStep: View {
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("Enable or disable advanced training techniques for AI-generated workouts")
+            Text("Configure advanced training techniques for AI-generated workouts")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
+            // Legend
+            HStack(spacing: 16) {
+                ForEach(TechniqueRequirementMode.allCases, id: \.self) { mode in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(mode.swiftUIColor)
+                            .frame(width: 8, height: 8)
+                        Text(mode.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+
             ScrollView {
                 VStack(spacing: 16) {
-                    AdvancedTechniqueToggle(
+                    AdvancedTechniqueRow(
                         title: "Warmup Sets",
                         description: "Light sets to prepare muscles before working sets",
                         icon: "flame",
                         color: .orange,
-                        isEnabled: $allowWarmupSets
+                        mode: $warmupSetMode
                     )
 
-                    AdvancedTechniqueToggle(
+                    AdvancedTechniqueRow(
                         title: "Drop Sets",
                         description: "Continue with reduced weight after reaching failure",
                         icon: "arrow.down.circle",
                         color: .red,
-                        isEnabled: $allowDropSets
+                        mode: $dropSetMode
                     )
 
-                    AdvancedTechniqueToggle(
+                    AdvancedTechniqueRow(
                         title: "Rest-Pause Sets",
                         description: "Brief rest then continue reps within the same set",
                         icon: "pause.circle",
                         color: .blue,
-                        isEnabled: $allowRestPauseSets
+                        mode: $restPauseSetMode
                     )
 
-                    AdvancedTechniqueToggle(
+                    AdvancedTechniqueRow(
                         title: "Supersets & Circuits",
                         description: "Multiple exercises performed back-to-back",
                         icon: "arrow.triangle.2.circlepath",
                         color: .purple,
-                        isEnabled: $allowSupersets
+                        mode: $supersetMode
                     )
                 }
                 .padding(.horizontal)
@@ -652,36 +667,53 @@ struct AdvancedTechniquesStep: View {
     }
 }
 
-struct AdvancedTechniqueToggle: View {
+struct AdvancedTechniqueRow: View {
     let title: String
     let description: String
     let icon: String
     let color: Color
-    @Binding var isEnabled: Bool
+    @Binding var mode: TechniqueRequirementMode
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-                .frame(width: 40)
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                    .frame(width: 40)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
 
-            Spacer()
-
-            Toggle("", isOn: $isEnabled)
-                .labelsHidden()
+            // Segmented picker for mode
+            Picker("", selection: $mode) {
+                ForEach(TechniqueRequirementMode.allCases, id: \.self) { m in
+                    Text(m.rawValue).tag(m)
+                }
+            }
+            .pickerStyle(.segmented)
         }
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
+    }
+}
+
+extension TechniqueRequirementMode {
+    var swiftUIColor: Color {
+        switch self {
+        case .disabled: return .red
+        case .allowed: return .orange
+        case .required: return .green
+        }
     }
 }
 

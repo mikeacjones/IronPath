@@ -118,93 +118,69 @@ struct ProfileView: View {
 
                     // Advanced Training Techniques Global Settings
                     Section {
-                        Toggle(isOn: Binding(
-                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowWarmupSets },
-                            set: { newValue in
-                                var updated = profile
-                                updated.workoutPreferences.advancedTechniqueSettings.allowWarmupSets = newValue
-                                appState.userProfile = updated
-                            }
-                        )) {
-                            HStack {
-                                Image(systemName: "flame")
-                                    .foregroundStyle(.orange)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading) {
-                                    Text("Warmup Sets")
-                                    Text("Lighter weight sets before working sets")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        ProfileTechniqueModePicker(
+                            title: "Warmup Sets",
+                            description: "Lighter weight sets before working sets",
+                            icon: "flame",
+                            iconColor: .orange,
+                            selection: Binding(
+                                get: { profile.workoutPreferences.advancedTechniqueSettings.warmupSetMode },
+                                set: { newValue in
+                                    var updated = profile
+                                    updated.workoutPreferences.advancedTechniqueSettings.warmupSetMode = newValue
+                                    appState.userProfile = updated
                                 }
-                            }
-                        }
+                            )
+                        )
 
-                        Toggle(isOn: Binding(
-                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowDropSets },
-                            set: { newValue in
-                                var updated = profile
-                                updated.workoutPreferences.advancedTechniqueSettings.allowDropSets = newValue
-                                appState.userProfile = updated
-                            }
-                        )) {
-                            HStack {
-                                Image(systemName: "arrow.down.circle.fill")
-                                    .foregroundStyle(.purple)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading) {
-                                    Text("Drop Sets")
-                                    Text("Reduce weight and continue after failure")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        ProfileTechniqueModePicker(
+                            title: "Drop Sets",
+                            description: "Reduce weight and continue after failure",
+                            icon: "arrow.down.circle.fill",
+                            iconColor: .purple,
+                            selection: Binding(
+                                get: { profile.workoutPreferences.advancedTechniqueSettings.dropSetMode },
+                                set: { newValue in
+                                    var updated = profile
+                                    updated.workoutPreferences.advancedTechniqueSettings.dropSetMode = newValue
+                                    appState.userProfile = updated
                                 }
-                            }
-                        }
+                            )
+                        )
 
-                        Toggle(isOn: Binding(
-                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowRestPauseSets },
-                            set: { newValue in
-                                var updated = profile
-                                updated.workoutPreferences.advancedTechniqueSettings.allowRestPauseSets = newValue
-                                appState.userProfile = updated
-                            }
-                        )) {
-                            HStack {
-                                Image(systemName: "pause.circle.fill")
-                                    .foregroundStyle(.green)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading) {
-                                    Text("Rest-Pause Sets")
-                                    Text("Brief rest then continue same weight")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        ProfileTechniqueModePicker(
+                            title: "Rest-Pause Sets",
+                            description: "Brief rest then continue same weight",
+                            icon: "pause.circle.fill",
+                            iconColor: .green,
+                            selection: Binding(
+                                get: { profile.workoutPreferences.advancedTechniqueSettings.restPauseSetMode },
+                                set: { newValue in
+                                    var updated = profile
+                                    updated.workoutPreferences.advancedTechniqueSettings.restPauseSetMode = newValue
+                                    appState.userProfile = updated
                                 }
-                            }
-                        }
+                            )
+                        )
 
-                        Toggle(isOn: Binding(
-                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowSupersets },
-                            set: { newValue in
-                                var updated = profile
-                                updated.workoutPreferences.advancedTechniqueSettings.allowSupersets = newValue
-                                appState.userProfile = updated
-                            }
-                        )) {
-                            HStack {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .foregroundStyle(.blue)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading) {
-                                    Text("Supersets & Circuits")
-                                    Text("Group exercises with minimal rest between")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        ProfileTechniqueModePicker(
+                            title: "Supersets & Circuits",
+                            description: "Group exercises with minimal rest between",
+                            icon: "arrow.triangle.2.circlepath",
+                            iconColor: .blue,
+                            selection: Binding(
+                                get: { profile.workoutPreferences.advancedTechniqueSettings.supersetMode },
+                                set: { newValue in
+                                    var updated = profile
+                                    updated.workoutPreferences.advancedTechniqueSettings.supersetMode = newValue
+                                    appState.userProfile = updated
                                 }
-                            }
-                        }
+                            )
+                        )
                     } header: {
                         Text("Advanced Training Techniques")
                     } footer: {
-                        Text("Enable or disable advanced techniques globally. When enabled, you can choose to require them for individual workouts.")
+                        Text("Required: Always include. Allowed: AI decides. Disabled: Never include.")
                     }
 
                     Section {
@@ -275,20 +251,27 @@ struct ProfileView: View {
                     Button(role: .destructive) {
                         showingResetConfirmation = true
                     } label: {
-                        Label("Reset All Workout Data", systemImage: "trash")
+                        Label("Clear All Data", systemImage: "trash")
                     }
-                    .confirmationDialog("Reset Workout Data", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
-                        Button("Reset All Data", role: .destructive) {
-                            WorkoutDataManager.shared.clearHistory()
+                    .alert("Clear All Data?", isPresented: $showingResetConfirmation) {
+                        Button("Clear All Data", role: .destructive) {
+                            Task {
+                                await CloudSyncManager.shared.clearAllData()
+                                // Reset app state after clearing data
+                                await MainActor.run {
+                                    appState.isOnboarded = false
+                                    appState.userProfile = nil
+                                }
+                            }
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("This will permanently delete all your workout history. This action cannot be undone.")
+                        Text("This will permanently delete ALL app data including workout history, profile, gym settings, and API keys from this device and iCloud. This action cannot be undone.")
                     }
                 } header: {
                     Text("Data Management")
                 } footer: {
-                    Text("Export your workout history or reset all data to start fresh")
+                    Text("Export your workout history or clear all data to start fresh")
                 }
 
                 Section {
@@ -522,7 +505,7 @@ struct GymProfileEditorView: View {
             .sheet(isPresented: $showingMachineSelection) {
                 GymMachineSelectionView(selectedMachines: $selectedMachines)
             }
-            .confirmationDialog("Delete Profile?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            .alert("Delete Profile?", isPresented: $showingDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     onDelete?()
                 }
@@ -985,5 +968,41 @@ struct EditProfileView: View {
             updatedAt: Date()
         )
         onSave(updatedProfile)
+    }
+}
+
+// MARK: - Profile Technique Mode Picker
+
+/// A picker row for selecting technique requirement mode in profile settings
+struct ProfileTechniqueModePicker: View {
+    let title: String
+    let description: String
+    let icon: String
+    let iconColor: Color
+    @Binding var selection: TechniqueRequirementMode
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundStyle(iconColor)
+                .frame(width: 24)
+
+            VStack(alignment: .leading) {
+                Text(title)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: $selection) {
+                ForEach(TechniqueRequirementMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+        }
     }
 }

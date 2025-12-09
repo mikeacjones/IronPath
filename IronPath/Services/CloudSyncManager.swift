@@ -526,6 +526,62 @@ class CloudSyncManager: ObservableObject {
             await fetchCloudKitData()
         }
     }
+
+    // MARK: - Clear All Data
+
+    /// Clears all app data from both local storage and iCloud
+    func clearAllData() async {
+        // Clear local UserDefaults
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "workout_history")
+        defaults.removeObject(forKey: "workout_history_updated")
+        defaults.removeObject(forKey: "user_profile")
+        defaults.removeObject(forKey: "hasCompletedOnboarding")
+        defaults.removeObject(forKey: "gymProfiles")
+        defaults.removeObject(forKey: "gym_settings_updated")
+        defaults.removeObject(forKey: "activeGymProfileId")
+        defaults.removeObject(forKey: "anthropic_api_key")
+        defaults.removeObject(forKey: "exercisePreferences")
+
+        // Clear iCloud KV Store
+        if isICloudAvailable {
+            kvStore.removeObject(forKey: KVKeys.userProfile)
+            kvStore.removeObject(forKey: KVKeys.hasCompletedOnboarding)
+            kvStore.removeObject(forKey: KVKeys.activeGymProfileId)
+            kvStore.removeObject(forKey: KVKeys.apiKey)
+            kvStore.synchronize()
+        }
+
+        // Delete CloudKit records
+        await deleteCloudKitRecord(recordName: "workout_history_v1", recordType: RecordTypes.workoutHistory)
+        await deleteCloudKitRecord(recordName: "gym_settings_v1", recordType: RecordTypes.gymSettings)
+
+        // Reset restored count
+        await MainActor.run {
+            restoredWorkoutsCount = 0
+        }
+
+        print("CloudSync: All data cleared from local and iCloud storage")
+    }
+
+    /// Delete a specific CloudKit record
+    private func deleteCloudKitRecord(recordName: String, recordType: String) async {
+        guard isICloudAvailable else { return }
+
+        let recordID = CKRecord.ID(recordName: recordName)
+
+        do {
+            try await privateDatabase.deleteRecord(withID: recordID)
+            print("CloudSync: Deleted CloudKit record: \(recordName)")
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record doesn't exist, nothing to delete
+            print("CloudSync: CloudKit record \(recordName) doesn't exist, nothing to delete")
+        } catch let error as CKError where error.code == .notAuthenticated {
+            print("CloudSync: Not authenticated to delete CloudKit record")
+        } catch {
+            print("CloudSync: Error deleting CloudKit record \(recordName): \(error.localizedDescription)")
+        }
+    }
 }
 
 // MARK: - Notification Names
