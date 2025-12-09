@@ -3416,7 +3416,8 @@ struct WorkoutCompletionSummaryView: View {
         do {
             let calories = try await AnthropicService.shared.estimateCaloriesBurned(workoutSummary: summary)
             await MainActor.run {
-                estimatedCalories = calories
+                // Ensure we never show 0 calories
+                estimatedCalories = max(calories, 50)
                 isEstimatingCalories = false
             }
         } catch {

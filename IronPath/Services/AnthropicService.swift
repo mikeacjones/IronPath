@@ -1032,13 +1032,30 @@ class AnthropicService {
         let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
 
         guard let textContent = claudeResponse.content.first(where: { $0.type == "text" }),
-              let text = textContent.text,
-              let calories = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            // Default to a conservative estimate based on duration if parsing fails
+              let text = textContent.text else {
+            // Default to a conservative estimate if no text content
             return 150
         }
 
-        return calories
+        // Extract just the number from the response (Claude might include extra text)
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Try to parse directly first
+        if let calories = Int(trimmedText), calories > 0 {
+            return calories
+        }
+
+        // If that fails, try to extract a number from the text
+        let numbers = trimmedText.components(separatedBy: CharacterSet.decimalDigits.inverted)
+            .compactMap { Int($0) }
+            .filter { $0 > 0 }
+
+        if let firstNumber = numbers.first {
+            return firstNumber
+        }
+
+        // Default fallback
+        return 150
     }
 }
 
