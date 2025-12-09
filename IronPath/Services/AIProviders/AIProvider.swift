@@ -39,7 +39,7 @@ protocol AIProvider {
         userNotes: String?,
         isDeload: Bool,
         allowDeloadRecommendation: Bool,
-        availableExercises: [Exercise]
+        techniqueOptions: WorkoutGenerationOptions
     ) async throws -> Workout
 
     /// Replace an exercise in a workout
@@ -47,8 +47,7 @@ protocol AIProvider {
         exercise: WorkoutExercise,
         profile: UserProfile,
         reason: String?,
-        currentWorkout: Workout,
-        availableExercises: [Exercise]
+        currentWorkout: Workout
     ) async throws -> WorkoutExercise
 
     /// Get form tips for an exercise

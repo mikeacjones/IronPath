@@ -85,21 +85,47 @@ class OpenAIProvider: AIProvider {
         userNotes: String?,
         isDeload: Bool,
         allowDeloadRecommendation: Bool,
-        availableExercises: [Exercise]
+        techniqueOptions: WorkoutGenerationOptions
     ) async throws -> Workout {
-        let systemPrompt = buildWorkoutSystemPrompt(
-            profile: profile,
-            isDeload: isDeload,
-            allowDeloadRecommendation: allowDeloadRecommendation
+        // Get available equipment
+        let availableEquipment: Set<Equipment>
+        if let gymProfile = GymProfileManager.shared.activeProfile {
+            availableEquipment = gymProfile.availableEquipment
+        } else {
+            availableEquipment = profile.availableEquipment
+        }
+
+        // Determine target muscles
+        let targetMuscles: Set<MuscleGroup>
+        if let specified = targetMuscleGroups, !specified.isEmpty {
+            targetMuscles = specified
+        } else if let workoutType = workoutType, let type = WorkoutType(rawValue: workoutType) {
+            targetMuscles = type.targetMuscleGroups
+        } else {
+            targetMuscles = Set(MuscleGroup.allCases)
+        }
+
+        // Get available exercises formatted for prompt
+        let availableExercises = AIProviderHelpers.getAvailableExercisesPrompt(
+            muscleGroups: targetMuscles,
+            availableEquipment: availableEquipment,
+            workoutHistory: workoutHistory
         )
 
-        let userPrompt = buildWorkoutUserPrompt(
+        let systemPrompt = AIProviderHelpers.buildWorkoutSystemPrompt(
             profile: profile,
-            targetMuscleGroups: targetMuscleGroups,
-            workoutHistory: workoutHistory,
-            workoutType: workoutType,
-            userNotes: userNotes,
             isDeload: isDeload,
+            allowDeloadRecommendation: allowDeloadRecommendation,
+            techniqueOptions: techniqueOptions
+        )
+
+        let userPrompt = AIProviderHelpers.buildWorkoutUserPrompt(
+            workoutType: workoutType,
+            targetMuscleGroups: targetMuscles,
+            userNotes: userNotes,
+            workoutHistory: workoutHistory,
+            isDeload: isDeload,
+            allowDeloadRecommendation: allowDeloadRecommendation,
             availableExercises: availableExercises
         )
 
@@ -108,17 +134,31 @@ class OpenAIProvider: AIProvider {
             userPrompt: userPrompt
         )
 
-        return try parseWorkoutResponse(response, prompt: userPrompt)
+        return try AIProviderHelpers.parseWorkoutResponse(response, prompt: userPrompt)
     }
 
     func replaceExercise(
         exercise: WorkoutExercise,
         profile: UserProfile,
         reason: String?,
-        currentWorkout: Workout,
-        availableExercises: [Exercise]
+        currentWorkout: Workout
     ) async throws -> WorkoutExercise {
-        let prompt = buildExerciseReplacementPrompt(
+        // Get available equipment
+        let availableEquipment: Set<Equipment>
+        if let gymProfile = GymProfileManager.shared.activeProfile {
+            availableEquipment = gymProfile.availableEquipment
+        } else {
+            availableEquipment = profile.availableEquipment
+        }
+
+        // Get available exercises for the same muscle groups
+        let availableExercises = AIProviderHelpers.getAvailableExercisesPrompt(
+            muscleGroups: exercise.exercise.primaryMuscleGroups,
+            availableEquipment: availableEquipment,
+            workoutHistory: []
+        )
+
+        let prompt = AIProviderHelpers.buildExerciseReplacementPrompt(
             exercise: exercise,
             profile: profile,
             reason: reason,
@@ -127,27 +167,18 @@ class OpenAIProvider: AIProvider {
         )
 
         let response = try await sendChatRequest(
-            systemPrompt: "You are a fitness expert. Respond only with valid JSON.",
+            systemPrompt: "You are a fitness expert. Respond only with valid JSON - no markdown, no explanations.",
             userPrompt: prompt
         )
 
-        return try parseExerciseReplacementResponse(response, originalExercise: exercise)
+        return try AIProviderHelpers.parseExerciseReplacementResponse(response, originalExercise: exercise)
     }
 
     func getFormTips(exercise: Exercise, userLevel: FitnessLevel) async throws -> String {
-        let prompt = """
-        Provide form tips for the exercise "\(exercise.name)" for a \(userLevel.rawValue) level lifter.
-
-        Include:
-        1. Key form cues (3-4 points)
-        2. Common mistakes to avoid
-        3. Breathing pattern
-
-        Keep it concise and actionable.
-        """
+        let prompt = AIProviderHelpers.buildFormTipsPrompt(exercise: exercise, userLevel: userLevel)
 
         let response = try await sendChatRequest(
-            systemPrompt: "You are an experienced personal trainer providing form guidance.",
+            systemPrompt: "You are an experienced personal trainer providing form guidance. Be concise and practical.",
             userPrompt: prompt
         )
 
@@ -158,55 +189,28 @@ class OpenAIProvider: AIProvider {
         description: String,
         profile: UserProfile
     ) async throws -> Exercise {
-        let prompt = """
-        Create a custom exercise based on this description: "\(description)"
-
-        User's available equipment: \(profile.availableEquipment.map { $0.rawValue }.joined(separator: ", "))
-
-        Return ONLY valid JSON with this structure:
-        {
-            "name": "Exercise Name",
-            "primaryMuscles": ["chest", "triceps"],
-            "secondaryMuscles": ["shoulders"],
-            "equipment": "dumbbells",
-            "difficulty": "intermediate",
-            "instructions": "Step by step instructions",
-            "formTips": "Key form cues"
-        }
-
-        Valid muscle groups: \(MuscleGroup.allCases.map { $0.rawValue }.joined(separator: ", "))
-        Valid equipment: \(Equipment.allCases.map { $0.rawValue }.joined(separator: ", "))
-        Valid difficulty: beginner, intermediate, advanced
-        """
+        let prompt = AIProviderHelpers.buildCustomExercisePrompt(
+            description: description,
+            availableEquipment: profile.availableEquipment
+        )
 
         let response = try await sendChatRequest(
-            systemPrompt: "You are a fitness expert. Respond only with valid JSON.",
+            systemPrompt: "You are a fitness expert. Respond only with valid JSON - no markdown, no explanations.",
             userPrompt: prompt
         )
 
-        return try parseCustomExerciseResponse(response)
+        return try AIProviderHelpers.parseCustomExerciseResponse(response)
     }
 
     func estimateCaloriesBurned(workoutSummary: String) async throws -> Int {
-        let prompt = """
-        Estimate calories burned for this workout:
-
-        \(workoutSummary)
-
-        Respond with ONLY a single integer representing the estimated calories burned.
-        """
+        let prompt = AIProviderHelpers.buildCalorieEstimationPrompt(workoutSummary: workoutSummary)
 
         let response = try await sendChatRequest(
             systemPrompt: "You are a fitness expert. Respond with only a number.",
             userPrompt: prompt
         )
 
-        // Extract number from response
-        let numbers = response.components(separatedBy: CharacterSet.decimalDigits.inverted)
-            .compactMap { Int($0) }
-            .filter { $0 > 0 && $0 < 5000 }
-
-        return numbers.first ?? 200
+        return AIProviderHelpers.parseCalorieEstimation(response)
     }
 
     // MARK: - API Communication
@@ -238,7 +242,7 @@ class OpenAIProvider: AIProvider {
         // Debug logging
         let requestHeaders = [
             "Content-Type": "application/json",
-            "Authorization": "Bearer \(apiKey)"
+            "Authorization": "Bearer [REDACTED]"
         ]
         let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
 
@@ -292,311 +296,5 @@ class OpenAIProvider: AIProvider {
         }
 
         return content
-    }
-
-    // MARK: - Prompt Building
-
-    private func buildWorkoutSystemPrompt(
-        profile: UserProfile,
-        isDeload: Bool,
-        allowDeloadRecommendation: Bool
-    ) -> String {
-        var prompt = """
-        You are an expert personal trainer creating personalized workout programs.
-        Always respond with valid JSON only - no markdown, no explanations.
-
-        User Profile:
-        - Fitness Level: \(profile.fitnessLevel.rawValue)
-        - Goals: \(profile.goals.map { $0.rawValue }.joined(separator: ", "))
-        - Training Style: \(profile.workoutPreferences.trainingStyle.rawValue)
-        - Preferred Duration: \(profile.workoutPreferences.preferredWorkoutDuration) minutes
-        - Rest Preference: \(profile.workoutPreferences.preferredRestTime) seconds
-        """
-
-        if isDeload {
-            prompt += "\n\nThis is a DELOAD workout. Use 50-70% of normal weights and reduce volume."
-        }
-
-        return prompt
-    }
-
-    private func buildWorkoutUserPrompt(
-        profile: UserProfile,
-        targetMuscleGroups: Set<MuscleGroup>?,
-        workoutHistory: [Workout],
-        workoutType: String?,
-        userNotes: String?,
-        isDeload: Bool,
-        availableExercises: [Exercise]
-    ) -> String {
-        // Get available equipment
-        let availableEquipment: Set<Equipment>
-        if let gymProfile = GymProfileManager.shared.activeProfile {
-            availableEquipment = gymProfile.availableEquipment
-        } else {
-            availableEquipment = profile.availableEquipment
-        }
-
-        var prompt = """
-        Generate a workout with these parameters:
-
-        Workout Type: \(workoutType ?? "Full Body")
-        Target Muscles: \(targetMuscleGroups?.map { $0.rawValue }.joined(separator: ", ") ?? "All")
-        Available Equipment: \(availableEquipment.map { $0.rawValue }.joined(separator: ", "))
-
-        Available Exercises (use ONLY these):
-        \(availableExercises.prefix(50).map { "- \($0.name) (\($0.equipment.rawValue))" }.joined(separator: "\n"))
-        """
-
-        if let notes = userNotes, !notes.isEmpty {
-            prompt += "\n\nUser Notes: \(notes)"
-        }
-
-        // Add recent workout history for progressive overload
-        if !workoutHistory.isEmpty {
-            prompt += "\n\nRecent workout history for progressive overload:"
-            for workout in workoutHistory.prefix(3) {
-                prompt += "\n- \(workout.name): "
-                prompt += workout.exercises.prefix(3).map {
-                    "\($0.exercise.name) @ \($0.sets.first?.weight ?? 0)lbs"
-                }.joined(separator: ", ")
-            }
-        }
-
-        prompt += """
-
-        Return ONLY valid JSON with this structure:
-        {
-            "name": "Workout Name",
-            "exercises": [
-                {
-                    "name": "Exercise Name (must be from available exercises list)",
-                    "sets": 3,
-                    "reps": "8-10",
-                    "restSeconds": 90,
-                    "equipment": "barbell",
-                    "primaryMuscles": ["chest"],
-                    "notes": "Optional form cues",
-                    "weight": 135
-                }
-            ]
-        }
-
-        Include 4-6 exercises appropriate for the workout type and user's level.
-        """
-
-        return prompt
-    }
-
-    private func buildExerciseReplacementPrompt(
-        exercise: WorkoutExercise,
-        profile: UserProfile,
-        reason: String?,
-        currentWorkout: Workout,
-        availableExercises: [Exercise]
-    ) -> String {
-        let otherExercises = currentWorkout.exercises
-            .filter { $0.id != exercise.id }
-            .map { $0.exercise.name }
-
-        var prompt = """
-        Suggest a replacement exercise.
-
-        Current Exercise: \(exercise.exercise.name)
-        - Sets: \(exercise.sets.count)
-        - Target Reps: \(exercise.sets.first?.targetReps ?? 10)
-        - Primary Muscles: \(exercise.exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
-
-        Other exercises in workout (avoid duplicates): \(otherExercises.joined(separator: ", "))
-
-        Available exercises to choose from:
-        \(availableExercises.filter { ex in
-            !ex.primaryMuscleGroups.isDisjoint(with: exercise.exercise.primaryMuscleGroups)
-        }.prefix(20).map { $0.name }.joined(separator: ", "))
-        """
-
-        if let reason = reason, !reason.isEmpty {
-            prompt += "\n\nReason for replacement: \(reason)"
-        }
-
-        prompt += """
-
-        Return ONLY valid JSON:
-        {
-            "name": "New Exercise Name",
-            "sets": \(exercise.sets.count),
-            "reps": "\(exercise.sets.first?.targetReps ?? 10)",
-            "restSeconds": \(Int(exercise.sets.first?.restPeriod ?? 90)),
-            "equipment": "equipment type",
-            "primaryMuscles": ["muscle1", "muscle2"],
-            "notes": "Why this is a good replacement"
-        }
-        """
-
-        return prompt
-    }
-
-    // MARK: - Response Parsing
-
-    private func parseWorkoutResponse(_ response: String, prompt: String) throws -> Workout {
-        // Extract JSON from response (handle markdown code blocks)
-        var jsonString = response
-        if let jsonStart = response.range(of: "{"),
-           let jsonEnd = response.range(of: "}", options: .backwards) {
-            jsonString = String(response[jsonStart.lowerBound...jsonEnd.upperBound])
-        }
-
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            throw AIProviderError.parseError(detail: "Could not convert response to data")
-        }
-
-        let decoder = JSONDecoder()
-        let workoutJSON = try decoder.decode(WorkoutJSON.self, from: jsonData)
-
-        // Build workout from JSON
-        var exercises: [WorkoutExercise] = []
-
-        for (index, exerciseJSON) in workoutJSON.exercises.enumerated() {
-            let exercise = findOrCreateExercise(
-                name: exerciseJSON.name,
-                primaryMuscleGroups: Set(exerciseJSON.primaryMuscles.compactMap { MuscleGroup(rawValue: $0) }),
-                equipment: Equipment.fromString(exerciseJSON.equipment)
-            )
-
-            let reps = parseReps(exerciseJSON.reps)
-            var sets: [ExerciseSet] = []
-
-            for setNum in 1...exerciseJSON.sets {
-                sets.append(ExerciseSet(
-                    setNumber: setNum,
-                    targetReps: reps,
-                    weight: exerciseJSON.weight,
-                    restPeriod: TimeInterval(exerciseJSON.restSeconds)
-                ))
-            }
-
-            exercises.append(WorkoutExercise(
-                exercise: exercise,
-                sets: sets,
-                orderIndex: index,
-                notes: exerciseJSON.notes ?? ""
-            ))
-        }
-
-        return Workout(
-            name: workoutJSON.name,
-            exercises: exercises,
-            claudeGenerationPrompt: prompt,
-            isDeload: workoutJSON.isDeload ?? false
-        )
-    }
-
-    private func parseExerciseReplacementResponse(_ response: String, originalExercise: WorkoutExercise) throws -> WorkoutExercise {
-        var jsonString = response
-        if let jsonStart = response.range(of: "{"),
-           let jsonEnd = response.range(of: "}", options: .backwards) {
-            jsonString = String(response[jsonStart.lowerBound...jsonEnd.upperBound])
-        }
-
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            throw AIProviderError.parseError(detail: "Could not convert response to data")
-        }
-
-        let decoder = JSONDecoder()
-        let exerciseJSON = try decoder.decode(ExerciseJSON.self, from: jsonData)
-
-        let exercise = findOrCreateExercise(
-            name: exerciseJSON.name,
-            primaryMuscleGroups: Set(exerciseJSON.primaryMuscles.compactMap { MuscleGroup(rawValue: $0) }),
-            equipment: Equipment.fromString(exerciseJSON.equipment)
-        )
-
-        let reps = parseReps(exerciseJSON.reps)
-        var sets: [ExerciseSet] = []
-
-        for setNum in 1...exerciseJSON.sets {
-            sets.append(ExerciseSet(
-                setNumber: setNum,
-                targetReps: reps,
-                weight: exerciseJSON.weight,
-                restPeriod: TimeInterval(exerciseJSON.restSeconds)
-            ))
-        }
-
-        return WorkoutExercise(
-            exercise: exercise,
-            sets: sets,
-            orderIndex: originalExercise.orderIndex,
-            notes: exerciseJSON.notes ?? ""
-        )
-    }
-
-    private func parseCustomExerciseResponse(_ response: String) throws -> Exercise {
-        var jsonString = response
-        if let jsonStart = response.range(of: "{"),
-           let jsonEnd = response.range(of: "}", options: .backwards) {
-            jsonString = String(response[jsonStart.lowerBound...jsonEnd.upperBound])
-        }
-
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            throw AIProviderError.parseError(detail: "Could not convert response to data")
-        }
-
-        let decoder = JSONDecoder()
-        let exerciseJSON = try decoder.decode(CustomExerciseJSON.self, from: jsonData)
-
-        return Exercise(
-            name: exerciseJSON.name,
-            primaryMuscleGroups: Set(exerciseJSON.primaryMuscles.compactMap { MuscleGroup(rawValue: $0) }),
-            secondaryMuscleGroups: Set(exerciseJSON.secondaryMuscles.compactMap { MuscleGroup(rawValue: $0) }),
-            equipment: Equipment.fromString(exerciseJSON.equipment),
-            difficulty: ExerciseDifficulty(rawValue: exerciseJSON.difficulty) ?? .intermediate,
-            instructions: exerciseJSON.instructions,
-            formTips: exerciseJSON.formTips,
-            isCustom: true
-        )
-    }
-
-    // MARK: - Helpers
-
-    private func findOrCreateExercise(
-        name: String,
-        primaryMuscleGroups: Set<MuscleGroup>,
-        equipment: Equipment
-    ) -> Exercise {
-        let lowercasedName = name.lowercased()
-
-        // Try exact match
-        if let dbExercise = ExerciseDatabase.shared.exercises.first(where: {
-            $0.name.lowercased() == lowercasedName
-        }) {
-            return dbExercise
-        }
-
-        // Try fuzzy match
-        if let dbExercise = ExerciseDatabase.shared.exercises.first(where: {
-            $0.name.lowercased().contains(lowercasedName) ||
-            lowercasedName.contains($0.name.lowercased())
-        }) {
-            return dbExercise
-        }
-
-        // Create new exercise
-        return Exercise(
-            name: name,
-            primaryMuscleGroups: primaryMuscleGroups,
-            equipment: equipment
-        )
-    }
-
-    private func parseReps(_ repsString: String) -> Int {
-        // Handle range like "8-10" by taking the lower bound
-        if repsString.contains("-") {
-            let parts = repsString.split(separator: "-")
-            if let first = parts.first, let reps = Int(first.trimmingCharacters(in: .whitespaces)) {
-                return reps
-            }
-        }
-        return Int(repsString) ?? 10
     }
 }

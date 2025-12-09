@@ -201,14 +201,17 @@ struct WorkoutView: View {
         Task {
             do {
                 let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(10))
+                let provider = AIProviderManager.shared.currentProvider
 
-                let workout = try await AnthropicService.shared.generateWorkout(
+                let workout = try await provider.generateWorkout(
                     profile: profile,
                     targetMuscleGroups: splitDay.targetMuscleGroups,
                     workoutHistory: recentWorkouts,
                     workoutType: splitDay.rawValue,
                     userNotes: styleNotes,
-                    allowDeloadRecommendation: true  // Let Claude recommend deload if needed
+                    isDeload: false,
+                    allowDeloadRecommendation: true,  // Let AI recommend deload if needed
+                    techniqueOptions: WorkoutGenerationOptions()
                 )
                 await MainActor.run {
                     pendingWorkoutManager.pendingWorkout = workout
@@ -231,8 +234,8 @@ struct WorkoutView: View {
             return
         }
 
-        guard APIKeyManager.shared.hasAPIKey else {
-            errorMessage = "Please add your Anthropic API key in the Profile tab before generating workouts"
+        guard AIProviderManager.shared.isConfigured else {
+            errorMessage = "Please configure your AI provider in the Profile tab before generating workouts"
             showError = true
             return
         }
@@ -245,14 +248,16 @@ struct WorkoutView: View {
         Task {
             do {
                 let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(5))
+                let provider = AIProviderManager.shared.currentProvider
 
-                var workout = try await AnthropicService.shared.generateWorkout(
+                var workout = try await provider.generateWorkout(
                     profile: profile,
                     targetMuscleGroups: workoutType.targetMuscleGroups,
                     workoutHistory: recentWorkouts,
                     workoutType: workoutType.rawValue,
                     userNotes: notes.isEmpty ? nil : notes,
                     isDeload: isDeload,
+                    allowDeloadRecommendation: false,
                     techniqueOptions: effectiveOptions
                 )
                 workout.isDeload = isDeload

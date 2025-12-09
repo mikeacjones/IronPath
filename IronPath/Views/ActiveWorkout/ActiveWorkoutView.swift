@@ -275,7 +275,8 @@ struct ActiveWorkoutView: View {
 
         Task {
             do {
-                let replacement = try await AnthropicService.shared.replaceExercise(
+                let provider = AIProviderManager.shared.currentProvider
+                let replacement = try await provider.replaceExercise(
                     exercise: exerciseToReplace,
                     profile: profile,
                     reason: replacementNotes.isEmpty ? nil : replacementNotes,
@@ -656,7 +657,8 @@ struct WorkoutCompletionSummaryView: View {
         )
 
         do {
-            let calories = try await AnthropicService.shared.estimateCaloriesBurned(workoutSummary: summary)
+            let provider = AIProviderManager.shared.currentProvider
+            let calories = try await provider.estimateCaloriesBurned(workoutSummary: summary)
             await MainActor.run {
                 // Ensure we never show 0 calories
                 estimatedCalories = max(calories, 50)
@@ -1631,18 +1633,18 @@ struct AddExerciseSheet: View {
         generationError = nil
 
         // Use active gym profile's equipment if available
-        let availableEquipment: Set<Equipment>
-        if let gymProfile = GymProfileManager.shared.activeProfile {
-            availableEquipment = gymProfile.availableEquipment
-        } else {
-            availableEquipment = userProfile?.availableEquipment ?? Set(Equipment.allCases)
+        guard let profile = userProfile else {
+            generationError = "User profile not available"
+            isGenerating = false
+            return
         }
 
         Task {
             do {
-                let exercise = try await AnthropicService.shared.generateCustomExercise(
-                    prompt: customPrompt,
-                    availableEquipment: availableEquipment
+                let provider = AIProviderManager.shared.currentProvider
+                let exercise = try await provider.generateCustomExercise(
+                    description: customPrompt,
+                    profile: profile
                 )
 
                 await MainActor.run {
