@@ -378,7 +378,7 @@ class AnthropicService {
         When creating the workout:
         1. First call get_available_exercises with the muscle groups you want to target
         2. Review the returned exercise list - these are the ONLY exercises you can use
-        3. Select 4-7 exercises from the list
+        3. Select exercises from the list as appropriate for the workout type and user profile
         4. Use the exercise history to suggest appropriate weights\(isDeload ? " (reduced to 50-70% for deload)" : " (progressive overload)")
         5. Return the workout in JSON format
         """
