@@ -273,6 +273,7 @@ struct WorkoutPreferences: Codable {
     var avoidInjuries: [String] // body parts to avoid
     var trainingStyle: TrainingStyle
     var workoutSplit: WorkoutSplit
+    var advancedTechniqueSettings: AdvancedTechniqueSettings
 
     init(
         preferredWorkoutDuration: Int = 60,
@@ -280,7 +281,8 @@ struct WorkoutPreferences: Codable {
         preferredRestTime: Int = 90,
         avoidInjuries: [String] = [],
         trainingStyle: TrainingStyle = .hypertrophy,
-        workoutSplit: WorkoutSplit = .pushPullLegs
+        workoutSplit: WorkoutSplit = .pushPullLegs,
+        advancedTechniqueSettings: AdvancedTechniqueSettings = AdvancedTechniqueSettings()
     ) {
         self.preferredWorkoutDuration = preferredWorkoutDuration
         self.workoutsPerWeek = workoutsPerWeek
@@ -288,5 +290,102 @@ struct WorkoutPreferences: Codable {
         self.avoidInjuries = avoidInjuries
         self.trainingStyle = trainingStyle
         self.workoutSplit = workoutSplit
+        self.advancedTechniqueSettings = advancedTechniqueSettings
+    }
+}
+
+// MARK: - Advanced Training Technique Settings
+
+/// Global settings for whether AI can suggest advanced training techniques
+struct AdvancedTechniqueSettings: Codable, Equatable {
+    /// Whether warmup sets can be suggested by AI
+    var allowWarmupSets: Bool
+
+    /// Whether drop sets can be suggested by AI
+    var allowDropSets: Bool
+
+    /// Whether rest-pause sets can be suggested by AI
+    var allowRestPauseSets: Bool
+
+    init(
+        allowWarmupSets: Bool = true,
+        allowDropSets: Bool = true,
+        allowRestPauseSets: Bool = true
+    ) {
+        self.allowWarmupSets = allowWarmupSets
+        self.allowDropSets = allowDropSets
+        self.allowRestPauseSets = allowRestPauseSets
+    }
+
+    /// Whether any advanced techniques are enabled
+    var anyEnabled: Bool {
+        allowWarmupSets || allowDropSets || allowRestPauseSets
+    }
+}
+
+// MARK: - Per-Workout Generation Options
+
+/// Options for a single workout generation request
+struct WorkoutGenerationOptions: Codable, Equatable {
+    /// Requirement mode for warmup sets
+    var warmupSetMode: TechniqueRequirementMode
+
+    /// Requirement mode for drop sets
+    var dropSetMode: TechniqueRequirementMode
+
+    /// Requirement mode for rest-pause sets
+    var restPauseMode: TechniqueRequirementMode
+
+    init(
+        warmupSetMode: TechniqueRequirementMode = .allowed,
+        dropSetMode: TechniqueRequirementMode = .allowed,
+        restPauseMode: TechniqueRequirementMode = .allowed
+    ) {
+        self.warmupSetMode = warmupSetMode
+        self.dropSetMode = dropSetMode
+        self.restPauseMode = restPauseMode
+    }
+
+    /// Apply global settings to filter out disabled techniques
+    func applying(globalSettings: AdvancedTechniqueSettings) -> WorkoutGenerationOptions {
+        WorkoutGenerationOptions(
+            warmupSetMode: globalSettings.allowWarmupSets ? warmupSetMode : .disabled,
+            dropSetMode: globalSettings.allowDropSets ? dropSetMode : .disabled,
+            restPauseMode: globalSettings.allowRestPauseSets ? restPauseMode : .disabled
+        )
+    }
+}
+
+/// How a technique should be handled in workout generation
+enum TechniqueRequirementMode: String, Codable, CaseIterable, Equatable, RawRepresentable {
+    case disabled = "Disabled"
+    case allowed = "Allowed"
+    case required = "Required"
+
+    var description: String {
+        switch self {
+        case .disabled:
+            return "AI will not include this technique"
+        case .allowed:
+            return "AI may include if appropriate"
+        case .required:
+            return "AI must include this technique"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .disabled: return "xmark.circle"
+        case .allowed: return "checkmark.circle"
+        case .required: return "exclamationmark.circle.fill"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .disabled: return "gray"
+        case .allowed: return "blue"
+        case .required: return "orange"
+        }
     }
 }

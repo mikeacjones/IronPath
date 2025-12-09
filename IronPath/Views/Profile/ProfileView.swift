@@ -116,6 +116,76 @@ struct ProfileView: View {
                         LabeledContent("Rest Time", value: "\(profile.workoutPreferences.preferredRestTime)s")
                     }
 
+                    // Advanced Training Techniques Global Settings
+                    Section {
+                        Toggle(isOn: Binding(
+                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowWarmupSets },
+                            set: { newValue in
+                                var updated = profile
+                                updated.workoutPreferences.advancedTechniqueSettings.allowWarmupSets = newValue
+                                appState.userProfile = updated
+                            }
+                        )) {
+                            HStack {
+                                Image(systemName: "flame")
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading) {
+                                    Text("Warmup Sets")
+                                    Text("Lighter weight sets before working sets")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowDropSets },
+                            set: { newValue in
+                                var updated = profile
+                                updated.workoutPreferences.advancedTechniqueSettings.allowDropSets = newValue
+                                appState.userProfile = updated
+                            }
+                        )) {
+                            HStack {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .foregroundStyle(.purple)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading) {
+                                    Text("Drop Sets")
+                                    Text("Reduce weight and continue after failure")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { profile.workoutPreferences.advancedTechniqueSettings.allowRestPauseSets },
+                            set: { newValue in
+                                var updated = profile
+                                updated.workoutPreferences.advancedTechniqueSettings.allowRestPauseSets = newValue
+                                appState.userProfile = updated
+                            }
+                        )) {
+                            HStack {
+                                Image(systemName: "pause.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .frame(width: 24)
+                                VStack(alignment: .leading) {
+                                    Text("Rest-Pause Sets")
+                                    Text("Brief rest then continue same weight")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Advanced Training Techniques")
+                    } footer: {
+                        Text("Enable or disable advanced techniques globally. When enabled, you can choose to require them for individual workouts.")
+                    }
+
                     Section {
                         Button("Edit Profile") {
                             showingEditProfile = true

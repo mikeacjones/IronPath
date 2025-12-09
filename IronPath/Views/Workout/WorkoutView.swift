@@ -160,10 +160,11 @@ struct WorkoutView: View {
             .sheet(isPresented: $showWorkoutSetup) {
                 WorkoutSetupView(
                     isGenerating: $isGeneratingWorkout,
-                    onGenerate: { workoutType, notes, isDeload in
-                        generateWorkout(workoutType: workoutType, notes: notes, isDeload: isDeload)
+                    onGenerate: { workoutType, notes, isDeload, options in
+                        generateWorkout(workoutType: workoutType, notes: notes, isDeload: isDeload, options: options)
                     }
                 )
+                .environmentObject(appState)
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
@@ -223,7 +224,7 @@ struct WorkoutView: View {
         }
     }
 
-    private func generateWorkout(workoutType: WorkoutType, notes: String, isDeload: Bool = false) {
+    private func generateWorkout(workoutType: WorkoutType, notes: String, isDeload: Bool = false, options: WorkoutGenerationOptions = WorkoutGenerationOptions()) {
         guard let profile = appState.userProfile else {
             errorMessage = "Please complete onboarding first"
             showError = true
@@ -238,6 +239,9 @@ struct WorkoutView: View {
 
         isGeneratingWorkout = true
 
+        // Apply global settings to the options
+        let effectiveOptions = options.applying(globalSettings: profile.workoutPreferences.advancedTechniqueSettings)
+
         Task {
             do {
                 let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(5))
@@ -248,7 +252,8 @@ struct WorkoutView: View {
                     workoutHistory: recentWorkouts,
                     workoutType: workoutType.rawValue,
                     userNotes: notes.isEmpty ? nil : notes,
-                    isDeload: isDeload
+                    isDeload: isDeload,
+                    techniqueOptions: effectiveOptions
                 )
                 workout.isDeload = isDeload
                 await MainActor.run {

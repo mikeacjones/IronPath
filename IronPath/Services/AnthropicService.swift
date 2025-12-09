@@ -87,7 +87,8 @@ class AnthropicService {
         workoutType: String? = nil,
         userNotes: String? = nil,
         isDeload: Bool = false,
-        allowDeloadRecommendation: Bool = false
+        allowDeloadRecommendation: Bool = false,
+        techniqueOptions: WorkoutGenerationOptions = WorkoutGenerationOptions()
     ) async throws -> Workout {
         // Get available equipment from gym profile
         let availableEquipment: Set<Equipment>
@@ -98,7 +99,12 @@ class AnthropicService {
         }
 
         // Build the initial prompt for the agentic flow
-        let systemPrompt = buildAgenticSystemPrompt(profile: profile, isDeload: isDeload, allowDeloadRecommendation: allowDeloadRecommendation)
+        let systemPrompt = buildAgenticSystemPrompt(
+            profile: profile,
+            isDeload: isDeload,
+            allowDeloadRecommendation: allowDeloadRecommendation,
+            techniqueOptions: techniqueOptions
+        )
         let userPrompt = buildAgenticUserPrompt(
             workoutType: workoutType,
             targetMuscleGroups: targetMuscleGroups,
@@ -333,7 +339,12 @@ class AnthropicService {
     }
 
     /// Build system prompt for agentic workout generation
-    private func buildAgenticSystemPrompt(profile: UserProfile, isDeload: Bool = false, allowDeloadRecommendation: Bool = false) -> String {
+    private func buildAgenticSystemPrompt(
+        profile: UserProfile,
+        isDeload: Bool = false,
+        allowDeloadRecommendation: Bool = false,
+        techniqueOptions: WorkoutGenerationOptions = WorkoutGenerationOptions()
+    ) -> String {
         var prompt = """
         You are a personal fitness trainer creating workout plans. You MUST use the get_available_exercises tool to see what exercises are available before creating a workout.
 
@@ -391,13 +402,72 @@ class AnthropicService {
         3. Select exercises from the list as appropriate for the workout type and user profile
         4. Use the exercise history to suggest appropriate weights\(isDeload ? " (reduced to 50-70% for deload)" : " (progressive overload)")
         5. Return the workout in JSON format
+        """
 
-        ADVANCED TRAINING TECHNIQUES (optional):
-        For intermediate/advanced users or when the user requests intensity techniques, you can include advanced set types:
-        - "warmup": Lighter weight sets to prepare muscles (50-60% of working weight)
-        - "dropSet": Reduce weight immediately after failure and continue (great for hypertrophy)
-        - "restPause": Brief 10-20s rest then continue with same weight (increases time under tension)
+        // Build advanced techniques section based on options
+        prompt += buildAdvancedTechniquesPrompt(techniqueOptions: techniqueOptions, fitnessLevel: profile.fitnessLevel)
 
+        return prompt
+    }
+
+    /// Build the advanced techniques prompt section based on user options
+    private func buildAdvancedTechniquesPrompt(techniqueOptions: WorkoutGenerationOptions, fitnessLevel: FitnessLevel) -> String {
+        var prompt = ""
+
+        // Check if any techniques are enabled
+        let warmupEnabled = techniqueOptions.warmupSetMode != .disabled
+        let dropSetEnabled = techniqueOptions.dropSetMode != .disabled
+        let restPauseEnabled = techniqueOptions.restPauseMode != .disabled
+
+        guard warmupEnabled || dropSetEnabled || restPauseEnabled else {
+            return "\n\nADVANCED TRAINING TECHNIQUES: Do NOT include any advanced set types (warmup, dropSet, restPause). Use only standard sets."
+        }
+
+        prompt += "\n\nADVANCED TRAINING TECHNIQUES:\n"
+
+        // Build requirements list
+        var required: [String] = []
+        var allowed: [String] = []
+
+        if warmupEnabled {
+            if techniqueOptions.warmupSetMode == .required {
+                required.append("warmup sets (lighter weight to prepare muscles)")
+            } else {
+                allowed.append("warmup sets")
+            }
+        }
+
+        if dropSetEnabled {
+            if techniqueOptions.dropSetMode == .required {
+                required.append("drop sets (reduce weight immediately after failure)")
+            } else {
+                allowed.append("drop sets")
+            }
+        }
+
+        if restPauseEnabled {
+            if techniqueOptions.restPauseMode == .required {
+                required.append("rest-pause sets (brief 10-20s rest then continue)")
+            } else {
+                allowed.append("rest-pause sets")
+            }
+        }
+
+        // Add requirements to prompt
+        if !required.isEmpty {
+            prompt += "⚠️ REQUIRED: You MUST include the following techniques in this workout:\n"
+            for technique in required {
+                prompt += "- \(technique)\n"
+            }
+            prompt += "\n"
+        }
+
+        if !allowed.isEmpty {
+            prompt += "ALLOWED (use if appropriate for the user): \(allowed.joined(separator: ", "))\n\n"
+        }
+
+        // Add the JSON format explanation
+        prompt += """
         To use advanced sets, add an "advancedSets" array to the exercise:
         "advancedSets": [
           {"setNumber": 1, "type": "warmup", "reps": "10", "weight": 50},
@@ -405,8 +475,12 @@ class AnthropicService {
           {"setNumber": 3, "type": "dropSet", "reps": "8", "weight": 100, "numberOfDrops": 2, "dropPercentage": 0.2},
           {"setNumber": 4, "type": "restPause", "reps": "8", "weight": 100, "numberOfPauses": 2, "pauseDuration": 15}
         ]
-        Only use these for intermediate/advanced users when appropriate. Beginners should use standard sets only.
         """
+
+        // Add fitness level guidance
+        if fitnessLevel == .beginner && required.isEmpty {
+            prompt += "\nNote: User is a beginner - only use advanced techniques sparingly unless specifically required."
+        }
 
         return prompt
     }
