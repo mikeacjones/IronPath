@@ -191,3 +191,106 @@ struct WorkoutStats {
     let workoutsThisWeek: Int
     let averageWorkoutDuration: TimeInterval
 }
+
+// MARK: - Workout Personal Records
+
+/// Represents a personal record achieved in a workout
+struct WorkoutPR: Identifiable {
+    let id = UUID()
+    let exerciseName: String
+    let type: PRType
+    let newValue: Double
+    let previousValue: Double?
+
+    enum PRType {
+        case weight      // Heaviest weight lifted
+        case volume      // Highest total volume for exercise
+        case reps        // Most reps at a given weight
+
+        var displayName: String {
+            switch self {
+            case .weight: return "Weight PR"
+            case .volume: return "Volume PR"
+            case .reps: return "Rep PR"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .weight: return "scalemass.fill"
+            case .volume: return "chart.bar.fill"
+            case .reps: return "repeat"
+            }
+        }
+    }
+}
+
+extension WorkoutDataManager {
+    /// Detect personal records achieved in a workout
+    /// Only compares against non-deload workouts
+    func detectWorkoutPRs(in workout: Workout) -> [WorkoutPR] {
+        // Don't detect PRs for deload workouts
+        guard !workout.isDeload else { return [] }
+
+        var prs: [WorkoutPR] = []
+        let history = getWorkoutHistory().filter { !$0.isDeload && $0.id != workout.id }
+
+        for workoutExercise in workout.exercises {
+            let exerciseName = workoutExercise.exercise.name
+            let completedSets = workoutExercise.sets.filter { $0.isCompleted }
+
+            guard !completedSets.isEmpty else { continue }
+
+            // Get historical data for this exercise
+            let historicalExercises = history.flatMap { $0.exercises }
+                .filter { $0.exercise.name == exerciseName }
+
+            // Check for weight PR (heaviest single set)
+            if let maxWeight = completedSets.compactMap({ $0.weight }).max() {
+                let previousMaxWeight = historicalExercises.flatMap { $0.sets }
+                    .filter { $0.isCompleted }
+                    .compactMap { $0.weight }
+                    .max()
+
+                if let prev = previousMaxWeight {
+                    if maxWeight > prev {
+                        prs.append(WorkoutPR(
+                            exerciseName: exerciseName,
+                            type: .weight,
+                            newValue: maxWeight,
+                            previousValue: prev
+                        ))
+                    }
+                } else if maxWeight > 0 {
+                    // First time doing this exercise with weight
+                    prs.append(WorkoutPR(
+                        exerciseName: exerciseName,
+                        type: .weight,
+                        newValue: maxWeight,
+                        previousValue: nil
+                    ))
+                }
+            }
+
+            // Check for volume PR (total volume for this exercise)
+            let exerciseVolume = workoutExercise.totalVolume
+            if exerciseVolume > 0 {
+                let previousMaxVolume = historicalExercises.map { $0.totalVolume }.max()
+
+                if let prev = previousMaxVolume {
+                    if exerciseVolume > prev {
+                        prs.append(WorkoutPR(
+                            exerciseName: exerciseName,
+                            type: .volume,
+                            newValue: exerciseVolume,
+                            previousValue: prev
+                        ))
+                    }
+                }
+                // Don't add volume PR for first-time exercises (weight PR is enough)
+            }
+        }
+
+        return prs
+    }
+}

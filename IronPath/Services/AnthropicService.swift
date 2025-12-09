@@ -972,6 +972,74 @@ class AnthropicService {
             isDeload: workoutJSON.isDeload ?? false
         )
     }
+
+    // MARK: - Calorie Estimation
+
+    /// Estimate active calories burned during a strength training workout
+    /// Uses Claude to provide a conservative estimate based on workout data
+    func estimateCaloriesBurned(workoutSummary: String) async throws -> Int {
+        guard let apiKey = APIKeyManager.shared.getAPIKey() else {
+            throw AnthropicError.missingAPIKey
+        }
+
+        let systemPrompt = """
+        You are a fitness expert estimating calories burned during strength training.
+
+        IMPORTANT: Be CONSERVATIVE in your estimates. It's better to underestimate than overestimate.
+
+        Typical calorie burn rates for strength training:
+        - Light intensity: 3-4 calories per minute
+        - Moderate intensity: 5-7 calories per minute
+        - High intensity: 8-10 calories per minute
+
+        Factors to consider:
+        - Workout duration (most important)
+        - Total volume (weight × reps)
+        - Number of compound vs isolation exercises
+        - Rest periods (longer rest = fewer calories)
+        - Deload workouts burn fewer calories due to lighter weights
+
+        Respond with ONLY a single integer representing your conservative estimate of active calories burned.
+        No explanation, no units, just the number.
+        """
+
+        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        let body: [String: Any] = [
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 50,
+            "system": systemPrompt,
+            "messages": [
+                ["role": "user", "content": "Estimate the active calories burned for this workout:\n\n\(workoutSummary)"]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw AnthropicError.apiError(statusCode: statusCode)
+        }
+
+        let claudeResponse = try JSONDecoder().decode(ClaudeResponse.self, from: data)
+
+        guard let textContent = claudeResponse.content.first(where: { $0.type == "text" }),
+              let text = textContent.text,
+              let calories = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            // Default to a conservative estimate based on duration if parsing fails
+            return 150
+        }
+
+        return calories
+    }
 }
 
 // MARK: - Models
