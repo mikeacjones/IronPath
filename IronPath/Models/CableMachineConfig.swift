@@ -130,39 +130,3 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Exercise Suggestion Preference
-
-/// Preference for how often an exercise should be suggested
-enum ExerciseSuggestionPreference: String, Codable, CaseIterable {
-    case normal = "Normal"
-    case suggestMore = "Suggest More"
-    case suggestLess = "Suggest Less"
-    case never = "Don't Suggest"
-
-    var icon: String {
-        switch self {
-        case .normal: return "equal.circle"
-        case .suggestMore: return "arrow.up.circle.fill"
-        case .suggestLess: return "arrow.down.circle.fill"
-        case .never: return "xmark.circle.fill"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .normal: return .secondary
-        case .suggestMore: return .green
-        case .suggestLess: return .orange
-        case .never: return .red
-        }
-    }
-
-    var claudeInstruction: String {
-        switch self {
-        case .normal: return ""
-        case .suggestMore: return "PRIORITIZE including this exercise"
-        case .suggestLess: return "AVOID unless specifically requested"
-        case .never: return "NEVER include this exercise"
-        }
-    }
-}

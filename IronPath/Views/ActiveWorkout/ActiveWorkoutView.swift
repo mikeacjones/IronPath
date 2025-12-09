@@ -26,6 +26,10 @@ struct ActiveWorkoutView: View {
     // Add exercise state
     @State private var showAddExerciseSheet = false
 
+    // Remove exercise state
+    @State private var exerciseToRemove: WorkoutExercise?
+    @State private var showRemoveConfirmation = false
+
     // Workout completion state
     @State private var showCompletionSummary = false
     @State private var completedWorkoutForSummary: Workout?
@@ -79,6 +83,16 @@ struct ActiveWorkoutView: View {
                                     exerciseToReplace = currentWorkout.exercises[index]
                                     replacementNotes = ""
                                     showReplacementSheet = true
+                                },
+                                onRemove: {
+                                    exerciseToRemove = currentWorkout.exercises[index]
+                                    showRemoveConfirmation = true
+                                },
+                                onSetPreference: { preference in
+                                    ExercisePreferenceManager.shared.setPreference(
+                                        preference,
+                                        for: currentWorkout.exercises[index].exercise.name
+                                    )
                                 }
                             )
                         }
@@ -147,6 +161,20 @@ struct ActiveWorkoutView: View {
         } message: {
             Text("Are you sure you want to cancel this workout? Your progress will be lost.")
         }
+        .confirmationDialog(
+            "Remove Exercise?",
+            isPresented: $showRemoveConfirmation,
+            presenting: exerciseToRemove
+        ) { exercise in
+            Button("Remove \(exercise.exercise.name)", role: .destructive) {
+                removeExercise(exercise)
+            }
+            Button("Cancel", role: .cancel) {
+                exerciseToRemove = nil
+            }
+        } message: { exercise in
+            Text("Remove \(exercise.exercise.name) from this workout? Any logged sets will be lost.")
+        }
         .sheet(item: $selectedExercise) { exercise in
             ExerciseDetailSheet(
                 exercise: exercise,
@@ -212,6 +240,21 @@ struct ActiveWorkoutView: View {
         var newExercise = exercise
         newExercise.orderIndex = currentWorkout.exercises.count
         currentWorkout.exercises.append(newExercise)
+        persistWorkoutState()
+    }
+
+    private func removeExercise(_ exercise: WorkoutExercise) {
+        // Don't allow removing the last exercise
+        guard currentWorkout.exercises.count > 1 else { return }
+
+        currentWorkout.exercises.removeAll { $0.id == exercise.id }
+
+        // Reindex remaining exercises
+        for i in currentWorkout.exercises.indices {
+            currentWorkout.exercises[i].orderIndex = i
+        }
+
+        exerciseToRemove = nil
         persistWorkoutState()
     }
 
@@ -730,9 +773,17 @@ struct ActiveExerciseCard: View {
     let exercise: WorkoutExercise
     let onTap: () -> Void
     let onReplace: () -> Void
+    let onRemove: () -> Void
+    let onSetPreference: (ExerciseSuggestionPreference) -> Void
+
+    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
 
     var completedSetsCount: Int {
         exercise.sets.filter { $0.isCompleted }.count
+    }
+
+    var currentPreference: ExerciseSuggestionPreference {
+        preferenceManager.getPreference(for: exercise.exercise.name)
     }
 
     var body: some View {
@@ -757,9 +808,18 @@ struct ActiveExerciseCard: View {
 
                 // Exercise info
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(exercise.exercise.name)
-                        .font(.headline)
-                        .foregroundStyle(exercise.isCompleted ? .secondary : .primary)
+                    HStack(spacing: 4) {
+                        Text(exercise.exercise.name)
+                            .font(.headline)
+                            .foregroundStyle(exercise.isCompleted ? .secondary : .primary)
+
+                        // Preference indicator
+                        if currentPreference != .normal {
+                            Image(systemName: currentPreference.iconName)
+                                .font(.caption)
+                                .foregroundStyle(preferenceColor)
+                        }
+                    }
 
                     HStack {
                         Label("\(exercise.sets.count) sets", systemImage: "repeat")
@@ -772,12 +832,40 @@ struct ActiveExerciseCard: View {
 
                 Spacer()
 
-                // Replace button
+                // Actions menu
                 Menu {
                     Button {
                         onReplace()
                     } label: {
                         Label("Replace Exercise", systemImage: "arrow.triangle.2.circlepath")
+                    }
+
+                    Divider()
+
+                    // Suggestion preference submenu
+                    Menu {
+                        ForEach(ExerciseSuggestionPreference.allCases, id: \.self) { preference in
+                            Button {
+                                onSetPreference(preference)
+                            } label: {
+                                HStack {
+                                    Label(preference.displayName, systemImage: preference.iconName)
+                                    if preference == currentPreference {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Suggestion Preference", systemImage: "hand.thumbsup")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        onRemove()
+                    } label: {
+                        Label("Remove from Workout", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -797,6 +885,15 @@ struct ActiveExerciseCard: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private var preferenceColor: Color {
+        switch currentPreference {
+        case .normal: return .gray
+        case .preferMore: return .green
+        case .preferLess: return .orange
+        case .doNotSuggest: return .red
+        }
     }
 }
 

@@ -272,26 +272,23 @@ class AnthropicService {
         print("DEBUG: Exercises matching equipment AND muscles: \(matchingExercises.count)")
 
         // Check exercise preferences
-        let preferences = GymSettings.shared.exercisePreferences
+        let preferenceManager = ExercisePreferenceManager.shared
 
         // Build the exercise list with history
         var result = "AVAILABLE EXERCISES (only use exercises from this list):\n\n"
 
         for exercise in matchingExercises {
             // Check if exercise should be excluded
-            if let pref = preferences[exercise.name], pref == .never {
+            let pref = preferenceManager.getPreference(for: exercise.name)
+            if pref == .doNotSuggest {
                 continue
             }
 
             let prefNote: String
-            if let pref = preferences[exercise.name] {
-                switch pref {
-                case .suggestMore: prefNote = " [USER PREFERS]"
-                case .suggestLess: prefNote = " [USER DISLIKES - use sparingly]"
-                default: prefNote = ""
-                }
-            } else {
-                prefNote = ""
+            switch pref {
+            case .preferMore: prefNote = " [USER PREFERS]"
+            case .preferLess: prefNote = " [USER DISLIKES - use sparingly]"
+            default: prefNote = ""
             }
 
             result += "- \(exercise.name)\(prefNote)\n"
@@ -552,6 +549,12 @@ class AnthropicService {
             prompt += "1. Suggest appropriate weights based on past performance (progressive overload)\n"
             prompt += "2. Vary exercise selection to ensure balanced training\n"
             prompt += "3. Avoid overtraining muscle groups that were recently worked hard\n\n"
+        }
+
+        // Add exercise preferences if any
+        if let preferencePrompt = ExercisePreferenceManager.shared.generatePreferencePrompt() {
+            prompt += preferencePrompt
+            prompt += "\n"
         }
 
         prompt += """

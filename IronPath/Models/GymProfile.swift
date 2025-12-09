@@ -27,9 +27,6 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var exercisePlateConfigs: [String: [Double]] = [:]
     var selectedBarWeight: Double = 45.0
 
-    // Exercise preferences (suggest more/less/never)
-    var exercisePreferences: [String: ExerciseSuggestionPreference] = [:]
-
     static var defaultProfile: GymProfile {
         GymProfile(
             name: "My Gym",
@@ -185,7 +182,6 @@ class GymProfileManager: ObservableObject {
         profile.defaultAvailablePlates = settings.defaultAvailablePlates
         profile.exercisePlateConfigs = settings.exercisePlateConfigs
         profile.selectedBarWeight = settings.selectedBarWeight
-        profile.exercisePreferences = settings.exercisePreferences
 
         updateProfile(profile)
     }
@@ -218,11 +214,6 @@ class GymSettings: ObservableObject {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
-    // Exercise suggestion preferences
-    @Published var exercisePreferences: [String: ExerciseSuggestionPreference] = [:] {
-        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
-    }
-
     // Plate settings - per exercise
     @Published var exercisePlateConfigs: [String: [Double]] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
@@ -246,7 +237,6 @@ class GymSettings: ObservableObject {
         self.dumbbellMaxWeight = 120.0
         self.defaultCableConfig = .defaultConfig
         self.cableMachineConfigs = [:]
-        self.exercisePreferences = [:]
         self.defaultAvailablePlates = GymSettings.standardPlates
         self.exercisePlateConfigs = [:]
         self.selectedBarWeight = 45.0
@@ -265,7 +255,6 @@ class GymSettings: ObservableObject {
             self.defaultAvailablePlates = profile.defaultAvailablePlates
             self.exercisePlateConfigs = profile.exercisePlateConfigs
             self.selectedBarWeight = profile.selectedBarWeight
-            self.exercisePreferences = profile.exercisePreferences
         }
 
         isLoading = false
@@ -294,20 +283,6 @@ class GymSettings: ObservableObject {
     /// Get cable config for specific exercise, or default if none set
     func cableConfig(for exerciseName: String) -> CableMachineConfig {
         cableMachineConfigs[exerciseName] ?? defaultCableConfig
-    }
-
-    /// Get suggestion preference for an exercise
-    func suggestionPreference(for exerciseName: String) -> ExerciseSuggestionPreference {
-        exercisePreferences[exerciseName] ?? .normal
-    }
-
-    /// Set suggestion preference for an exercise
-    func setSuggestionPreference(_ preference: ExerciseSuggestionPreference, for exerciseName: String) {
-        if preference == .normal {
-            exercisePreferences.removeValue(forKey: exerciseName)
-        } else {
-            exercisePreferences[exerciseName] = preference
-        }
     }
 
     /// Set cable config for specific exercise
@@ -365,33 +340,6 @@ class GymSettings: ObservableObject {
         }
 
         summary += "\nIMPORTANT: Only suggest weights that are achievable with the above equipment. For cable exercises, suggest weights from the available weight list."
-
-        return summary
-    }
-
-    /// Generate exercise preference instructions for Claude
-    func exercisePreferencesForClaude() -> String {
-        let preferMore = exercisePreferences.filter { $0.value == .suggestMore }.keys.sorted()
-        let preferLess = exercisePreferences.filter { $0.value == .suggestLess }.keys.sorted()
-        let neverSuggest = exercisePreferences.filter { $0.value == .never }.keys.sorted()
-
-        guard !preferMore.isEmpty || !preferLess.isEmpty || !neverSuggest.isEmpty else {
-            return ""
-        }
-
-        var summary = "EXERCISE PREFERENCES:\n"
-
-        if !neverSuggest.isEmpty {
-            summary += "NEVER include these exercises: \(neverSuggest.joined(separator: ", "))\n"
-        }
-
-        if !preferLess.isEmpty {
-            summary += "AVOID these exercises unless specifically requested: \(preferLess.joined(separator: ", "))\n"
-        }
-
-        if !preferMore.isEmpty {
-            summary += "PRIORITIZE including these exercises when appropriate: \(preferMore.joined(separator: ", "))\n"
-        }
 
         return summary
     }
