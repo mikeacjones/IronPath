@@ -454,10 +454,10 @@ class AnthropicService {
           "exercises": [
             {
               "name": "Exercise name (must match exactly from the list)",
-              "sets": 3,
-              "reps": "8-12",
-              "weight": \(isDeload ? "reduced weight (50-70% of history)" : "135"),
-              "restSeconds": 90,
+              "sets": number,
+              "reps": "rep range or target",
+              "weight": \(isDeload ? "reduced weight (50-70% of history)" : "suggested weight based on history or appropriate starting weight"),
+              "restSeconds": number,
               "equipment": "equipment type",
               "primaryMuscles": ["muscle1"],
               "notes": "Optional coaching notes"
