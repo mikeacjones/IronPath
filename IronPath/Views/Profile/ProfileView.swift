@@ -256,11 +256,34 @@ struct ProfileView: View {
                     } label: {
                         Label("Export Workout Data", systemImage: "square.and.arrow.up")
                     }
+                    .confirmationDialog("Export Workout Data", isPresented: $showingExportOptions, titleVisibility: .visible) {
+                        Button("Export as JSON") {
+                            if let data = WorkoutDataManager.shared.exportHistoryAsJSON(),
+                               let string = String(data: data, encoding: .utf8) {
+                                exportData = ExportData(content: string, filename: "workout_history.json")
+                            }
+                        }
+                        Button("Export as CSV") {
+                            let csv = WorkoutDataManager.shared.exportHistoryAsCSV()
+                            exportData = ExportData(content: csv, filename: "workout_history.csv")
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Choose a format for your workout data export")
+                    }
 
                     Button(role: .destructive) {
                         showingResetConfirmation = true
                     } label: {
                         Label("Reset All Workout Data", systemImage: "trash")
+                    }
+                    .confirmationDialog("Reset Workout Data", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
+                        Button("Reset All Data", role: .destructive) {
+                            WorkoutDataManager.shared.clearHistory()
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will permanently delete all your workout history. This action cannot be undone.")
                     }
                 } header: {
                     Text("Data Management")
@@ -309,29 +332,6 @@ struct ProfileView: View {
                         editingGymProfile = nil
                     } : nil
                 )
-            }
-            .confirmationDialog("Reset Workout Data", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
-                Button("Reset All Data", role: .destructive) {
-                    WorkoutDataManager.shared.clearHistory()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all your workout history. This action cannot be undone.")
-            }
-            .confirmationDialog("Export Workout Data", isPresented: $showingExportOptions, titleVisibility: .visible) {
-                Button("Export as JSON") {
-                    if let data = WorkoutDataManager.shared.exportHistoryAsJSON(),
-                       let string = String(data: data, encoding: .utf8) {
-                        exportData = ExportData(content: string, filename: "workout_history.json")
-                    }
-                }
-                Button("Export as CSV") {
-                    let csv = WorkoutDataManager.shared.exportHistoryAsCSV()
-                    exportData = ExportData(content: csv, filename: "workout_history.csv")
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Choose a format for your workout data export")
             }
             .sheet(item: $exportData) { data in
                 ShareSheet(items: [data.temporaryFileURL].compactMap { $0 })
