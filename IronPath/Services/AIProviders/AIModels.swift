@@ -1,39 +1,8 @@
 import Foundation
 
-// MARK: - Claude API Response Models
-
-struct ClaudeResponse: Codable {
-    let id: String
-    let type: String
-    let role: String
-    let content: [ContentBlock]
-    let model: String
-    let stopReason: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, type, role, content, model
-        case stopReason = "stop_reason"
-    }
-}
-
-struct ContentBlock: Codable {
-    let type: String
-    let text: String?
-    // For tool_use blocks
-    let id: String?
-    let name: String?
-    let input: ToolInput?
-}
-
-struct ToolInput: Codable {
-    let muscleGroups: [String]?
-
-    enum CodingKeys: String, CodingKey {
-        case muscleGroups = "muscle_groups"
-    }
-}
-
-// MARK: - Workout Generation Models
+// MARK: - AI Response JSON Models
+// These models are used by all AI providers (Anthropic, OpenAI, etc.)
+// to parse workout generation responses
 
 struct WorkoutJSON: Codable {
     let name: String
@@ -278,29 +247,4 @@ struct CustomExerciseJSON: Codable {
     let difficulty: String
     let instructions: String
     let formTips: String
-}
-
-// MARK: - Anthropic API Errors
-
-enum AnthropicError: LocalizedError {
-    case missingAPIKey
-    case invalidResponse
-    case apiError(statusCode: Int)
-    case apiErrorWithMessage(statusCode: Int, message: String)
-    case parseError
-
-    var errorDescription: String? {
-        switch self {
-        case .missingAPIKey:
-            return "Anthropic API key is missing. Please add your API key in Profile settings."
-        case .invalidResponse:
-            return "Invalid response from Claude API"
-        case .apiError(let code):
-            return "API error with status code: \(code)"
-        case .apiErrorWithMessage(let code, let message):
-            return "API error (\(code)): \(message)"
-        case .parseError:
-            return "Failed to parse Claude's response"
-        }
-    }
 }
