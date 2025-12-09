@@ -20,6 +20,7 @@ An AI-powered iOS workout generation app that creates personalized strength trai
 
 ### Workout Tracking
 - **Real-time workout logging** with set-by-set tracking
+- **Advanced training techniques** - drop sets, rest-pause, and warmup sets
 - Rest timer with background notifications
 - Exercise replacement (AI-powered or quick swap from library)
 - Add exercises mid-workout
@@ -107,7 +108,7 @@ This project is proprietary software. All rights reserved.
 | Workout Templates | Save and reuse favorite workouts without AI generation | Planned |
 | Superset/Circuit Support | Group exercises together with shared rest times | Planned |
 | Warm-up Sets | Automatic warm-up set suggestions based on working weight | Planned |
-| Drop Sets / Rest-Pause | Support for advanced training techniques | Planned |
+| Drop Sets / Rest-Pause | Support for advanced training techniques | ✅ Implemented |
 | RPE/RIR Tracking | Rate of Perceived Exertion or Reps in Reserve logging | Planned |
 
 ### Social & Sharing

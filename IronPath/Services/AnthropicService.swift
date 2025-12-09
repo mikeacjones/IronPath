@@ -391,6 +391,21 @@ class AnthropicService {
         3. Select exercises from the list as appropriate for the workout type and user profile
         4. Use the exercise history to suggest appropriate weights\(isDeload ? " (reduced to 50-70% for deload)" : " (progressive overload)")
         5. Return the workout in JSON format
+
+        ADVANCED TRAINING TECHNIQUES (optional):
+        For intermediate/advanced users or when the user requests intensity techniques, you can include advanced set types:
+        - "warmup": Lighter weight sets to prepare muscles (50-60% of working weight)
+        - "dropSet": Reduce weight immediately after failure and continue (great for hypertrophy)
+        - "restPause": Brief 10-20s rest then continue with same weight (increases time under tension)
+
+        To use advanced sets, add an "advancedSets" array to the exercise:
+        "advancedSets": [
+          {"setNumber": 1, "type": "warmup", "reps": "10", "weight": 50},
+          {"setNumber": 2, "type": "standard", "reps": "8", "weight": 100},
+          {"setNumber": 3, "type": "dropSet", "reps": "8", "weight": 100, "numberOfDrops": 2, "dropPercentage": 0.2},
+          {"setNumber": 4, "type": "restPause", "reps": "8", "weight": 100, "numberOfPauses": 2, "pauseDuration": 15}
+        ]
+        Only use these for intermediate/advanced users when appropriate. Beginners should use standard sets only.
         """
 
         return prompt
@@ -977,13 +992,61 @@ class AnthropicService {
             // Parse reps (could be "10" or "8-12")
             let targetReps = Int(exerciseJSON.reps.components(separatedBy: "-").first ?? "10") ?? 10
 
-            let sets = (1...exerciseJSON.sets).map { setNum in
-                ExerciseSet(
-                    setNumber: setNum,
-                    targetReps: targetReps,
-                    weight: exerciseJSON.weight,  // Use suggested weight from Claude
-                    restPeriod: TimeInterval(exerciseJSON.restSeconds)
-                )
+            let sets: [ExerciseSet]
+
+            // Check if Claude provided advanced set configurations
+            if let advancedSets = exerciseJSON.advancedSets, !advancedSets.isEmpty {
+                sets = advancedSets.enumerated().map { idx, advSet in
+                    let setReps = advSet.reps.flatMap { Int($0.components(separatedBy: "-").first ?? "8") } ?? targetReps
+                    let setWeight = advSet.weight ?? exerciseJSON.weight
+
+                    switch advSet.setType {
+                    case .standard:
+                        return ExerciseSet(
+                            setNumber: advSet.setNumber,
+                            setType: .standard,
+                            targetReps: setReps,
+                            weight: setWeight,
+                            restPeriod: TimeInterval(exerciseJSON.restSeconds)
+                        )
+                    case .warmup:
+                        return ExerciseSet.createWarmupSet(
+                            setNumber: advSet.setNumber,
+                            targetReps: setReps,
+                            weight: setWeight,
+                            restPeriod: 60
+                        )
+                    case .dropSet:
+                        return ExerciseSet.createDropSet(
+                            setNumber: advSet.setNumber,
+                            targetReps: setReps,
+                            weight: setWeight,
+                            restPeriod: TimeInterval(exerciseJSON.restSeconds),
+                            numberOfDrops: advSet.numberOfDrops ?? 2,
+                            dropPercentage: advSet.dropPercentage ?? 0.2
+                        )
+                    case .restPause:
+                        return ExerciseSet.createRestPauseSet(
+                            setNumber: advSet.setNumber,
+                            targetReps: setReps,
+                            weight: setWeight,
+                            restPeriod: TimeInterval(exerciseJSON.restSeconds),
+                            numberOfPauses: advSet.numberOfPauses ?? 2,
+                            pauseDuration: TimeInterval(advSet.pauseDuration ?? 15)
+                        )
+                    }
+                }
+            } else {
+                // Standard sets (backwards compatible)
+                sets = (1...exerciseJSON.sets).map { setNum in
+                    ExerciseSet(
+                        setNumber: setNum,
+                        setType: .standard,
+                        targetReps: targetReps,
+                        weight: exerciseJSON.weight,
+                        restPeriod: TimeInterval(exerciseJSON.restSeconds)
+                    )
+                }
             }
 
             return WorkoutExercise(

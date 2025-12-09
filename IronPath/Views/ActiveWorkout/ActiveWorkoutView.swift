@@ -807,6 +807,7 @@ struct ExerciseDetailSheet: View {
     let onUpdate: (WorkoutExercise) -> Void
     @Environment(\.dismiss) var dismiss
     @State private var updatedExercise: WorkoutExercise
+    @State private var showAddSetTypePicker = false
 
     init(exercise: WorkoutExercise, onUpdate: @escaping (WorkoutExercise) -> Void) {
         self.exercise = exercise
@@ -867,7 +868,7 @@ struct ExerciseDetailSheet: View {
 
                         ForEach(updatedExercise.sets.indices, id: \.self) { setIndex in
                             HStack(alignment: .top, spacing: 8) {
-                                SetRowView(
+                                AdvancedSetRowView(
                                     set: updatedExercise.sets[setIndex],
                                     setIndex: setIndex,
                                     exerciseName: exercise.exercise.name,
@@ -876,17 +877,17 @@ struct ExerciseDetailSheet: View {
                                         updatedExercise.sets[setIndex] = updatedSet
                                     },
                                     onWeightChanged: { changedSetIndex, newWeight in
-                                        // Propagate weight to all subsequent sets that haven't been completed
+                                        // Propagate weight to all subsequent standard sets that haven't been completed
                                         for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
-                                            if !updatedExercise.sets[i].isCompleted {
+                                            if !updatedExercise.sets[i].isCompleted && updatedExercise.sets[i].setType == .standard {
                                                 updatedExercise.sets[i].weight = newWeight
                                             }
                                         }
                                     },
                                     onRepsChanged: { changedSetIndex, newReps in
-                                        // Propagate reps to all subsequent sets that haven't been completed
+                                        // Propagate reps to all subsequent standard sets that haven't been completed
                                         for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
-                                            if !updatedExercise.sets[i].isCompleted {
+                                            if !updatedExercise.sets[i].isCompleted && updatedExercise.sets[i].setType == .standard {
                                                 updatedExercise.sets[i].actualReps = newReps
                                             }
                                         }
@@ -908,22 +909,52 @@ struct ExerciseDetailSheet: View {
                             .padding(.horizontal)
                         }
 
-                        // Add set button
-                        Button {
-                            addSet()
-                        } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add Set")
+                        // Add set buttons
+                        HStack(spacing: 12) {
+                            // Quick add standard set
+                            Button {
+                                addSet(type: .standard)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add Set")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.blue)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(10)
                             }
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.blue)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(10)
+
+                            // More set types
+                            Button {
+                                showAddSetTypePicker = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "ellipsis.circle.fill")
+                                    Text("More")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.purple)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.purple.opacity(0.1))
+                                .cornerRadius(10)
+                            }
                         }
+                        .padding(.horizontal)
+
+                        // Advanced techniques hint
+                        HStack(spacing: 4) {
+                            Image(systemName: "lightbulb.min")
+                                .font(.caption2)
+                            Text("Tap \"More\" for drop sets, rest-pause, and warmup sets")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal)
                     }
 
@@ -954,20 +985,55 @@ struct ExerciseDetailSheet: View {
                     }
                 }
             }
+            .sheet(isPresented: $showAddSetTypePicker) {
+                SetTypePickerView { setType in
+                    addSet(type: setType)
+                }
+            }
         }
     }
 
-    private func addSet() {
-        // Create a new set based on the last set's values
+    private func addSet(type: SetType) {
         let lastSet = updatedExercise.sets.last
         let newSetNumber = updatedExercise.sets.count + 1
-        let newSet = ExerciseSet(
-            setNumber: newSetNumber,
-            targetReps: lastSet?.targetReps ?? 10,
-            actualReps: nil,
-            weight: lastSet?.weight,
-            restPeriod: lastSet?.restPeriod ?? 90
-        )
+
+        let newSet: ExerciseSet
+        switch type {
+        case .standard:
+            newSet = ExerciseSet(
+                setNumber: newSetNumber,
+                setType: .standard,
+                targetReps: lastSet?.targetReps ?? 10,
+                weight: lastSet?.weight,
+                restPeriod: lastSet?.restPeriod ?? 90
+            )
+        case .warmup:
+            newSet = ExerciseSet.createWarmupSet(
+                setNumber: newSetNumber,
+                targetReps: 10,
+                weight: (lastSet?.weight ?? 100) * 0.5, // 50% of working weight
+                restPeriod: 60
+            )
+        case .dropSet:
+            newSet = ExerciseSet.createDropSet(
+                setNumber: newSetNumber,
+                targetReps: lastSet?.targetReps ?? 8,
+                weight: lastSet?.weight,
+                restPeriod: lastSet?.restPeriod ?? 90,
+                numberOfDrops: 2,
+                dropPercentage: 0.2
+            )
+        case .restPause:
+            newSet = ExerciseSet.createRestPauseSet(
+                setNumber: newSetNumber,
+                targetReps: lastSet?.targetReps ?? 8,
+                weight: lastSet?.weight,
+                restPeriod: lastSet?.restPeriod ?? 90,
+                numberOfPauses: 2,
+                pauseDuration: 15
+            )
+        }
+
         updatedExercise.sets.append(newSet)
     }
 

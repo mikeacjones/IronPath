@@ -68,9 +68,10 @@ struct ExerciseJSON: Codable {
     let primaryMuscles: [String]
     let notes: String?
     let weight: Double?  // Suggested weight from Claude
+    let advancedSets: [AdvancedSetJSON]? // Optional advanced set configurations
 
     enum CodingKeys: String, CodingKey {
-        case name, sets, reps, restSeconds, equipment, primaryMuscles, notes, weight
+        case name, sets, reps, restSeconds, equipment, primaryMuscles, notes, weight, advancedSets
     }
 
     init(from decoder: Decoder) throws {
@@ -79,6 +80,7 @@ struct ExerciseJSON: Codable {
         equipment = try container.decode(String.self, forKey: .equipment)
         primaryMuscles = try container.decode([String].self, forKey: .primaryMuscles)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        advancedSets = try container.decodeIfPresent([AdvancedSetJSON].self, forKey: .advancedSets)
 
         // Handle sets as either Int or String
         if let intSets = try? container.decode(Int.self, forKey: .sets) {
@@ -119,6 +121,80 @@ struct ExerciseJSON: Codable {
             weight = parsedWeight
         } else {
             weight = nil
+        }
+    }
+}
+
+// MARK: - Advanced Set Type JSON Models
+
+struct AdvancedSetJSON: Codable {
+    let setNumber: Int
+    let type: String // "standard", "warmup", "dropSet", "restPause"
+    let reps: String?
+    let weight: Double?
+
+    // Drop set specific
+    let numberOfDrops: Int?
+    let dropPercentage: Double?
+
+    // Rest-pause specific
+    let numberOfPauses: Int?
+    let pauseDuration: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case setNumber, type, reps, weight
+        case numberOfDrops, dropPercentage
+        case numberOfPauses, pauseDuration
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        reps = try container.decodeIfPresent(String.self, forKey: .reps)
+        numberOfDrops = try container.decodeIfPresent(Int.self, forKey: .numberOfDrops)
+        numberOfPauses = try container.decodeIfPresent(Int.self, forKey: .numberOfPauses)
+        pauseDuration = try container.decodeIfPresent(Int.self, forKey: .pauseDuration)
+
+        // Handle setNumber
+        if let intSetNumber = try? container.decode(Int.self, forKey: .setNumber) {
+            setNumber = intSetNumber
+        } else if let stringSetNumber = try? container.decode(String.self, forKey: .setNumber),
+                  let parsed = Int(stringSetNumber) {
+            setNumber = parsed
+        } else {
+            setNumber = 1
+        }
+
+        // Handle weight
+        if let doubleWeight = try? container.decodeIfPresent(Double.self, forKey: .weight) {
+            weight = doubleWeight
+        } else if let intWeight = try? container.decodeIfPresent(Int.self, forKey: .weight) {
+            weight = Double(intWeight)
+        } else {
+            weight = nil
+        }
+
+        // Handle dropPercentage
+        if let doubleDrop = try? container.decodeIfPresent(Double.self, forKey: .dropPercentage) {
+            dropPercentage = doubleDrop
+        } else if let intDrop = try? container.decodeIfPresent(Int.self, forKey: .dropPercentage) {
+            dropPercentage = Double(intDrop) / 100.0 // Convert percentage to decimal
+        } else {
+            dropPercentage = nil
+        }
+    }
+
+    /// Convert to SetType enum
+    var setType: SetType {
+        switch type.lowercased() {
+        case "warmup", "warm-up", "warm up":
+            return .warmup
+        case "dropset", "drop-set", "drop set", "drop":
+            return .dropSet
+        case "restpause", "rest-pause", "rest pause", "rp":
+            return .restPause
+        default:
+            return .standard
         }
     }
 }
