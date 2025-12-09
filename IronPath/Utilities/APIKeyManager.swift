@@ -8,15 +8,15 @@ class APIKeyManager {
 
     private init() {}
 
-    /// Save the API key securely
+    /// Save the API key securely (syncs to iCloud)
     func saveAPIKey(_ key: String) {
-        UserDefaults.standard.set(key, forKey: apiKeyKey)
+        CloudSyncManager.shared.saveAPIKey(key)
     }
 
     /// Retrieve the stored API key
     func getAPIKey() -> String? {
-        // First check UserDefaults
-        if let storedKey = UserDefaults.standard.string(forKey: apiKeyKey), !storedKey.isEmpty {
+        // First try iCloud/local storage
+        if let storedKey = CloudSyncManager.shared.loadAPIKey(), !storedKey.isEmpty {
             return storedKey
         }
 
@@ -36,5 +36,6 @@ class APIKeyManager {
     /// Clear the stored API key
     func clearAPIKey() {
         UserDefaults.standard.removeObject(forKey: apiKeyKey)
+        // Note: We don't clear from iCloud to preserve across devices
     }
 }

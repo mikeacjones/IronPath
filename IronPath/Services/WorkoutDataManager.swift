@@ -8,7 +8,20 @@ class WorkoutDataManager {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    private init() {}
+    private init() {
+        // Listen for iCloud sync changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCloudSync),
+            name: .cloudDataDidSync,
+            object: nil
+        )
+    }
+
+    @objc private func handleCloudSync() {
+        // Cache is automatically updated when getWorkoutHistory is called
+        // No action needed here, but we could notify observers if needed
+    }
 
     /// Save a completed workout to history
     func saveWorkout(_ workout: Workout) {
@@ -20,18 +33,13 @@ class WorkoutDataManager {
             history = Array(history.suffix(100))
         }
 
-        if let encoded = try? encoder.encode(history) {
-            UserDefaults.standard.set(encoded, forKey: workoutHistoryKey)
-        }
+        // Save to both local and iCloud
+        CloudSyncManager.shared.saveWorkoutHistory(history)
     }
 
     /// Get all workout history
     func getWorkoutHistory() -> [Workout] {
-        guard let data = UserDefaults.standard.data(forKey: workoutHistoryKey),
-              let workouts = try? decoder.decode([Workout].self, from: data) else {
-            return []
-        }
-        return workouts
+        return CloudSyncManager.shared.loadWorkoutHistory()
     }
 
     /// Get the most recent workout containing a specific exercise
@@ -168,20 +176,14 @@ class WorkoutDataManager {
     func deleteWorkout(byId id: UUID) {
         var history = getWorkoutHistory()
         history.removeAll { $0.id == id }
-
-        if let encoded = try? encoder.encode(history) {
-            UserDefaults.standard.set(encoded, forKey: workoutHistoryKey)
-        }
+        CloudSyncManager.shared.saveWorkoutHistory(history)
     }
 
     /// Delete multiple workouts by IDs
     func deleteWorkouts(byIds ids: Set<UUID>) {
         var history = getWorkoutHistory()
         history.removeAll { ids.contains($0.id) }
-
-        if let encoded = try? encoder.encode(history) {
-            UserDefaults.standard.set(encoded, forKey: workoutHistoryKey)
-        }
+        CloudSyncManager.shared.saveWorkoutHistory(history)
     }
 }
 

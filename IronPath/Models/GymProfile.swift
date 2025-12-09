@@ -96,9 +96,26 @@ class GymProfileManager: ObservableObject {
         isInitializing = false
         // Now that initialization is complete, save the profiles if needed
         saveProfiles()
+
+        // Listen for iCloud sync changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCloudSync),
+            name: .cloudDataDidSync,
+            object: nil
+        )
+    }
+
+    @objc private func handleCloudSync() {
+        // Reload profiles from cloud/local storage
+        isInitializing = true
+        loadProfiles()
+        isInitializing = false
+        GymSettings.shared.loadFromActiveProfile()
     }
 
     private func loadProfiles() {
+        // Try to load from local storage (CloudKit syncs in background)
         if let data = UserDefaults.standard.data(forKey: "gymProfiles"),
            let decoded = try? JSONDecoder().decode([GymProfile].self, from: data) {
             self.profiles = decoded
@@ -119,6 +136,8 @@ class GymProfileManager: ObservableObject {
     private func saveProfiles() {
         if let data = try? JSONEncoder().encode(profiles) {
             UserDefaults.standard.set(data, forKey: "gymProfiles")
+            // Sync to CloudKit via GymSettings wrapper
+            CloudSyncManager.shared.saveGymSettings(GymSettings.shared)
         }
     }
 

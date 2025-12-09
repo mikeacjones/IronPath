@@ -22,19 +22,34 @@ class AppState: ObservableObject {
         }
     }
 
-    private let profileKey = "user_profile"
+    private var cloudSyncObserver: NSObjectProtocol?
 
     init() {
-        // Load saved profile
+        // Load saved profile from iCloud/local storage
         loadProfile()
-        // Check if user has completed onboarding
-        self.isOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        // Check if user has completed onboarding (from iCloud first)
+        self.isOnboarded = CloudSyncManager.shared.loadOnboardingCompleted()
+
+        // Listen for iCloud sync changes
+        cloudSyncObserver = NotificationCenter.default.addObserver(
+            forName: .cloudDataDidSync,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleCloudSync()
+        }
+    }
+
+    deinit {
+        if let observer = cloudSyncObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     func completeOnboarding(profile: UserProfile) {
         self.userProfile = profile
         self.isOnboarded = true
-        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        CloudSyncManager.shared.saveOnboardingCompleted(true)
     }
 
     func updateProfile(_ profile: UserProfile) {
@@ -42,25 +57,25 @@ class AppState: ObservableObject {
     }
 
     private func saveProfile() {
-        guard let profile = userProfile else {
-            UserDefaults.standard.removeObject(forKey: profileKey)
-            return
-        }
-
-        let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(profile) {
-            UserDefaults.standard.set(encoded, forKey: profileKey)
-        }
+        guard let profile = userProfile else { return }
+        CloudSyncManager.shared.saveUserProfile(profile)
     }
 
     private func loadProfile() {
-        guard let data = UserDefaults.standard.data(forKey: profileKey) else {
-            return
-        }
-
-        let decoder = JSONDecoder()
-        if let profile = try? decoder.decode(UserProfile.self, from: data) {
+        if let profile = CloudSyncManager.shared.loadUserProfile() {
             self.userProfile = profile
+        }
+    }
+
+    private func handleCloudSync() {
+        // Reload data when iCloud sync occurs
+        loadProfile()
+        let wasOnboarded = isOnboarded
+        isOnboarded = CloudSyncManager.shared.loadOnboardingCompleted()
+
+        // If profile was restored from cloud, update onboarding state
+        if !wasOnboarded && userProfile != nil {
+            isOnboarded = true
         }
     }
 }
