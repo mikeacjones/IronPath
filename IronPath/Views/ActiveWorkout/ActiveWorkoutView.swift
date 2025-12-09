@@ -12,8 +12,6 @@ struct ActiveWorkoutView: View {
     @State private var showCancelConfirmation = false
     @State private var selectedExercise: WorkoutExercise?
     @State private var workoutStartTime: Date
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var timer: Timer?
 
     // Exercise replacement state
     @State private var exerciseToReplace: WorkoutExercise?
@@ -60,7 +58,7 @@ struct ActiveWorkoutView: View {
             VStack(spacing: 0) {
                 // Timer header
                 WorkoutTimerHeader(
-                    elapsedTime: elapsedTime,
+                    startTime: workoutStartTime,
                     completedCount: completedExercisesCount,
                     totalCount: currentWorkout.exercises.count
                 )
@@ -74,8 +72,10 @@ struct ActiveWorkoutView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(currentWorkout.exercises.indices, id: \.self) { index in
+                            let exercise = currentWorkout.exercises[index]
                             ActiveExerciseCard(
-                                exercise: currentWorkout.exercises[index],
+                                exercise: exercise,
+                                currentPreference: ExercisePreferenceManager.shared.getPreference(for: exercise.exercise.name),
                                 onTap: {
                                     selectedExercise = currentWorkout.exercises[index]
                                 },
@@ -91,7 +91,7 @@ struct ActiveWorkoutView: View {
                                 onSetPreference: { preference in
                                     ExercisePreferenceManager.shared.setPreference(
                                         preference,
-                                        for: currentWorkout.exercises[index].exercise.name
+                                        for: exercise.exercise.name
                                     )
                                 }
                             )
@@ -154,7 +154,6 @@ struct ActiveWorkoutView: View {
         }
         .confirmationDialog("Cancel Workout?", isPresented: $showCancelConfirmation) {
             Button("Cancel Workout", role: .destructive) {
-                stopTimer()
                 onCancel()
             }
             Button("Keep Going", role: .cancel) { }
@@ -228,12 +227,6 @@ struct ActiveWorkoutView: View {
                 .interactiveDismissDisabled()
             }
         }
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
-        }
     }
 
     private func addExercise(_ exercise: WorkoutExercise) {
@@ -261,18 +254,6 @@ struct ActiveWorkoutView: View {
     /// Persist current workout state to survive app restarts
     private func persistWorkoutState() {
         activeWorkoutManager.updateWorkout(currentWorkout)
-    }
-
-    private func startTimer() {
-        elapsedTime = Date().timeIntervalSince(workoutStartTime)
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            elapsedTime = Date().timeIntervalSince(workoutStartTime)
-        }
-    }
-
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
     }
 
     private func updateExercise(_ updatedExercise: WorkoutExercise) {
@@ -347,7 +328,6 @@ struct ActiveWorkoutView: View {
     }
 
     private func finishWorkout() {
-        stopTimer()
         var completedWorkout = currentWorkout
         completedWorkout.completedAt = Date()
         WorkoutDataManager.shared.saveWorkout(completedWorkout)
@@ -723,9 +703,12 @@ struct PRCard: View {
 // MARK: - Workout Timer Header
 
 struct WorkoutTimerHeader: View {
-    let elapsedTime: TimeInterval
+    let startTime: Date
     let completedCount: Int
     let totalCount: Int
+
+    @State private var elapsedTime: TimeInterval = 0
+    @State private var timer: Timer?
 
     var formattedTime: String {
         let hours = Int(elapsedTime) / 3600
@@ -764,6 +747,16 @@ struct WorkoutTimerHeader: View {
         }
         .padding()
         .background(Color(.systemGroupedBackground))
+        .onAppear {
+            elapsedTime = Date().timeIntervalSince(startTime)
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                elapsedTime = Date().timeIntervalSince(startTime)
+            }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
+        }
     }
 }
 
@@ -771,19 +764,14 @@ struct WorkoutTimerHeader: View {
 
 struct ActiveExerciseCard: View {
     let exercise: WorkoutExercise
+    let currentPreference: ExerciseSuggestionPreference
     let onTap: () -> Void
     let onReplace: () -> Void
     let onRemove: () -> Void
     let onSetPreference: (ExerciseSuggestionPreference) -> Void
 
-    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
-
     var completedSetsCount: Int {
         exercise.sets.filter { $0.isCompleted }.count
-    }
-
-    var currentPreference: ExerciseSuggestionPreference {
-        preferenceManager.getPreference(for: exercise.exercise.name)
     }
 
     var body: some View {
