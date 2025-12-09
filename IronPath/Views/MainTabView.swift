@@ -254,12 +254,17 @@ enum WorkoutType: String, CaseIterable, Identifiable {
 
 struct WorkoutView: View {
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var pendingWorkoutManager = PendingWorkoutManager.shared
     @State private var isGeneratingWorkout = false
-    @State private var generatedWorkout: Workout?
     @State private var activeWorkout: Workout?
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showWorkoutSetup = false
+
+    /// Convenience accessor for the pending workout
+    private var generatedWorkout: Workout? {
+        get { pendingWorkoutManager.pendingWorkout }
+    }
 
     /// Determines what workout to do today based on split and recent history
     private var recommendedWorkoutDay: WorkoutSplitDay? {
@@ -323,10 +328,10 @@ struct WorkoutView: View {
                             startWorkout(updatedWorkout)
                         },
                         onRegenerate: {
-                            generatedWorkout = nil
+                            pendingWorkoutManager.clearPendingWorkout()
                         },
                         onConvertToNormal: { updatedWorkout in
-                            generatedWorkout = updatedWorkout
+                            pendingWorkoutManager.pendingWorkout = updatedWorkout
                         }
                     )
                 } else {
@@ -389,7 +394,7 @@ struct WorkoutView: View {
             .navigationDestination(item: $activeWorkout) { workout in
                 ActiveWorkoutView(workout: workout, userProfile: appState.userProfile, onComplete: { completedWorkout in
                     activeWorkout = nil
-                    generatedWorkout = nil
+                    pendingWorkoutManager.clearPendingWorkout()
                 }, onCancel: {
                     activeWorkout = nil
                 })
@@ -449,7 +454,7 @@ struct WorkoutView: View {
                     allowDeloadRecommendation: true  // Let Claude recommend deload if needed
                 )
                 await MainActor.run {
-                    generatedWorkout = workout
+                    pendingWorkoutManager.pendingWorkout = workout
                     isGeneratingWorkout = false
                 }
             } catch {
@@ -491,7 +496,7 @@ struct WorkoutView: View {
                 )
                 workout.isDeload = isDeload
                 await MainActor.run {
-                    generatedWorkout = workout
+                    pendingWorkoutManager.pendingWorkout = workout
                     isGeneratingWorkout = false
                     showWorkoutSetup = false
                 }
