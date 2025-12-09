@@ -11,6 +11,11 @@ class CloudSyncManager {
     private let container = CKContainer(identifier: "iCloud.com.kotrs.IronPath")
     private var privateDatabase: CKDatabase { container.privateCloudDatabase }
 
+    /// Check if iCloud is available (user is signed in)
+    private var isICloudAvailable: Bool {
+        FileManager.default.ubiquityIdentityToken != nil
+    }
+
     // Keys for iCloud KV storage (small data)
     private enum KVKeys {
         static let userProfile = "cloud_user_profile"
@@ -28,20 +33,23 @@ class CloudSyncManager {
     private let decoder = JSONDecoder()
 
     private init() {
-        // Register for iCloud KV change notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(cloudDataDidChange),
-            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: kvStore
-        )
+        // Only set up iCloud sync if signed in
+        if isICloudAvailable {
+            // Register for iCloud KV change notifications
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(cloudDataDidChange),
+                name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+                object: kvStore
+            )
 
-        // Sync on launch
-        kvStore.synchronize()
+            // Sync on launch
+            kvStore.synchronize()
 
-        // Fetch CloudKit data on launch
-        Task {
-            await fetchCloudKitData()
+            // Fetch CloudKit data on launch
+            Task {
+                await fetchCloudKitData()
+            }
         }
     }
 
@@ -82,14 +90,21 @@ class CloudSyncManager {
 
     func saveUserProfile(_ profile: UserProfile) {
         guard let data = try? encoder.encode(profile) else { return }
-        kvStore.set(data, forKey: KVKeys.userProfile)
-        kvStore.synchronize()
+
+        // Always save locally
         UserDefaults.standard.set(data, forKey: "user_profile")
+
+        // Sync to iCloud if available
+        if isICloudAvailable {
+            kvStore.set(data, forKey: KVKeys.userProfile)
+            kvStore.synchronize()
+        }
     }
 
     func loadUserProfile() -> UserProfile? {
-        // Try iCloud first
-        if let data = kvStore.data(forKey: KVKeys.userProfile),
+        // Try iCloud first if available
+        if isICloudAvailable,
+           let data = kvStore.data(forKey: KVKeys.userProfile),
            let profile = try? decoder.decode(UserProfile.self, from: data) {
             UserDefaults.standard.set(data, forKey: "user_profile")
             return profile
@@ -98,8 +113,11 @@ class CloudSyncManager {
         // Fallback to local
         if let data = UserDefaults.standard.data(forKey: "user_profile"),
            let profile = try? decoder.decode(UserProfile.self, from: data) {
-            kvStore.set(data, forKey: KVKeys.userProfile)
-            kvStore.synchronize()
+            // Sync to iCloud if available
+            if isICloudAvailable {
+                kvStore.set(data, forKey: KVKeys.userProfile)
+                kvStore.synchronize()
+            }
             return profile
         }
 
@@ -109,20 +127,27 @@ class CloudSyncManager {
     // MARK: - Onboarding Status (KV Store)
 
     func saveOnboardingCompleted(_ completed: Bool) {
-        kvStore.set(completed, forKey: KVKeys.hasCompletedOnboarding)
-        kvStore.synchronize()
+        // Always save locally
         UserDefaults.standard.set(completed, forKey: "hasCompletedOnboarding")
+
+        // Sync to iCloud if available
+        if isICloudAvailable {
+            kvStore.set(completed, forKey: KVKeys.hasCompletedOnboarding)
+            kvStore.synchronize()
+        }
     }
 
     func loadOnboardingCompleted() -> Bool {
-        if kvStore.object(forKey: KVKeys.hasCompletedOnboarding) != nil {
+        // Try iCloud first if available
+        if isICloudAvailable, kvStore.object(forKey: KVKeys.hasCompletedOnboarding) != nil {
             let cloudValue = kvStore.bool(forKey: KVKeys.hasCompletedOnboarding)
             UserDefaults.standard.set(cloudValue, forKey: "hasCompletedOnboarding")
             return cloudValue
         }
 
+        // Fallback to local
         let localValue = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
-        if localValue {
+        if localValue && isICloudAvailable {
             kvStore.set(localValue, forKey: KVKeys.hasCompletedOnboarding)
             kvStore.synchronize()
         }
@@ -308,24 +333,35 @@ class CloudSyncManager {
     // MARK: - API Key (KV Store with obfuscation)
 
     func saveAPIKey(_ key: String) {
-        let obfuscated = Data(key.utf8).base64EncodedString()
-        kvStore.set(obfuscated, forKey: KVKeys.apiKey)
-        kvStore.synchronize()
+        // Always save locally
         UserDefaults.standard.set(key, forKey: "anthropic_api_key")
+
+        // Sync to iCloud if available
+        if isICloudAvailable {
+            let obfuscated = Data(key.utf8).base64EncodedString()
+            kvStore.set(obfuscated, forKey: KVKeys.apiKey)
+            kvStore.synchronize()
+        }
     }
 
     func loadAPIKey() -> String? {
-        if let obfuscated = kvStore.string(forKey: KVKeys.apiKey),
+        // Try iCloud first if available
+        if isICloudAvailable,
+           let obfuscated = kvStore.string(forKey: KVKeys.apiKey),
            let data = Data(base64Encoded: obfuscated),
            let key = String(data: data, encoding: .utf8), !key.isEmpty {
             UserDefaults.standard.set(key, forKey: "anthropic_api_key")
             return key
         }
 
+        // Fallback to local
         if let key = UserDefaults.standard.string(forKey: "anthropic_api_key"), !key.isEmpty {
-            let obfuscated = Data(key.utf8).base64EncodedString()
-            kvStore.set(obfuscated, forKey: KVKeys.apiKey)
-            kvStore.synchronize()
+            // Sync to iCloud if available
+            if isICloudAvailable {
+                let obfuscated = Data(key.utf8).base64EncodedString()
+                kvStore.set(obfuscated, forKey: KVKeys.apiKey)
+                kvStore.synchronize()
+            }
             return key
         }
 
@@ -335,7 +371,9 @@ class CloudSyncManager {
     // MARK: - Force Sync
 
     func forceSync() {
-        kvStore.synchronize()
+        if isICloudAvailable {
+            kvStore.synchronize()
+        }
         Task {
             await fetchCloudKitData()
         }
