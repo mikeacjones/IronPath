@@ -8,7 +8,6 @@ enum WorkoutType: String, CaseIterable, Identifiable {
     case lowerBody = "Lower Body"
     case push = "Push"
     case pull = "Pull"
-    case legs = "Legs"
     case chestTriceps = "Chest & Triceps"
     case backBiceps = "Back & Biceps"
     case shoulders = "Shoulders"
@@ -24,7 +23,6 @@ enum WorkoutType: String, CaseIterable, Identifiable {
         case .lowerBody: return "figure.walk"
         case .push: return "arrow.up.forward"
         case .pull: return "arrow.down.backward"
-        case .legs: return "figure.walk"
         case .chestTriceps: return "figure.arms.open"
         case .backBiceps: return "arrow.down.to.line"
         case .shoulders: return "figure.boxing"
@@ -40,7 +38,6 @@ enum WorkoutType: String, CaseIterable, Identifiable {
         case .lowerBody: return [.quads, .hamstrings, .glutes, .calves]
         case .push: return [.chest, .shoulders, .triceps]
         case .pull: return [.back, .biceps, .forearms]
-        case .legs: return [.quads, .hamstrings, .glutes, .calves]
         case .chestTriceps: return [.chest, .triceps]
         case .backBiceps: return [.back, .biceps]
         case .shoulders: return [.shoulders, .traps]
