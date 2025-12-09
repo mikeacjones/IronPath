@@ -3116,10 +3116,14 @@ struct ActiveWorkoutView: View {
         .sheet(isPresented: $showReplacementSheet) {
             ExerciseReplacementSheet(
                 exercise: exerciseToReplace,
+                currentWorkoutExercises: currentWorkout.exercises.map { $0.exercise.name },
                 notes: $replacementNotes,
                 isLoading: $isReplacingExercise,
                 onReplace: {
                     replaceExercise()
+                },
+                onQuickReplace: { newExercise in
+                    quickReplaceExercise(with: newExercise)
                 },
                 onCancel: {
                     showReplacementSheet = false
@@ -3218,6 +3222,34 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
+    }
+
+    private func quickReplaceExercise(with newExercise: Exercise) {
+        guard let exerciseToReplace = exerciseToReplace else { return }
+
+        // Create a new WorkoutExercise with the same sets structure but new exercise
+        let newSets = exerciseToReplace.sets.map { oldSet in
+            ExerciseSet(
+                setNumber: oldSet.setNumber,
+                targetReps: oldSet.targetReps,
+                weight: oldSet.weight,
+                restPeriod: oldSet.restPeriod
+            )
+        }
+
+        let replacement = WorkoutExercise(
+            exercise: newExercise,
+            sets: newSets,
+            orderIndex: exerciseToReplace.orderIndex,
+            notes: ""
+        )
+
+        if let index = currentWorkout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
+            currentWorkout.exercises[index] = replacement
+        }
+
+        showReplacementSheet = false
+        self.exerciseToReplace = nil
     }
 
     private func finishWorkout() {
@@ -3901,11 +3933,71 @@ struct ExerciseDetailSheet: View {
 
 struct ExerciseReplacementSheet: View {
     let exercise: WorkoutExercise?
+    let currentWorkoutExercises: [String]
     @Binding var notes: String
     @Binding var isLoading: Bool
     let onReplace: () -> Void
+    let onQuickReplace: (Exercise) -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) var dismiss
+
+    /// Get suggested alternative exercises that target the same muscles
+    private var suggestedAlternatives: [Exercise] {
+        guard let exercise = exercise else { return [] }
+
+        let targetMuscles = exercise.exercise.primaryMuscleGroups
+        let currentEquipment = exercise.exercise.equipment
+
+        // Get available equipment from gym profile
+        let availableEquipment = GymProfileManager.shared.activeProfile?.availableEquipment ?? Set(Equipment.allCases)
+        let availableMachines = GymProfileManager.shared.activeProfile?.availableMachines ?? Set(SpecificMachine.allCases)
+
+        // Find exercises that:
+        // 1. Target at least one of the same primary muscle groups
+        // 2. Are available with user's equipment
+        // 3. Are not the current exercise
+        // 4. Are not already in the workout
+        let alternatives = ExerciseDatabase.shared.exercises.filter { alt in
+            // Must target at least one same muscle group
+            let targetsSameMuscle = !targetMuscles.isDisjoint(with: alt.primaryMuscleGroups)
+
+            // Must be available with user's equipment
+            let isAvailable: Bool
+            if let requiredMachine = alt.specificMachine {
+                isAvailable = availableMachines.contains(requiredMachine)
+            } else {
+                isAvailable = availableEquipment.contains(alt.equipment)
+            }
+
+            // Must not be the current exercise
+            let isNotCurrent = alt.name != exercise.exercise.name
+
+            // Must not already be in the workout
+            let isNotInWorkout = !currentWorkoutExercises.contains(alt.name)
+
+            return targetsSameMuscle && isAvailable && isNotCurrent && isNotInWorkout
+        }
+
+        // Sort: prefer different equipment first (variety), then by difficulty match
+        let currentDifficulty = exercise.exercise.difficulty
+        return alternatives.sorted { a, b in
+            // Prioritize different equipment for variety
+            let aDiffEquip = a.equipment != currentEquipment
+            let bDiffEquip = b.equipment != currentEquipment
+            if aDiffEquip != bDiffEquip {
+                return aDiffEquip
+            }
+
+            // Then sort by difficulty (prefer same difficulty)
+            let aDiffMatch = a.difficulty == currentDifficulty
+            let bDiffMatch = b.difficulty == currentDifficulty
+            if aDiffMatch != bDiffMatch {
+                return aDiffMatch
+            }
+
+            return a.name < b.name
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -3920,15 +4012,44 @@ struct ExerciseReplacementSheet: View {
                                 .fontWeight(.medium)
                         }
                     }
+
+                    // Suggested alternatives section
+                    if !suggestedAlternatives.isEmpty {
+                        Section {
+                            ForEach(suggestedAlternatives.prefix(5)) { alt in
+                                Button {
+                                    onQuickReplace(alt)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(alt.name)
+                                                .foregroundStyle(.primary)
+                                            Text(alt.equipment.rawValue)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                                .disabled(isLoading)
+                            }
+                        } header: {
+                            Text("Quick Swap")
+                        } footer: {
+                            Text("Tap to instantly replace with a similar exercise")
+                        }
+                    }
                 }
 
                 Section {
                     TextField("Why do you need a replacement?", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
                 } header: {
-                    Text("Reason (Optional)")
+                    Text("AI Replacement")
                 } footer: {
-                    Text("Examples:\n• \"My shoulder hurts\"\n• \"The machine is being used\"\n• \"I want something easier/harder\"")
+                    Text("Describe your needs and AI will find the best alternative.\nExamples: \"My shoulder hurts\", \"Machine is taken\", \"Want something harder\"")
                 }
             }
             .navigationTitle("Replace Exercise")
@@ -3946,7 +4067,7 @@ struct ExerciseReplacementSheet: View {
                         if isLoading {
                             ProgressView()
                         } else {
-                            Text("Replace")
+                            Text("Ask AI")
                         }
                     }
                     .disabled(isLoading)
