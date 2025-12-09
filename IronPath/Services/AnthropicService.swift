@@ -72,7 +72,8 @@ class AnthropicService {
         workoutHistory: [Workout] = [],
         workoutType: String? = nil,
         userNotes: String? = nil,
-        isDeload: Bool = false
+        isDeload: Bool = false,
+        allowDeloadRecommendation: Bool = false
     ) async throws -> Workout {
         // Get available equipment from gym profile
         let availableEquipment: Set<Equipment>
@@ -83,13 +84,14 @@ class AnthropicService {
         }
 
         // Build the initial prompt for the agentic flow
-        let systemPrompt = buildAgenticSystemPrompt(profile: profile, isDeload: isDeload)
+        let systemPrompt = buildAgenticSystemPrompt(profile: profile, isDeload: isDeload, allowDeloadRecommendation: allowDeloadRecommendation)
         let userPrompt = buildAgenticUserPrompt(
             workoutType: workoutType,
             targetMuscleGroups: targetMuscleGroups,
             userNotes: userNotes,
             workoutHistory: workoutHistory,
-            isDeload: isDeload
+            isDeload: isDeload,
+            allowDeloadRecommendation: allowDeloadRecommendation
         )
 
         // Start the agentic conversation
@@ -317,7 +319,7 @@ class AnthropicService {
     }
 
     /// Build system prompt for agentic workout generation
-    private func buildAgenticSystemPrompt(profile: UserProfile, isDeload: Bool = false) -> String {
+    private func buildAgenticSystemPrompt(profile: UserProfile, isDeload: Bool = false, allowDeloadRecommendation: Bool = false) -> String {
         var prompt = """
         You are a personal fitness trainer creating workout plans. You MUST use the get_available_exercises tool to see what exercises are available before creating a workout.
 
@@ -340,7 +342,25 @@ class AnthropicService {
         - Reduce volume slightly (fewer total sets)
         - Keep rest periods the same or slightly longer
         - Include "DELOAD" in the workout name
+        - Set "isDeload": true in the JSON response
         - The purpose is active recovery, not progressive overload
+        """
+        } else if allowDeloadRecommendation {
+            prompt += """
+
+
+        DELOAD RECOMMENDATION:
+        You may recommend a deload workout by setting "isDeload": true in the JSON if you observe ANY of these signs in the workout history:
+        - User has been training the same muscle groups intensely for 4+ consecutive workouts without a break
+        - Recent workout weights/volume have plateaued or decreased (signs of fatigue)
+        - User has been training for 3-4 weeks straight without a deload
+        - The workout history shows very high frequency (5+ workouts per week for multiple weeks)
+
+        If you recommend a deload:
+        - Include "DELOAD" or "Recovery" in the workout name
+        - Set "isDeload": true in the JSON
+        - Use 50-70% of normal weights
+        - Explain in exercise notes why you're recommending lighter weights
         """
         }
 
@@ -364,7 +384,8 @@ class AnthropicService {
         targetMuscleGroups: Set<MuscleGroup>?,
         userNotes: String?,
         workoutHistory: [Workout],
-        isDeload: Bool = false
+        isDeload: Bool = false,
+        allowDeloadRecommendation: Bool = false
     ) -> String {
         var prompt = "Please create a workout for me.\n\n"
 
@@ -388,6 +409,19 @@ class AnthropicService {
             // Filter out deload workouts from history when showing recent workouts for context
             let relevantHistory = workoutHistory.filter { !$0.isDeload }.prefix(3)
             prompt += "\nRecent workouts: \(relevantHistory.map { $0.name }.joined(separator: ", "))\n"
+
+            // For auto-generate, provide more history context so Claude can recommend deload
+            if allowDeloadRecommendation {
+                let lastDeload = workoutHistory.last { $0.isDeload }
+                if let lastDeload = lastDeload, let completedAt = lastDeload.completedAt {
+                    let daysSinceDeload = Calendar.current.dateComponents([.day], from: completedAt, to: Date()).day ?? 0
+                    prompt += "Last deload workout: \(daysSinceDeload) days ago\n"
+                } else {
+                    prompt += "No recent deload workouts in history\n"
+                }
+                let nonDeloadCount = workoutHistory.filter { !$0.isDeload }.count
+                prompt += "Total non-deload workouts in recent history: \(nonDeloadCount)\n"
+            }
         }
 
         prompt += """
@@ -397,6 +431,7 @@ class AnthropicService {
         Return the final workout as JSON:
         {
           "name": "\(isDeload ? "Deload - " : "")Workout name",
+          "isDeload": \(isDeload ? "true" : "false")\(allowDeloadRecommendation ? " // Set to true if you recommend a deload based on training history" : ""),
           "exercises": [
             {
               "name": "Exercise name (must match exactly from the list)",
@@ -933,7 +968,8 @@ class AnthropicService {
         return Workout(
             name: workoutJSON.name,
             exercises: exercises,
-            claudeGenerationPrompt: prompt
+            claudeGenerationPrompt: prompt,
+            isDeload: workoutJSON.isDeload ?? false
         )
     }
 }
@@ -974,6 +1010,25 @@ struct ToolInput: Codable {
 struct WorkoutJSON: Codable {
     let name: String
     let exercises: [ExerciseJSON]
+    let isDeload: Bool?  // Claude can recommend a deload workout
+
+    enum CodingKeys: String, CodingKey {
+        case name, exercises, isDeload
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        exercises = try container.decode([ExerciseJSON].self, forKey: .exercises)
+        // Handle isDeload as optional bool or string
+        if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: .isDeload) {
+            isDeload = boolValue
+        } else if let stringValue = try? container.decodeIfPresent(String.self, forKey: .isDeload) {
+            isDeload = stringValue.lowercased() == "true"
+        } else {
+            isDeload = nil
+        }
+    }
 }
 
 struct ExerciseJSON: Codable {
