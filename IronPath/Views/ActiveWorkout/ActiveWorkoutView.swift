@@ -185,6 +185,7 @@ struct ActiveWorkoutView: View {
                     .controlSize(.large)
                     .tint(allExercisesCompleted ? .green : .blue)
                     .disabled(isFinishing)
+                    .accessibilityIdentifier("finish_workout_button")
                 }
                 .padding()
                 .background(Color(.systemBackground))

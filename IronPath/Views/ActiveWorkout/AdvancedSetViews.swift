@@ -1179,6 +1179,7 @@ struct RepsInputView: View {
 struct CompleteButton: View {
     let isCompleted: Bool
     let action: () -> Void
+    var accessibilityId: String = "complete_set_button"
 
     var body: some View {
         Button(action: action) {
@@ -1186,6 +1187,7 @@ struct CompleteButton: View {
                 .font(.title2)
                 .foregroundStyle(isCompleted ? .green : .gray)
         }
+        .accessibilityIdentifier(accessibilityId)
     }
 }
 

@@ -80,6 +80,7 @@ struct HistoryView: View {
                                     WorkoutHistoryCard(workout: workout)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("workout_history_row_\(workout.id.uuidString)")
                                 .contextMenu {
                                     Button(role: .destructive) {
                                         workoutToDelete = workout
@@ -111,6 +112,7 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityIdentifier("add_historical_workout_button")
                 }
             }
             .navigationDestination(item: $selectedWorkout) { workout in

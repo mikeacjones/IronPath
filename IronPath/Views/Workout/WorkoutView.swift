@@ -133,6 +133,7 @@ struct WorkoutView: View {
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.large)
+                                .accessibilityIdentifier("auto_generate_workout_button")
                             }
 
                             // Manual selection button
@@ -143,6 +144,7 @@ struct WorkoutView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
+                            .accessibilityIdentifier("choose_workout_type_button")
                         }
                     }
                     .padding()
