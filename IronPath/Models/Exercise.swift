@@ -14,6 +14,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     var formTips: String
     var videoURL: String? // YouTube video URL for demonstration
     var isCustom: Bool // User-created vs pre-defined
+    var customEquipmentId: UUID? // Reference to CustomEquipment if using custom equipment
 
     init(
         id: UUID = UUID(),
@@ -27,7 +28,8 @@ struct Exercise: Codable, Identifiable, Hashable {
         instructions: String = "",
         formTips: String = "",
         videoURL: String? = nil,
-        isCustom: Bool = false
+        isCustom: Bool = false,
+        customEquipmentId: UUID? = nil
     ) {
         self.id = id
         self.name = name
@@ -41,6 +43,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         self.formTips = formTips
         self.videoURL = videoURL
         self.isCustom = isCustom
+        self.customEquipmentId = customEquipmentId
     }
 
     /// Extract YouTube video ID from URL

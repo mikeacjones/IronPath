@@ -214,6 +214,30 @@ class OpenAIProvider: AIProvider {
         return AIProviderHelpers.parseCalorieEstimation(response)
     }
 
+    func generateEquipmentExercises(
+        equipmentName: String,
+        equipmentType: CustomEquipment.CustomEquipmentType,
+        existingExerciseNames: [String]
+    ) async throws -> [ExerciseDraft] {
+        let systemPrompt = AITools.buildEquipmentExercisesSystemPrompt()
+        let userPrompt = AITools.buildEquipmentExercisesUserPrompt(
+            equipmentName: equipmentName,
+            equipmentType: equipmentType,
+            existingExerciseNames: existingExerciseNames
+        )
+
+        let response = try await sendChatRequestWithTools(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            tools: AITools.equipmentExerciseTools,
+            toolChoice: "generate_equipment_exercises"
+        )
+
+        let toolInput = try AIToolParser.extractToolInputFromOpenAI(from: response)
+        let result = try AIToolParser.parseEquipmentExercises(from: toolInput)
+        return result.exercises
+    }
+
     // MARK: - API Communication
 
     private func sendChatRequest(systemPrompt: String, userPrompt: String) async throws -> String {
@@ -297,5 +321,102 @@ class OpenAIProvider: AIProvider {
         }
 
         return content
+    }
+
+    /// Send a chat request with tool calling support
+    private func sendChatRequestWithTools(
+        systemPrompt: String,
+        userPrompt: String,
+        tools: [[String: Any]],
+        toolChoice: String
+    ) async throws -> [String: Any] {
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
+            throw AIProviderError.missingAPIKey
+        }
+
+        let url = URL(string: "\(baseURL)/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+        // Convert tools to OpenAI function format
+        let functions = tools.map { tool -> [String: Any] in
+            [
+                "type": "function",
+                "function": [
+                    "name": tool["name"] as? String ?? "",
+                    "description": tool["description"] as? String ?? "",
+                    "parameters": tool["input_schema"] as? [String: Any] ?? [:]
+                ]
+            ]
+        }
+
+        let requestBody: [String: Any] = [
+            "model": modelId,
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": userPrompt]
+            ],
+            "max_tokens": 8192,
+            "temperature": 0.7,
+            "tools": functions,
+            "tool_choice": ["type": "function", "function": ["name": toolChoice]]
+        ]
+
+        let requestBodyData = try JSONSerialization.data(withJSONObject: requestBody)
+        request.httpBody = requestBodyData
+
+        // Debug logging
+        let requestHeaders = [
+            "Content-Type": "application/json",
+            "Authorization": "Bearer [REDACTED]"
+        ]
+        let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
+
+        let startTime = Date()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                error: "Invalid response type",
+                duration: duration
+            ))
+            throw AIProviderError.invalidResponse
+        }
+
+        let responseBodyString = String(data: data, encoding: .utf8) ?? ""
+
+        // Log the request
+        APIDebugManager.shared.log(APILogEntry(
+            endpoint: url.absoluteString,
+            method: "POST",
+            requestHeaders: requestHeaders,
+            requestBody: requestBodyString,
+            responseStatusCode: httpResponse.statusCode,
+            responseBody: responseBodyString,
+            error: httpResponse.statusCode != 200 ? "HTTP \(httpResponse.statusCode)" : nil,
+            duration: duration
+        ))
+
+        guard httpResponse.statusCode == 200 else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = errorJson["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw AIProviderError.apiError(statusCode: httpResponse.statusCode, message: message)
+            }
+            throw AIProviderError.apiError(statusCode: httpResponse.statusCode, message: nil)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw AIProviderError.parseError(detail: "Could not parse response JSON")
+        }
+
+        return json
     }
 }

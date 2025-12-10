@@ -173,6 +173,7 @@ enum WorkoutSplitDay: String, Codable, CaseIterable, Hashable {
 
 enum Equipment: String, Codable, CaseIterable, Hashable {
     case barbell = "Barbell"
+    case trapBar = "Trap Bar"
     case dumbbells = "Dumbbells"
     case kettlebells = "Kettlebells"
     case resistanceBands = "Resistance Bands"
@@ -183,6 +184,20 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
     case legPress = "Leg Press"
     case smithMachine = "Smith Machine"
     case bodyweightOnly = "Bodyweight Only"
+
+    /// The default weight configuration for this equipment type
+    var weightConfiguration: CustomEquipment.WeightConfiguration {
+        switch self {
+        case .barbell, .trapBar, .squat, .legPress, .smithMachine:
+            return .plateLoaded
+        case .cables:
+            return .pinSelector
+        case .dumbbells, .kettlebells, .resistanceBands, .bench:
+            return .fixedWeight
+        case .pullUpBar, .bodyweightOnly:
+            return .bodyweight
+        }
+    }
 
     /// Parse equipment from a string, with fuzzy matching for Claude API responses
     static func fromString(_ string: String) -> Equipment {
@@ -197,6 +212,8 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
         switch lowercased {
         case "barbell", "bb":
             return .barbell
+        case "trap bar", "trapbar", "hex bar", "hexbar", "hex", "trap":
+            return .trapBar
         case "dumbbell", "dumbbells", "db":
             return .dumbbells
         case "kettlebell", "kettlebells", "kb":
@@ -236,6 +253,20 @@ enum SpecificMachine: String, Codable, CaseIterable, Hashable {
     case gluteKickback = "Glute Kickback Machine"
     case hipAdduction = "Hip Adduction Machine"
     case hipAbduction = "Hip Abduction Machine"
+
+    /// The weight configuration for this specific machine
+    var weightConfiguration: CustomEquipment.WeightConfiguration {
+        switch self {
+        case .hackSquat:
+            // Hack squat is plate loaded
+            return .plateLoaded
+        case .pecDeck, .chestPress, .shoulderPress, .reversePecDeck,
+             .dipMachine, .seatedCalfRaise, .standingCalfRaise,
+             .gluteKickback, .hipAdduction, .hipAbduction:
+            // Most gym machines use pin selector
+            return .pinSelector
+        }
+    }
 
     /// The exercise names that require this machine
     var exerciseNames: [String] {
