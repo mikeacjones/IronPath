@@ -1,6 +1,17 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Weight Formatting
+
+/// Formats a weight value, showing decimals only when needed
+/// - Parameter weight: The weight value to format
+/// - Returns: A string representation (e.g., "45" for 45.0, "42.5" for 42.5)
+func formatWeight(_ weight: Double) -> String {
+    weight.truncatingRemainder(dividingBy: 1) == 0
+        ? String(Int(weight))
+        : String(format: "%.1f", weight)
+}
+
 // MARK: - Export Data
 
 struct ExportData: Identifiable {

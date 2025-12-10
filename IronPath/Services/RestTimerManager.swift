@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import UserNotifications
 import Combine
+import AudioToolbox
 
 // MARK: - Rest Timer Manager
 
@@ -126,6 +127,31 @@ class RestTimerManager: ObservableObject {
         scheduleCompletionNotification(in: remainingTime)
     }
 
+    /// Set the rest time to a specific duration
+    /// Adjusts the current timer if active
+    func setRestTime(_ newDuration: TimeInterval) {
+        guard isActive, endTime != nil else { return }
+
+        // Calculate how much time has already elapsed
+        let elapsedTime = totalDuration - remainingTime
+
+        // Set new total duration
+        totalDuration = newDuration
+
+        // If we've already rested longer than the new duration, keep at least 5 seconds
+        let newRemainingTime = max(5, newDuration - elapsedTime)
+
+        // Update end time based on new remaining time
+        endTime = Date().addingTimeInterval(newRemainingTime)
+
+        // Persist updated state
+        persistTimerState()
+
+        // Reschedule notification
+        cancelScheduledNotification()
+        scheduleCompletionNotification(in: newRemainingTime)
+    }
+
     func skipTimer() {
         cancelScheduledNotification()
         stopTimer()
@@ -189,6 +215,8 @@ class RestTimerManager: ObservableObject {
             // Timer expired while app was closed - show completion banner briefly
             clearPersistedState()
             showCompletionBanner = true
+            // Play sound for expired timer
+            playCompletionSound()
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 self?.showCompletionBanner = false
             }
@@ -231,10 +259,19 @@ class RestTimerManager: ObservableObject {
         stopTimer()
         showCompletionBanner = true
 
+        // Play sound even when app is in foreground
+        playCompletionSound()
+
         // Auto-hide banner after 5 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
             self?.showCompletionBanner = false
         }
+    }
+
+    /// Play the configured completion sound
+    private func playCompletionSound() {
+        let sound = AppSettings.shared.restNotificationSound
+        sound.playSound()
     }
 
     // MARK: - App Lifecycle
@@ -271,7 +308,12 @@ class RestTimerManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Rest Complete"
         content.body = "Time for your next set of \(exerciseName)!"
-        content.sound = .default
+
+        // Use configured notification sound
+        let soundSetting = AppSettings.shared.restNotificationSound
+        if let notificationSound = soundSetting.notificationSound {
+            content.sound = notificationSound
+        }
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
         let request = UNNotificationRequest(
@@ -291,7 +333,12 @@ class RestTimerManager: ObservableObject {
         } else {
             content.body = "Time for your next round!"
         }
-        content.sound = .default
+
+        // Use configured notification sound
+        let soundSetting = AppSettings.shared.restNotificationSound
+        if let notificationSound = soundSetting.notificationSound {
+            content.sound = notificationSound
+        }
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
         let request = UNNotificationRequest(

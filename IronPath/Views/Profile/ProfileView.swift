@@ -254,6 +254,27 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    Picker(selection: $appSettings.restNotificationSound) {
+                        ForEach(RestNotificationSound.allCases, id: \.self) { sound in
+                            Text(sound.displayName).tag(sound)
+                        }
+                    } label: {
+                        Label("Rest Timer Sound", systemImage: "speaker.wave.2")
+                    }
+
+                    Button {
+                        appSettings.restNotificationSound.playSound()
+                    } label: {
+                        Label("Preview Sound", systemImage: "play.circle")
+                    }
+                    .disabled(appSettings.restNotificationSound == .none)
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("Choose the sound that plays when your rest timer completes. The sound will play whether the app is in the foreground or background.")
+                }
+
+                Section {
                     Button {
                         showingExportOptions = true
                     } label: {
@@ -690,6 +711,14 @@ struct GymEquipmentSettingsView: View {
                 }
 
                 Section {
+                    FloatingFreeWeightsEditor(weights: $settings.floatingCableFreeWeights)
+                } header: {
+                    Label("Cable Free Weights", systemImage: "plus.circle")
+                } footer: {
+                    Text("Add-on weights (e.g., 2.5lb or 4.5lb plates) that can be attached to cable machines for finer weight adjustments. These can be used on any cable machine.")
+                }
+
+                Section {
                     Button {
                         showingDumbbellConfig = true
                     } label: {
@@ -760,6 +789,135 @@ struct GymEquipmentSettingsView: View {
     }
 }
 
+// MARK: - Floating Free Weights Editor
+
+struct FloatingFreeWeightsEditor: View {
+    @Binding var weights: [Double]
+    @State private var newWeight: String = ""
+
+    /// Common free weight values for quick add
+    private let commonWeights: [Double] = [2.5, 4.5, 5.0, 7.5, 10.0]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Current weights
+            if weights.isEmpty {
+                Text("No free weights configured")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowLayout(spacing: 8) {
+                    ForEach(weights.sorted(), id: \.self) { weight in
+                        HStack(spacing: 4) {
+                            Text("\(formatWeight(weight)) lb")
+                                .font(.subheadline)
+                            Button {
+                                weights.removeAll { $0 == weight }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.15))
+                        .foregroundStyle(.blue)
+                        .cornerRadius(16)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Quick add buttons
+            Text("Quick Add")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                ForEach(commonWeights.filter { !weights.contains($0) }, id: \.self) { weight in
+                    Button {
+                        if !weights.contains(weight) {
+                            weights.append(weight)
+                        }
+                    } label: {
+                        Text("\(formatWeight(weight)) lb")
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(16)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // Custom weight entry
+            HStack {
+                TextField("Custom weight", text: $newWeight)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+
+                Text("lb")
+                    .foregroundStyle(.secondary)
+
+                Button("Add") {
+                    if let weight = Double(newWeight), weight > 0, !weights.contains(weight) {
+                        weights.append(weight)
+                        newWeight = ""
+                    }
+                }
+                .disabled(Double(newWeight) == nil || Double(newWeight)! <= 0)
+            }
+        }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+}
+
+/// A simple flow layout that wraps content to new lines
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = layout(in: proposal.width ?? 0, subviews: subviews)
+        return CGSize(width: proposal.width ?? 0, height: result.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = layout(in: bounds.width, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+
+    private func layout(in width: CGFloat, subviews: Subviews) -> (height: CGFloat, positions: [CGPoint]) {
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x + size.width > width && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            positions.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        return (y + rowHeight, positions)
+    }
+}
+
 // MARK: - Cable Machine Config Editor
 
 struct CableMachineConfigEditor: View {
@@ -816,6 +974,31 @@ struct CableMachineConfigEditor: View {
                     Text("Plate Stack")
                 } footer: {
                     Text("Define your machine's weight stack. Add multiple tiers if plates have different weights (e.g., 6×9lb then 12×12.5lb)")
+                }
+
+                Section {
+                    Toggle("Uses Floating Free Weights", isOn: $config.usesFloatingFreeWeights)
+                        .disabled(!config.integratedFreeWeights.isEmpty)
+
+                    if !config.usesFloatingFreeWeights {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Integrated Free Weights")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            FloatingFreeWeightsEditor(weights: $config.integratedFreeWeights)
+                        }
+                    }
+                } header: {
+                    Text("Free Weights")
+                } footer: {
+                    if config.usesFloatingFreeWeights {
+                        Text("This machine will use the global floating free weights configured in your gym settings.")
+                    } else if config.integratedFreeWeights.isEmpty {
+                        Text("Configure add-on weights that are built into this specific machine, or enable floating free weights.")
+                    } else {
+                        Text("This machine has its own integrated add-on weights that cannot be removed.")
+                    }
                 }
 
                 Section {

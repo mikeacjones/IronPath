@@ -114,10 +114,17 @@ struct HistoryView: View {
                 }
             }
             .navigationDestination(item: $selectedWorkout) { workout in
-                WorkoutHistoryDetailView(workout: workout, onDelete: {
-                    deleteWorkout(workout)
-                    selectedWorkout = nil
-                })
+                WorkoutHistoryDetailView(
+                    workout: workout,
+                    onDelete: {
+                        deleteWorkout(workout)
+                        selectedWorkout = nil
+                    },
+                    onUpdate: { _ in
+                        // Reload workouts to reflect changes
+                        loadWorkouts()
+                    }
+                )
             }
             .sheet(isPresented: $showingAddWorkout) {
                 AddHistoricalWorkoutView {
@@ -154,14 +161,17 @@ struct HistoryView: View {
 // MARK: - Workout History Detail View
 
 struct WorkoutHistoryDetailView: View {
-    let workout: Workout
+    @State private var workout: Workout
     var onDelete: (() -> Void)?
+    var onUpdate: ((Workout) -> Void)?
     @State private var showingDeleteConfirmation = false
+    @State private var showingEditSheet = false
     @Environment(\.dismiss) var dismiss
 
-    init(workout: Workout, onDelete: (() -> Void)? = nil) {
-        self.workout = workout
+    init(workout: Workout, onDelete: (() -> Void)? = nil, onUpdate: ((Workout) -> Void)? = nil) {
+        _workout = State(initialValue: workout)
         self.onDelete = onDelete
+        self.onUpdate = onUpdate
     }
 
     var body: some View {
@@ -237,12 +247,29 @@ struct WorkoutHistoryDetailView: View {
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingEditSheet = true
+                } label: {
+                    Text("Edit")
+                }
+            }
             ToolbarItem(placement: .destructiveAction) {
                 Button(role: .destructive) {
                     showingDeleteConfirmation = true
                 } label: {
                     Image(systemName: "trash")
                 }
+            }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditHistoricalWorkoutView(workout: workout) { updatedWorkout in
+                // Update local state
+                workout = updatedWorkout
+                // Save to persistent storage
+                WorkoutDataManager.shared.updateWorkout(updatedWorkout)
+                // Notify parent if callback provided
+                onUpdate?(updatedWorkout)
             }
         }
         .alert("Delete Workout?", isPresented: $showingDeleteConfirmation) {
@@ -362,7 +389,7 @@ struct WorkoutHistoryExerciseCard: View {
                         }
 
                         if let weight = set.weight {
-                            Text("\(Int(weight)) lbs")
+                            Text("\(formatWeight(weight)) lbs")
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                                 .fontWeight(.medium)
                         } else {

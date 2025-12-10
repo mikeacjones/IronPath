@@ -159,6 +159,14 @@ struct ExerciseDetailSheet: View {
                                             }
                                         }
                                     },
+                                    onRestPeriodChanged: { changedSetIndex, newRestPeriod in
+                                        // Propagate rest period to all subsequent standard sets that haven't been completed
+                                        for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
+                                            if !updatedExercise.sets[i].isCompleted && updatedExercise.sets[i].setType == .standard {
+                                                updatedExercise.sets[i].restPeriod = newRestPeriod
+                                            }
+                                        }
+                                    },
                                     // Suppress rest timer for historical entries or when in a superset
                                     suppressRestTimer: !isLiveWorkout || isInSuperset,
                                     // Don't start rest timer after the last set of an exercise

@@ -247,7 +247,7 @@ struct PRRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(Int(record.weight)) lbs × \(record.reps)")
+                Text("\(formatWeight(record.weight)) lbs × \(record.reps)")
                     .font(.subheadline)
                     .fontWeight(.medium)
 
@@ -349,7 +349,7 @@ struct ExerciseProgressSection: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text("\(Int(entry.weight)) lbs × \(entry.reps)")
+                                Text("\(formatWeight(entry.weight)) lbs × \(entry.reps)")
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }

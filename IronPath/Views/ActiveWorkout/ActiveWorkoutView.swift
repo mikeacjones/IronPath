@@ -2429,7 +2429,7 @@ struct WeightOptionRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("\(Int(weight)) lbs")
+                Text("\(formatWeight(weight)) lbs")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Text(label)
@@ -2453,6 +2453,117 @@ struct WeightOptionRow: View {
     }
 }
 
+// MARK: - Rest Time Editor Sheet
+
+struct RestTimeEditorSheet: View {
+    @Binding var isPresented: Bool
+    let currentDuration: TimeInterval
+    let onSetRestTime: (TimeInterval) -> Void
+
+    @State private var minutes: Int
+    @State private var seconds: Int
+
+    init(isPresented: Binding<Bool>, currentDuration: TimeInterval, onSetRestTime: @escaping (TimeInterval) -> Void) {
+        _isPresented = isPresented
+        self.currentDuration = currentDuration
+        self.onSetRestTime = onSetRestTime
+        _minutes = State(initialValue: Int(currentDuration) / 60)
+        _seconds = State(initialValue: Int(currentDuration) % 60)
+    }
+
+    private var totalSeconds: TimeInterval {
+        TimeInterval(minutes * 60 + seconds)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Text("Set Rest Time")
+                    .font(.headline)
+
+                HStack(spacing: 8) {
+                    // Minutes picker
+                    Picker("Minutes", selection: $minutes) {
+                        ForEach(0...10, id: \.self) { min in
+                            Text("\(min)").tag(min)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 80)
+
+                    Text(":")
+                        .font(.title)
+                        .fontWeight(.bold)
+
+                    // Seconds picker
+                    Picker("Seconds", selection: $seconds) {
+                        ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { sec in
+                            Text(String(format: "%02d", sec)).tag(sec)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 80)
+                }
+                .frame(height: 150)
+
+                // Quick presets
+                Text("Quick Presets")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    ForEach([60, 90, 120, 180], id: \.self) { preset in
+                        Button {
+                            minutes = preset / 60
+                            seconds = preset % 60
+                        } label: {
+                            Text(formatDuration(TimeInterval(preset)))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(totalSeconds == TimeInterval(preset) ? Color.blue : Color(.secondarySystemBackground))
+                                .foregroundStyle(totalSeconds == TimeInterval(preset) ? .white : .primary)
+                                .cornerRadius(20)
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        isPresented = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Set") {
+                        onSetRestTime(totalSeconds)
+                        isPresented = false
+                    }
+                    .disabled(totalSeconds < 5)
+                }
+            }
+        }
+        .presentationDetents([.height(350)])
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let mins = Int(duration) / 60
+        let secs = Int(duration) % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins) min"
+        } else {
+            return "\(secs)s"
+        }
+    }
+}
+
 // MARK: - Rest Timer View
 
 struct RestTimerView: View {
@@ -2460,19 +2571,22 @@ struct RestTimerView: View {
     let remainingTime: TimeInterval
     let onComplete: () -> Void
     let onSkip: () -> Void
+    var onRestTimeChanged: ((TimeInterval) -> Void)?
 
     @ObservedObject private var timerManager = RestTimerManager.shared
+    @State private var showingRestTimeEditor = false
 
-    init(duration: TimeInterval, remainingTime: TimeInterval, onComplete: @escaping () -> Void, onSkip: @escaping () -> Void) {
+    init(duration: TimeInterval, remainingTime: TimeInterval, onComplete: @escaping () -> Void, onSkip: @escaping () -> Void, onRestTimeChanged: ((TimeInterval) -> Void)? = nil) {
         self.duration = duration
         self.remainingTime = remainingTime
         self.onComplete = onComplete
         self.onSkip = onSkip
+        self.onRestTimeChanged = onRestTimeChanged
     }
 
     var progress: Double {
-        guard duration > 0 else { return 0 }
-        return 1 - (timerManager.remainingTime / duration)
+        guard timerManager.totalDuration > 0 else { return 0 }
+        return 1 - (timerManager.remainingTime / timerManager.totalDuration)
     }
 
     var formattedTime: String {
@@ -2484,31 +2598,44 @@ struct RestTimerView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Timer circle
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
-                    .frame(width: 50, height: 50)
+            // Timer circle - tappable to edit
+            Button {
+                showingRestTimeEditor = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        .frame(width: 50, height: 50)
 
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .frame(width: 50, height: 50)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.1), value: progress)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .frame(width: 50, height: 50)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.1), value: progress)
 
-                Text(formattedTime)
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
+                    Text(formattedTime)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                }
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Rest Time")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                HStack(spacing: 4) {
+                    Text("Rest Time")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Image(systemName: "pencil.circle")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                .onTapGesture {
+                    showingRestTimeEditor = true
+                }
 
-                Text(timerManager.remainingTime > 0 ? "Take a breather..." : "Ready for next set!")
+                Text(timerManager.remainingTime > 0 ? "Tap time to edit" : "Ready for next set!")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -2518,7 +2645,9 @@ struct RestTimerView: View {
             // Control buttons
             HStack(spacing: 12) {
                 Button {
+                    let newDuration = timerManager.totalDuration + 30
                     timerManager.addTime(30)
+                    onRestTimeChanged?(newDuration)
                 } label: {
                     Text("+30s")
                         .font(.caption)
@@ -2540,6 +2669,15 @@ struct RestTimerView: View {
         }
         .padding()
         .background(Color.blue.opacity(0.1))
+        .sheet(isPresented: $showingRestTimeEditor) {
+            RestTimeEditorSheet(
+                isPresented: $showingRestTimeEditor,
+                currentDuration: timerManager.totalDuration
+            ) { newDuration in
+                timerManager.setRestTime(newDuration)
+                onRestTimeChanged?(newDuration)
+            }
+        }
     }
 }
 
@@ -2548,27 +2686,33 @@ struct RestTimerView: View {
 /// Rest timer displayed in exercise detail sheet for superset/circuit rest periods
 struct GroupRestTimerView: View {
     @ObservedObject private var timerManager = RestTimerManager.shared
+    @State private var showingRestTimeEditor = false
 
     var body: some View {
         HStack(spacing: 16) {
-            // Timer circle with group type color
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
-                    .frame(width: 60, height: 60)
+            // Timer circle with group type color - tappable
+            Button {
+                showingRestTimeEditor = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        .frame(width: 60, height: 60)
 
-                Circle()
-                    .trim(from: 0, to: timerManager.progress)
-                    .stroke(groupColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.1), value: timerManager.progress)
+                    Circle()
+                        .trim(from: 0, to: timerManager.progress)
+                        .stroke(groupColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .frame(width: 60, height: 60)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.1), value: timerManager.progress)
 
-                Text(timerManager.formattedTime)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
+                    Text(timerManager.formattedTime)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                }
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
@@ -2579,6 +2723,12 @@ struct GroupRestTimerView: View {
                     Text("\(timerManager.groupType?.displayName ?? "Group") Rest")
                         .font(.headline)
                         .foregroundStyle(groupColor)
+                    Image(systemName: "pencil.circle")
+                        .font(.caption)
+                        .foregroundStyle(groupColor.opacity(0.7))
+                }
+                .onTapGesture {
+                    showingRestTimeEditor = true
                 }
 
                 Text("Round \(timerManager.setNumber) complete")
@@ -2624,6 +2774,14 @@ struct GroupRestTimerView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(groupColor.opacity(0.3), lineWidth: 1)
         )
+        .sheet(isPresented: $showingRestTimeEditor) {
+            RestTimeEditorSheet(
+                isPresented: $showingRestTimeEditor,
+                currentDuration: timerManager.totalDuration
+            ) { newDuration in
+                timerManager.setRestTime(newDuration)
+            }
+        }
     }
 
     private var groupColor: Color {
@@ -2661,6 +2819,7 @@ struct RestCompleteBannerContainer: View {
 /// Compact rest timer bar shown at the top of the workout overview
 struct GlobalRestTimerBar: View {
     @ObservedObject private var timerManager = RestTimerManager.shared
+    @State private var showingRestTimeEditor = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -2684,12 +2843,22 @@ struct GlobalRestTimerBar: View {
 
             Spacer()
 
-            // Time remaining
-            Text(timerManager.formattedTime)
-                .font(.title2)
-                .fontWeight(.bold)
-                .monospacedDigit()
-                .foregroundStyle(.blue)
+            // Time remaining - tappable
+            Button {
+                showingRestTimeEditor = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text(timerManager.formattedTime)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                        .foregroundStyle(.blue)
+                    Image(systemName: "pencil.circle")
+                        .font(.caption)
+                        .foregroundStyle(.blue.opacity(0.7))
+                }
+            }
+            .buttonStyle(.plain)
 
             // Control buttons
             HStack(spacing: 8) {
@@ -2731,6 +2900,14 @@ struct GlobalRestTimerBar: View {
             .allowsHitTesting(false),
             alignment: .leading
         )
+        .sheet(isPresented: $showingRestTimeEditor) {
+            RestTimeEditorSheet(
+                isPresented: $showingRestTimeEditor,
+                currentDuration: timerManager.totalDuration
+            ) { newDuration in
+                timerManager.setRestTime(newDuration)
+            }
+        }
     }
 }
 

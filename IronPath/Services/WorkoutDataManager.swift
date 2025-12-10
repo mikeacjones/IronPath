@@ -191,6 +191,18 @@ class WorkoutDataManager {
         history.removeAll { ids.contains($0.id) }
         CloudSyncManager.shared.saveWorkoutHistory(history)
     }
+
+    /// Update an existing workout in history
+    /// This replaces the workout with matching ID with the updated version
+    func updateWorkout(_ workout: Workout) {
+        var history = getWorkoutHistory()
+
+        // Find and replace the workout
+        if let index = history.firstIndex(where: { $0.id == workout.id }) {
+            history[index] = workout
+            CloudSyncManager.shared.saveWorkoutHistory(history)
+        }
+    }
 }
 
 struct WorkoutStats {

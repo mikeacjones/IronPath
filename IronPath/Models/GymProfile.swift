@@ -17,6 +17,10 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var defaultCableConfig: CableMachineConfig
     var cableMachineConfigs: [String: CableMachineConfig] = [:]
 
+    /// Global floating free weights available at this gym for cable machines
+    /// These can be moved between different cable machines (e.g., 2.5lb or 4.5lb add-on plates)
+    var floatingCableFreeWeights: [Double] = []
+
     // Dumbbell settings
     var dumbbellIncrement: Double = 5.0
     var dumbbellMinWeight: Double = 5.0
@@ -182,6 +186,7 @@ class GymProfileManager: ObservableObject {
         let settings = GymSettings.shared
         profile.defaultCableConfig = settings.defaultCableConfig
         profile.cableMachineConfigs = settings.cableMachineConfigs
+        profile.floatingCableFreeWeights = settings.floatingCableFreeWeights
         profile.dumbbellIncrement = settings.dumbbellIncrement
         profile.dumbbellMinWeight = settings.dumbbellMinWeight
         profile.dumbbellMaxWeight = settings.dumbbellMaxWeight
@@ -207,6 +212,11 @@ class GymSettings: ObservableObject {
 
     // Default cable config for exercises without specific config
     @Published var defaultCableConfig: CableMachineConfig {
+        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
+    }
+
+    /// Global floating free weights available for cable machines at this gym
+    @Published var floatingCableFreeWeights: [Double] = [] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
@@ -274,6 +284,7 @@ class GymSettings: ObservableObject {
         if let profile = GymProfileManager.shared.activeProfile {
             self.defaultCableConfig = profile.defaultCableConfig
             self.cableMachineConfigs = profile.cableMachineConfigs
+            self.floatingCableFreeWeights = profile.floatingCableFreeWeights
             self.dumbbellIncrement = profile.dumbbellIncrement
             self.dumbbellMinWeight = profile.dumbbellMinWeight
             self.dumbbellMaxWeight = profile.dumbbellMaxWeight
