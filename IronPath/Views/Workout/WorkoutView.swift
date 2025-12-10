@@ -133,6 +133,7 @@ struct WorkoutView: View {
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.large)
+                                .accessibilityIdentifier("auto_generate_workout_button")
                             }
 
                             // Manual selection button
@@ -143,6 +144,7 @@ struct WorkoutView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
+                            .accessibilityIdentifier("choose_workout_type_button")
                         }
                     }
                     .padding()
@@ -180,7 +182,7 @@ struct WorkoutView: View {
         activeWorkoutManager.startWorkout(workout)
     }
 
-    /// Auto-generate a workout based on the recommended split day
+    /// Auto-generate a workout based on the recommended split day using agentic approach
     private func autoGenerateWorkout(for splitDay: WorkoutSplitDay) {
         guard let profile = appState.userProfile else {
             errorMessage = "Please complete onboarding first"
@@ -188,8 +190,8 @@ struct WorkoutView: View {
             return
         }
 
-        guard APIKeyManager.shared.hasAPIKey else {
-            errorMessage = "Please add your Anthropic API key in the Profile tab before generating workouts"
+        guard AIProviderManager.shared.isConfigured else {
+            errorMessage = "Please configure your AI provider in the Profile tab before generating workouts"
             showError = true
             return
         }
@@ -205,19 +207,22 @@ struct WorkoutView: View {
 
         Task {
             do {
-                let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(10))
                 let provider = AIProviderManager.shared.currentProvider
 
-                let workout = try await provider.generateWorkout(
-                    profile: profile,
-                    targetMuscleGroups: splitDay.targetMuscleGroups,
-                    workoutHistory: recentWorkouts,
+                // Create agentic builder
+                let builder = AgentWorkoutBuilder(
                     workoutType: splitDay.rawValue,
+                    targetMuscleGroups: splitDay.targetMuscleGroups,
                     userNotes: styleNotes,
-                    isDeload: false,
-                    allowDeloadRecommendation: true,  // Let AI recommend deload if needed
-                    techniqueOptions: effectiveOptions
+                    techniqueOptions: effectiveOptions,
+                    profile: profile
                 )
+
+                let workout = try await provider.generateWorkoutAgentic(
+                    builder: builder,
+                    progressCallback: nil  // Could add progress UI later
+                )
+
                 await MainActor.run {
                     pendingWorkoutManager.pendingWorkout = workout
                     isGeneratingWorkout = false
@@ -247,24 +252,25 @@ struct WorkoutView: View {
 
         isGeneratingWorkout = true
 
-        // Options passed from WorkoutSetupView already include any per-workout overrides
-        // applied on top of global settings, so use them directly
         Task {
             do {
-                let recentWorkouts = Array(WorkoutDataManager.shared.getWorkoutHistory().suffix(5))
                 let provider = AIProviderManager.shared.currentProvider
 
-                var workout = try await provider.generateWorkout(
-                    profile: profile,
-                    targetMuscleGroups: workoutType.targetMuscleGroups,
-                    workoutHistory: recentWorkouts,
+                // Create agentic builder
+                let builder = AgentWorkoutBuilder(
                     workoutType: workoutType.rawValue,
+                    targetMuscleGroups: workoutType.targetMuscleGroups,
                     userNotes: notes.isEmpty ? nil : notes,
-                    isDeload: isDeload,
-                    allowDeloadRecommendation: false,
-                    techniqueOptions: options
+                    techniqueOptions: options,
+                    profile: profile
+                )
+
+                var workout = try await provider.generateWorkoutAgentic(
+                    builder: builder,
+                    progressCallback: nil  // Could add progress UI later
                 )
                 workout.isDeload = isDeload
+
                 await MainActor.run {
                     pendingWorkoutManager.pendingWorkout = workout
                     isGeneratingWorkout = false

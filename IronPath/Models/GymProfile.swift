@@ -350,32 +350,60 @@ class GymSettings: ObservableObject {
         return validWeights.first { $0 > weight } ?? weight
     }
 
-    /// Generate a summary of gym equipment for Claude
-    func equipmentSummaryForClaude() -> String {
-        var summary = "GYM EQUIPMENT CONSTRAINTS:\n"
+    /// Generate a summary of gym equipment for LLM prompts
+    func equipmentSummaryForLLM() -> String {
+        var summary = "GYM EQUIPMENT CONSTRAINTS:\n\n"
 
-        // Dumbbells
+        // Dumbbells - be explicit about ALL available weights
+        summary += "DUMBBELLS:\n"
         if let specificDumbbells = availableDumbbells {
             let sortedDumbbells = specificDumbbells.sorted()
             let dumbbellList = sortedDumbbells.map { formatWeight($0) }.joined(separator: ", ")
-            summary += "- Dumbbells available: \(dumbbellList) lbs\n"
+            summary += "Available weights (ONLY use these exact values): \(dumbbellList) lbs\n"
+
+            // Highlight warmup-appropriate weights
+            let warmupWeights = sortedDumbbells.filter { $0 <= 30 }
+            if !warmupWeights.isEmpty {
+                summary += "For warmup sets, use one of: \(warmupWeights.map { formatWeight($0) }.joined(separator: ", ")) lbs\n"
+            }
         } else {
-            summary += "- Dumbbells: \(Int(dumbbellMinWeight))-\(Int(dumbbellMaxWeight)) lbs in \(Int(dumbbellIncrement)) lb increments\n"
+            // Generate explicit list from range
+            let allWeights = stride(from: dumbbellMinWeight, through: dumbbellMaxWeight, by: dumbbellIncrement).map { formatWeight($0) }
+            summary += "Available weights: \(allWeights.joined(separator: ", ")) lbs\n"
+
+            // Highlight warmup-appropriate weights (first 6 or up to 30 lbs)
+            let warmupWeights = stride(from: dumbbellMinWeight, through: min(30, dumbbellMaxWeight), by: dumbbellIncrement)
+                .prefix(6)
+                .map { formatWeight($0) }
+            summary += "For warmup sets, use one of: \(warmupWeights.joined(separator: ", ")) lbs\n"
         }
 
-        // Default cable machine
-        summary += "- Default cable machine: \(defaultCableConfig.stackDescription)\n"
-        summary += "  Available weights: \(defaultCableConfig.availableWeights.prefix(10).map { "\(Int($0))" }.joined(separator: ", "))...\(Int(defaultCableConfig.availableWeights.last ?? 0)) lbs\n"
+        summary += "\n"
+
+        // Cable machines - show all available weights
+        summary += "CABLE MACHINES:\n"
+        let cableWeights = defaultCableConfig.availableWeights.map { "\(Int($0))" }
+        summary += "Default machine weights: \(cableWeights.joined(separator: ", ")) lbs\n"
 
         // Per-exercise cable configs
         if !cableMachineConfigs.isEmpty {
-            summary += "- Exercise-specific cable machines:\n"
+            summary += "Exercise-specific cable machines:\n"
             for (exercise, config) in cableMachineConfigs {
-                summary += "  • \(exercise): \(config.stackDescription) (max: \(Int(config.availableWeights.last ?? 0)) lbs)\n"
+                let weights = config.availableWeights.map { "\(Int($0))" }.joined(separator: ", ")
+                summary += "  \(exercise): \(weights) lbs\n"
             }
         }
 
-        summary += "\nIMPORTANT: Only suggest weights that are achievable with the above equipment. For cable exercises, suggest weights from the available weight list."
+        summary += "\n"
+
+        // Barbells and plate-loaded
+        summary += "BARBELLS & PLATE-LOADED:\n"
+        summary += "Bar weight: \(Int(selectedBarWeight)) lbs\n"
+        summary += "Weight increments: Use 5 lb increments (e.g., 95, 100, 105, 110...)\n"
+
+        summary += "\n"
+        summary += "⚠️ CRITICAL: When suggesting weights, ONLY use values that exactly match the available weights listed above. "
+        summary += "Do NOT use arbitrary values like 65, 85, or 95 for dumbbells unless those exact weights are listed.\n"
 
         return summary
     }

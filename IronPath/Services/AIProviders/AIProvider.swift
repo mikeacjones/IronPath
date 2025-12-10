@@ -68,6 +68,13 @@ protocol AIProvider {
 
     /// Estimate calories burned for a workout
     func estimateCaloriesBurned(workoutSummary: String) async throws -> Int
+
+    /// Generate a workout using agentic tool-based approach
+    /// The LLM iteratively calls tools to fetch data and build the workout
+    func generateWorkoutAgentic(
+        builder: AgentWorkoutBuilder,
+        progressCallback: ((AgentProgress) -> Void)?
+    ) async throws -> Workout
 }
 
 // MARK: - AI Model

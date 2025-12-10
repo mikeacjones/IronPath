@@ -1,18 +1,31 @@
 import SwiftUI
 
-struct AddHistoricalWorkoutView: View {
+struct EditHistoricalWorkoutView: View {
+    let originalWorkout: Workout
+    var onSave: (Workout) -> Void
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
-    var onSave: () -> Void
 
-    @State private var workoutName = ""
-    @State private var workoutDate = Date()
-    @State private var workoutDuration: TimeInterval = 3600 // 1 hour default
-    @State private var exercises: [WorkoutExercise] = []
-    @State private var notes = ""
-    @State private var isDeload = false
+    @State private var workoutName: String
+    @State private var workoutDate: Date
+    @State private var workoutDuration: TimeInterval
+    @State private var exercises: [WorkoutExercise]
+    @State private var notes: String
+    @State private var isDeload: Bool
     @State private var showingExerciseSelector = false
     @State private var editingExerciseIndex: Int?
+
+    init(workout: Workout, onSave: @escaping (Workout) -> Void) {
+        self.originalWorkout = workout
+        self.onSave = onSave
+
+        _workoutName = State(initialValue: workout.name)
+        _workoutDate = State(initialValue: workout.completedAt ?? Date())
+        _workoutDuration = State(initialValue: workout.duration ?? 3600)
+        _exercises = State(initialValue: workout.exercises)
+        _notes = State(initialValue: workout.notes)
+        _isDeload = State(initialValue: workout.isDeload)
+    }
 
     var body: some View {
         NavigationStack {
@@ -99,7 +112,7 @@ struct AddHistoricalWorkoutView: View {
                         .lineLimit(3...6)
                 }
             }
-            .navigationTitle("Add Workout")
+            .navigationTitle("Edit Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -165,40 +178,48 @@ struct AddHistoricalWorkoutView: View {
     private func saveWorkout() {
         let startTime = workoutDate.addingTimeInterval(-workoutDuration)
 
-        // Mark all sets as completed
+        // Mark all sets as completed if they have actual reps
         var completedExercises = exercises
         for i in 0..<completedExercises.count {
             for j in 0..<completedExercises[i].sets.count {
                 if completedExercises[i].sets[j].actualReps == nil {
                     completedExercises[i].sets[j].actualReps = completedExercises[i].sets[j].targetReps
                 }
-                completedExercises[i].sets[j].completedAt = workoutDate
+                if completedExercises[i].sets[j].completedAt == nil {
+                    completedExercises[i].sets[j].completedAt = workoutDate
+                }
             }
         }
 
-        let workout = Workout(
+        // Create updated workout preserving the original ID
+        let updatedWorkout = Workout(
+            id: originalWorkout.id,
             name: workoutName,
             exercises: completedExercises,
-            createdAt: workoutDate,
+            createdAt: originalWorkout.createdAt,
             startedAt: startTime,
             completedAt: workoutDate,
             notes: notes,
             isDeload: isDeload
         )
 
-        WorkoutDataManager.shared.saveWorkout(workout)
-        onSave()
+        onSave(updatedWorkout)
         dismiss()
     }
 }
 
-
-// Extension to make Int? conform to Identifiable for sheet presentation
-extension Int: @retroactive Identifiable {
-    public var id: Int { self }
-}
-
 #Preview {
-    MainTabView()
-        .environmentObject(AppState())
+    EditHistoricalWorkoutView(
+        workout: Workout(
+            name: "Test Workout",
+            exercises: [],
+            createdAt: Date(),
+            startedAt: Date(),
+            completedAt: Date(),
+            notes: "",
+            isDeload: false
+        ),
+        onSave: { _ in }
+    )
+    .environmentObject(AppState())
 }

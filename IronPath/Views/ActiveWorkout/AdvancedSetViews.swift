@@ -12,6 +12,8 @@ struct AdvancedSetRowView: View {
     let onUpdate: (ExerciseSet) -> Void
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
+    /// Called when rest period is changed (setIndex, newRestPeriod) - used to propagate to subsequent sets
+    let onRestPeriodChanged: ((Int, TimeInterval) -> Void)?
     /// When true, the rest timer will not auto-start after completing a set (used for supersets)
     let suppressRestTimer: Bool
     /// When true, this is the last set of the exercise (no rest timer needed after)
@@ -35,6 +37,7 @@ struct AdvancedSetRowView: View {
         onUpdate: @escaping (ExerciseSet) -> Void,
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
+        onRestPeriodChanged: ((Int, TimeInterval) -> Void)? = nil,
         suppressRestTimer: Bool = false,
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
@@ -46,6 +49,7 @@ struct AdvancedSetRowView: View {
         self.onUpdate = onUpdate
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
+        self.onRestPeriodChanged = onRestPeriodChanged
         self.suppressRestTimer = suppressRestTimer
         self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
@@ -55,7 +59,7 @@ struct AdvancedSetRowView: View {
             targetReps: set.targetReps
         )
 
-        _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? suggestedWeight.map { String(format: "%.0f", $0) } ?? "")
+        _weight = State(initialValue: set.weight.map { formatWeight($0) } ?? suggestedWeight.map { formatWeight($0) } ?? "")
         _reps = State(initialValue: set.actualReps.map { String($0) } ?? String(set.targetReps))
         _isCompleted = State(initialValue: set.isCompleted)
     }
@@ -81,6 +85,7 @@ struct AdvancedSetRowView: View {
                     onUpdate: onUpdate,
                     onWeightChanged: onWeightChanged,
                     onRepsChanged: onRepsChanged,
+                    onRestPeriodChanged: onRestPeriodChanged,
                     suppressRestTimer: suppressRestTimer,
                     isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted
@@ -134,6 +139,10 @@ struct AdvancedSetRowView: View {
                     onComplete: { },
                     onSkip: {
                         restTimerManager.skipTimer()
+                    },
+                    onRestTimeChanged: { newDuration in
+                        // Propagate rest time change to subsequent sets
+                        onRestPeriodChanged?(setIndex, newDuration)
                     }
                 )
             }
@@ -146,7 +155,7 @@ struct AdvancedSetRowView: View {
         // Sync local state when the set data changes from parent (e.g., propagation from earlier sets)
         .onChange(of: set.weight) { _, newWeight in
             if !isCompleted, let newWeight = newWeight {
-                let newWeightString = String(format: "%.0f", newWeight)
+                let newWeightString = formatWeight(newWeight)
                 if weight != newWeightString {
                     weight = newWeightString
                 }
@@ -190,6 +199,7 @@ struct StandardSetRow: View {
     let onUpdate: (ExerciseSet) -> Void
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
+    let onRestPeriodChanged: ((Int, TimeInterval) -> Void)?
     let suppressRestTimer: Bool
     let isLastSet: Bool
     let onSetCompleted: (() -> Void)?
@@ -208,6 +218,7 @@ struct StandardSetRow: View {
         onUpdate: @escaping (ExerciseSet) -> Void,
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
+        onRestPeriodChanged: ((Int, TimeInterval) -> Void)? = nil,
         suppressRestTimer: Bool = false,
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil
@@ -222,6 +233,7 @@ struct StandardSetRow: View {
         self.onUpdate = onUpdate
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
+        self.onRestPeriodChanged = onRestPeriodChanged
         self.suppressRestTimer = suppressRestTimer
         self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
@@ -279,7 +291,7 @@ struct StandardSetRow: View {
                     targetWeight: Double(weight) ?? 0,
                     exerciseName: exerciseName,
                     onSelectWeight: { selectedWeight in
-                        weight = String(format: "%.0f", selectedWeight)
+                        weight = formatWeight(selectedWeight)
                         showPlateCalculator = false
                     }
                 )
@@ -428,7 +440,7 @@ struct WarmupSetRow: View {
                     targetWeight: Double(weight) ?? 0,
                     exerciseName: exerciseName,
                     onSelectWeight: { selectedWeight in
-                        weight = String(format: "%.0f", selectedWeight)
+                        weight = formatWeight(selectedWeight)
                         showPlateCalculator = false
                     }
                 )
@@ -636,7 +648,7 @@ struct DropEntryRow: View {
         self.isFirstDrop = isFirstDrop
         self.onUpdate = onUpdate
 
-        _weight = State(initialValue: (drop.actualWeight ?? drop.targetWeight).map { String(format: "%.0f", $0) } ?? "")
+        _weight = State(initialValue: (drop.actualWeight ?? drop.targetWeight).map { formatWeight($0) } ?? "")
         _reps = State(initialValue: drop.actualReps.map { String($0) } ?? String(drop.targetReps))
     }
 
@@ -753,7 +765,7 @@ struct RestPauseSetRow: View {
         self.suppressRestTimer = suppressRestTimer
         self.onSetCompleted = onSetCompleted
         _localConfig = State(initialValue: set.restPauseConfig ?? RestPauseConfig())
-        _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? "")
+        _weight = State(initialValue: set.weight.map { formatWeight($0) } ?? "")
     }
 
     var isCompleted: Bool {
@@ -1061,13 +1073,17 @@ struct WeightInputView: View {
         return !config.isValidWeight(weightValue)
     }
 
-    /// Get pin location for current weight (cable machines only)
-    private var currentPinLocation: Int? {
+    /// Get weight breakdown for current weight (cable machines only)
+    /// Returns pin number and optional free weight
+    private var currentWeightBreakdown: (pin: Int, freeWeight: Double)? {
         guard equipment == .cables, let weightValue = Double(weight), weightValue > 0 else {
             return nil
         }
         let config = GymSettings.shared.cableConfig(for: exerciseName)
-        return config.pinLocation(for: weightValue)
+        if let breakdown = config.weightBreakdown(for: weightValue) {
+            return (breakdown.pin, breakdown.freeWeight)
+        }
+        return nil
     }
 
     var body: some View {
@@ -1101,14 +1117,20 @@ struct WeightInputView: View {
                 }
             }
 
-            // Show pin location for valid cable weights
-            if let pin = currentPinLocation {
+            // Show pin location and free weight breakdown for valid cable weights
+            if let breakdown = currentWeightBreakdown {
                 HStack(spacing: 2) {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 8))
-                    Text("Pin \(pin)")
-                        .font(.caption2)
-                        .fontWeight(.medium)
+                    if breakdown.freeWeight > 0 {
+                        Text("Pin \(breakdown.pin) + \(formatWeight(breakdown.freeWeight))lb")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    } else {
+                        Text("Pin \(breakdown.pin)")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
                 }
                 .foregroundStyle(.blue)
             }
@@ -1157,6 +1179,7 @@ struct RepsInputView: View {
 struct CompleteButton: View {
     let isCompleted: Bool
     let action: () -> Void
+    var accessibilityId: String = "complete_set_button"
 
     var body: some View {
         Button(action: action) {
@@ -1164,6 +1187,7 @@ struct CompleteButton: View {
                 .font(.title2)
                 .foregroundStyle(isCompleted ? .green : .gray)
         }
+        .accessibilityIdentifier(accessibilityId)
     }
 }
 

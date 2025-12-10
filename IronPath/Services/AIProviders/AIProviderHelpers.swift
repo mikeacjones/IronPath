@@ -138,7 +138,7 @@ enum AIProviderHelpers {
         techniqueOptions: WorkoutGenerationOptions
     ) -> String {
         // Get gym equipment summary
-        let gymSummary = GymSettings.shared.equipmentSummaryForClaude()
+        let gymSummary = GymSettings.shared.equipmentSummaryForLLM()
 
         var prompt = """
         You are an expert personal trainer creating personalized workout programs.
@@ -226,7 +226,9 @@ enum AIProviderHelpers {
                 prompt += "\n⚠️ WARMUP SETS ARE REQUIRED ON EVERY EXERCISE ⚠️\n"
                 prompt += "When warmup sets are required, EVERY exercise in the workout MUST include at least one warmup set.\n"
                 prompt += "Each exercise should use the \"advancedSets\" array with a warmup set (type: \"warmup\") as the first set.\n"
-                prompt += "Warmup sets should use 40-60% of the working weight with higher reps (10-15).\n\n"
+                prompt += "Warmup sets should use 40-60% of the working weight with higher reps (10-15).\n"
+                prompt += "⚠️ WARMUP WEIGHT RULE: The warmup weight MUST be selected from the available equipment list. "
+                prompt += "Round DOWN to the nearest available weight if needed.\n\n"
             }
 
             // For other techniques, 1-2 exercises is sufficient
@@ -243,7 +245,30 @@ enum AIProviderHelpers {
         prompt += """
         To use advanced sets, add an "advancedSets" array to the exercise. When advancedSets is present, it REPLACES the default sets.
 
-        EXAMPLE - Exercise with warmup and drop set:
+        ⚠️ WEIGHT SELECTION RULES FOR ADVANCED SETS:
+        - Warmup weights: Use 40-60% of working weight, rounded DOWN to nearest available weight from the equipment list
+        - Drop set weights: Each drop weight MUST be an actual weight from the available equipment list
+        - For dumbbells: Only use weights explicitly listed in GYM EQUIPMENT CONSTRAINTS
+        - For barbells: Use 5 lb increments (45, 95, 100, 105, 110, 115, 120, 125, 130, 135...)
+
+        EXAMPLE - Dumbbell exercise with warmup (if available dumbbells are 5,10,15,20,25,30,35,40 lbs):
+        {
+          "name": "Dumbbell Bench Press",
+          "sets": 4,
+          "reps": "8",
+          "weight": 35,
+          "restSeconds": 90,
+          "equipment": "dumbbells",
+          "primaryMuscles": ["chest"],
+          "advancedSets": [
+            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 15},
+            {"setNumber": 2, "type": "standard", "reps": "8", "weight": 35},
+            {"setNumber": 3, "type": "standard", "reps": "8", "weight": 35},
+            {"setNumber": 4, "type": "dropSet", "reps": "8", "weight": 35, "numberOfDrops": 2, "dropPercentage": 0.2}
+          ]
+        }
+
+        EXAMPLE - Barbell exercise with warmup:
         {
           "name": "Bench Press",
           "sets": 4,
@@ -253,7 +278,7 @@ enum AIProviderHelpers {
           "equipment": "barbell",
           "primaryMuscles": ["chest"],
           "advancedSets": [
-            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 65},
+            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 95},
             {"setNumber": 2, "type": "standard", "reps": "8", "weight": 135},
             {"setNumber": 3, "type": "standard", "reps": "8", "weight": 135},
             {"setNumber": 4, "type": "dropSet", "reps": "8", "weight": 135, "numberOfDrops": 2, "dropPercentage": 0.2}
@@ -488,6 +513,81 @@ enum AIProviderHelpers {
         return prompt
     }
 
+    // MARK: - Weight Validation
+
+    /// Standard kettlebell weights in lbs
+    private static let standardKettlebellWeights: [Double] = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100]
+
+    /// Validate and snap all weights in a workout to available equipment
+    /// This ensures LLM-generated weights match gym equipment constraints
+    static func validateAndSnapWeights(in workout: inout Workout) {
+        for exerciseIndex in workout.exercises.indices {
+            let equipment = workout.exercises[exerciseIndex].exercise.equipment
+            let exerciseName = workout.exercises[exerciseIndex].exercise.name
+
+            for setIndex in workout.exercises[exerciseIndex].sets.indices {
+                var set = workout.exercises[exerciseIndex].sets[setIndex]
+
+                // Snap main weight
+                if let weight = set.weight {
+                    let snappedWeight = snapWeight(weight, for: equipment, exerciseName: exerciseName)
+                    if abs(weight - snappedWeight) > 0.01 {
+                        #if DEBUG
+                        print("Weight adjusted: \(weight) -> \(snappedWeight) lbs for \(exerciseName) (\(equipment.rawValue), \(set.setType.rawValue))")
+                        #endif
+                        set.weight = snappedWeight
+                    }
+                }
+
+                // Handle drop set weights
+                if var dropConfig = set.dropSetConfig {
+                    for dropIndex in dropConfig.drops.indices {
+                        if let targetWeight = dropConfig.drops[dropIndex].targetWeight {
+                            let snappedWeight = snapWeight(targetWeight, for: equipment, exerciseName: exerciseName)
+                            if abs(targetWeight - snappedWeight) > 0.01 {
+                                #if DEBUG
+                                print("Drop weight adjusted: \(targetWeight) -> \(snappedWeight) lbs for \(exerciseName) drop #\(dropIndex)")
+                                #endif
+                                dropConfig.drops[dropIndex].targetWeight = snappedWeight
+                            }
+                        }
+                    }
+                    set.dropSetConfig = dropConfig
+                }
+
+                workout.exercises[exerciseIndex].sets[setIndex] = set
+            }
+        }
+    }
+
+    /// Snap a weight to the nearest valid weight for equipment type
+    private static func snapWeight(_ weight: Double, for equipment: Equipment, exerciseName: String) -> Double {
+        let gymSettings = GymSettings.shared
+
+        switch equipment {
+        case .dumbbells:
+            return gymSettings.roundToValidWeight(weight, for: .dumbbells)
+
+        case .cables:
+            return gymSettings.roundToValidWeight(weight, for: .cables, exerciseName: exerciseName)
+
+        case .barbell, .trapBar, .squat, .smithMachine:
+            // For plate-loaded equipment, round to nearest 5 lbs
+            return (weight / 5.0).rounded() * 5.0
+
+        case .kettlebells:
+            // Snap to standard kettlebell weights
+            return standardKettlebellWeights.min(by: { abs($0 - weight) < abs($1 - weight) }) ?? weight
+
+        case .legPress:
+            // Leg press typically uses plates - round to nearest 10 lbs
+            return (weight / 10.0).rounded() * 10.0
+
+        default:
+            return weight
+        }
+    }
+
     // MARK: - Response Parsing
 
     /// Parse workout response from JSON string
@@ -514,7 +614,12 @@ enum AIProviderHelpers {
             throw AIProviderError.parseError(detail: "JSON decode failed: \(error.localizedDescription)")
         }
 
-        return try buildWorkout(from: workoutJSON, prompt: prompt)
+        var workout = try buildWorkout(from: workoutJSON, prompt: prompt)
+
+        // Validate and snap all weights to available equipment
+        validateAndSnapWeights(in: &workout)
+
+        return workout
     }
 
     /// Build Workout model from parsed JSON
@@ -561,7 +666,9 @@ enum AIProviderHelpers {
                             weight: setWeight,
                             restPeriod: TimeInterval(exerciseJSON.restSeconds),
                             numberOfDrops: advSet.numberOfDrops ?? 2,
-                            dropPercentage: advSet.dropPercentage ?? 0.2
+                            dropPercentage: advSet.dropPercentage ?? 0.2,
+                            equipment: equipment,
+                            exerciseName: exerciseJSON.name
                         )
                     case .restPause:
                         return ExerciseSet.createRestPauseSet(
