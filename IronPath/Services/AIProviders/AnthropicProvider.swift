@@ -214,6 +214,30 @@ class AnthropicProvider: AIProvider {
         return AIProviderHelpers.parseCalorieEstimation(response)
     }
 
+    func generateEquipmentExercises(
+        equipmentName: String,
+        equipmentType: CustomEquipment.CustomEquipmentType,
+        existingExerciseNames: [String]
+    ) async throws -> [ExerciseDraft] {
+        let systemPrompt = AITools.buildEquipmentExercisesSystemPrompt()
+        let userPrompt = AITools.buildEquipmentExercisesUserPrompt(
+            equipmentName: equipmentName,
+            equipmentType: equipmentType,
+            existingExerciseNames: existingExerciseNames
+        )
+
+        let response = try await sendMessageWithTools(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            tools: AITools.equipmentExerciseTools,
+            toolChoice: "generate_equipment_exercises"
+        )
+
+        let toolInput = try AIToolParser.extractToolInput(from: response)
+        let result = try AIToolParser.parseEquipmentExercises(from: toolInput)
+        return result.exercises
+    }
+
     // MARK: - API Communication
 
     private func sendMessage(systemPrompt: String, userPrompt: String) async throws -> String {
@@ -297,5 +321,91 @@ class AnthropicProvider: AIProvider {
         }
 
         return text
+    }
+
+    /// Send a message with tool calling support
+    private func sendMessageWithTools(
+        systemPrompt: String,
+        userPrompt: String,
+        tools: [[String: Any]],
+        toolChoice: String
+    ) async throws -> [String: Any] {
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
+            throw AIProviderError.missingAPIKey
+        }
+
+        let url = URL(string: "\(baseURL)/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        let requestBody: [String: Any] = [
+            "model": modelId,
+            "max_tokens": 8192,
+            "system": systemPrompt,
+            "messages": [
+                ["role": "user", "content": userPrompt]
+            ],
+            "tools": tools,
+            "tool_choice": ["type": "tool", "name": toolChoice]
+        ]
+
+        let requestBodyData = try JSONSerialization.data(withJSONObject: requestBody)
+        request.httpBody = requestBodyData
+
+        // Debug logging
+        let requestHeaders = [
+            "Content-Type": "application/json",
+            "x-api-key": "[REDACTED]",
+            "anthropic-version": "2023-06-01"
+        ]
+        let requestBodyString = String(data: requestBodyData, encoding: .utf8) ?? ""
+
+        let startTime = Date()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: url.absoluteString,
+                method: "POST",
+                requestHeaders: requestHeaders,
+                requestBody: requestBodyString,
+                error: "Invalid response type",
+                duration: duration
+            ))
+            throw AIProviderError.invalidResponse
+        }
+
+        let responseBodyString = String(data: data, encoding: .utf8) ?? ""
+
+        // Log the request
+        APIDebugManager.shared.log(APILogEntry(
+            endpoint: url.absoluteString,
+            method: "POST",
+            requestHeaders: requestHeaders,
+            requestBody: requestBodyString,
+            responseStatusCode: httpResponse.statusCode,
+            responseBody: responseBodyString,
+            error: httpResponse.statusCode != 200 ? "HTTP \(httpResponse.statusCode)" : nil,
+            duration: duration
+        ))
+
+        guard httpResponse.statusCode == 200 else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = errorJson["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw AIProviderError.apiError(statusCode: httpResponse.statusCode, message: message)
+            }
+            throw AIProviderError.apiError(statusCode: httpResponse.statusCode, message: nil)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw AIProviderError.parseError(detail: "Could not parse response JSON")
+        }
+
+        return json
     }
 }

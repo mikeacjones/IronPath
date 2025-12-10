@@ -59,6 +59,13 @@ protocol AIProvider {
         profile: UserProfile
     ) async throws -> Exercise
 
+    /// Generate exercises for custom equipment using tool calling
+    func generateEquipmentExercises(
+        equipmentName: String,
+        equipmentType: CustomEquipment.CustomEquipmentType,
+        existingExerciseNames: [String]
+    ) async throws -> [ExerciseDraft]
+
     /// Estimate calories burned for a workout
     func estimateCaloriesBurned(workoutSummary: String) async throws -> Int
 }

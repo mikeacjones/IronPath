@@ -280,6 +280,7 @@
 				DEVELOPMENT_TEAM = WN5AK2E86G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "IronPath can read your workout history from Apple Health to provide better workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "IronPath uses HealthKit to save your completed workouts and estimated calories burned to Apple Health.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -314,6 +315,7 @@
 				DEVELOPMENT_TEAM = WN5AK2E86G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "IronPath can read your workout history from Apple Health to provide better workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "IronPath uses HealthKit to save your completed workouts and estimated calories burned to Apple Health.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

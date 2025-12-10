@@ -9,7 +9,7 @@ class ExerciseDatabase {
     /// All available exercises
     lazy var exercises: [Exercise] = {
         return chestExercises + backExercises + shoulderExercises + bicepExercises +
-               tricepExercises + legExercises + coreExercises
+               tricepExercises + legExercises + coreExercises + trapBarExercises
     }()
 
     // MARK: - Chest Exercises
@@ -1181,6 +1181,91 @@ class ExerciseDatabase {
             instructions: "Lie on bench, grip behind head, raise body keeping it straight.",
             formTips: "Made famous by Bruce Lee. Very advanced exercise.",
             videoURL: "https://www.youtube.com/watch?v=moyFIvRrS0s"
+        )
+    ]
+
+    // MARK: - Trap Bar Exercises
+
+    let trapBarExercises: [Exercise] = [
+        Exercise(
+            name: "Trap Bar Deadlift",
+            alternateNames: ["Hex Bar Deadlift", "Trap Bar DL", "Hex Bar DL"],
+            primaryMuscleGroups: [.back, .hamstrings, .glutes],
+            secondaryMuscleGroups: [.quads, .lowerBack, .traps, .forearms],
+            equipment: .trapBar,
+            difficulty: .intermediate,
+            instructions: "Stand inside the trap bar with feet hip-width apart. Grip the handles, brace your core, and drive through your heels to stand up straight. Lower with control.",
+            formTips: "Keep your back flat and chest up throughout. The neutral grip is easier on the lower back than conventional deadlifts. Push the floor away rather than pulling the bar up."
+        ),
+        Exercise(
+            name: "Trap Bar Shrugs",
+            alternateNames: ["Hex Bar Shrugs", "Trap Bar Shoulder Shrugs"],
+            primaryMuscleGroups: [.traps],
+            secondaryMuscleGroups: [.forearms],
+            equipment: .trapBar,
+            difficulty: .beginner,
+            instructions: "Stand inside the trap bar holding the handles. Keeping arms straight, shrug your shoulders up toward your ears. Hold briefly at the top, then lower with control.",
+            formTips: "The neutral grip is easier on your shoulders than barbell shrugs. Don't roll your shoulders - straight up and down only. Hold at the top for maximum contraction."
+        ),
+        Exercise(
+            name: "Trap Bar Romanian Deadlift",
+            alternateNames: ["Hex Bar RDL", "Trap Bar RDL", "Hex Bar Romanian Deadlift"],
+            primaryMuscleGroups: [.hamstrings, .glutes],
+            secondaryMuscleGroups: [.lowerBack, .back],
+            equipment: .trapBar,
+            difficulty: .intermediate,
+            instructions: "Stand inside the trap bar, lift it to standing position. Push your hips back while keeping a slight bend in your knees, lowering the bar along your legs. Return by driving hips forward.",
+            formTips: "Keep a slight knee bend throughout - this is not a stiff-leg deadlift. Feel the stretch in your hamstrings. Keep your back flat and core braced."
+        ),
+        Exercise(
+            name: "Trap Bar Farmer's Walk",
+            alternateNames: ["Hex Bar Carry", "Trap Bar Carry", "Loaded Carry"],
+            primaryMuscleGroups: [.traps, .forearms],
+            secondaryMuscleGroups: [.abs, .glutes, .back],
+            equipment: .trapBar,
+            difficulty: .beginner,
+            instructions: "Stand inside the trap bar and deadlift it up. Walk forward with controlled steps for the prescribed distance or time. Keep your core tight and shoulders back.",
+            formTips: "Walk in a controlled manner - don't rush. Keep your core tight and maintain good posture. The trap bar allows heavier loads than dumbbells for carries."
+        ),
+        Exercise(
+            name: "Trap Bar Jump Squats",
+            alternateNames: ["Hex Bar Jumps", "Trap Bar Jumps", "Loaded Jumps"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.calves, .hamstrings],
+            equipment: .trapBar,
+            difficulty: .advanced,
+            instructions: "Stand inside the trap bar with light weight. Lower into a quarter squat, then explosively jump upward. Land softly and absorb the impact through your legs before the next rep.",
+            formTips: "Use lighter weight than your deadlift - this is for power, not strength. Land softly with bent knees. Great for developing explosive power for sports."
+        ),
+        Exercise(
+            name: "Trap Bar Bent Over Row",
+            alternateNames: ["Hex Bar Row", "Trap Bar Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps, .lowerBack, .forearms],
+            equipment: .trapBar,
+            difficulty: .intermediate,
+            instructions: "Stand inside the trap bar and lift it. Hinge at your hips until your torso is nearly parallel to the ground. Row the bar up to your torso, squeezing your shoulder blades together.",
+            formTips: "Keep your back flat throughout the movement. The neutral grip reduces bicep involvement and is easier on the shoulders. Pull with your elbows, not your hands."
+        ),
+        Exercise(
+            name: "Trap Bar Floor Press",
+            alternateNames: ["Hex Bar Floor Press", "Trap Bar Chest Press"],
+            primaryMuscleGroups: [.chest, .triceps],
+            secondaryMuscleGroups: [.shoulders],
+            equipment: .trapBar,
+            difficulty: .intermediate,
+            instructions: "Lie on the floor inside the trap bar. Grip the handles and press the bar straight up. Lower until your triceps touch the floor, pause briefly, then press back up.",
+            formTips: "The neutral grip is easier on your shoulders than a barbell. The floor limits range of motion which can help those with shoulder issues. Control the descent."
+        ),
+        Exercise(
+            name: "Trap Bar Split Squat",
+            alternateNames: ["Hex Bar Bulgarian Split Squat", "Trap Bar Lunge"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .trapBar,
+            difficulty: .intermediate,
+            instructions: "Stand inside the trap bar in a split stance. Lower your back knee toward the ground while keeping your front knee over your ankle. Drive through your front foot to return to standing.",
+            formTips: "The trap bar keeps weight centered making balance easier than with dumbbells. Keep your torso upright. Don't let your front knee cave inward."
         )
     ]
 

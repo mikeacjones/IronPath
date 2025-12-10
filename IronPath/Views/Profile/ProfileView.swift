@@ -5,6 +5,7 @@ struct ProfileView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var gymProfileManager = GymProfileManager.shared
     @ObservedObject private var providerManager = AIProviderManager.shared
+    @ObservedObject private var appSettings = AppSettings.shared
     @State private var showingEditProfile = false
     @State private var showingGymSettings = false
     @State private var showingGymProfileEditor = false
@@ -192,6 +193,18 @@ struct ProfileView: View {
 
                 Section {
                     NavigationLink {
+                        EquipmentManagerView()
+                    } label: {
+                        Label("Equipment Manager", systemImage: "wrench.and.screwdriver")
+                    }
+                } header: {
+                    Text("Custom Equipment")
+                } footer: {
+                    Text("Add custom equipment and machines to your library")
+                }
+
+                Section {
+                    NavigationLink {
                         AIConfigurationView()
                     } label: {
                         HStack {
@@ -224,6 +237,20 @@ struct ProfileView: View {
                     } else {
                         Text("Configure an AI provider to generate personalized workouts.")
                     }
+                }
+
+                Section {
+                    Toggle(isOn: $appSettings.showYouTubeVideos) {
+                        Label("Show Exercise Videos", systemImage: "play.rectangle")
+                    }
+
+                    Toggle(isOn: $appSettings.showFormTips) {
+                        Label("Show Form Tips", systemImage: "lightbulb")
+                    }
+                } header: {
+                    Text("App Settings")
+                } footer: {
+                    Text("Control what's displayed in the exercise detail view during workouts.")
                 }
 
                 Section {
