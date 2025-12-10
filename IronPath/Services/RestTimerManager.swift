@@ -242,7 +242,7 @@ class RestTimerManager: ObservableObject {
     /// Start the display timer that updates the UI
     private func startDisplayTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let newTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
 
             // Force UI update
@@ -253,6 +253,9 @@ class RestTimerManager: ObservableObject {
                 self.timerCompleted()
             }
         }
+        // Add to common run loop modes so timer continues during sheet presentations and scrolling
+        RunLoop.main.add(newTimer, forMode: .common)
+        timer = newTimer
     }
 
     private func timerCompleted() {

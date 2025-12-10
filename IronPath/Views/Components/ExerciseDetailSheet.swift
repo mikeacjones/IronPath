@@ -297,6 +297,11 @@ struct ExerciseDetailSheet: View {
                     addSet(type: setType)
                 }
             }
+            .onDisappear {
+                // Save changes when sheet is dismissed (including swipe-to-dismiss)
+                // This ensures changes aren't lost if user swipes away instead of tapping Done
+                onUpdate(updatedExercise)
+            }
         }
     }
 
