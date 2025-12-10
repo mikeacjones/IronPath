@@ -313,18 +313,28 @@ struct TestFixtures {
         )
     }
 
-    /// Cable machine with integrated free weights
-    static func cableMachineWithIntegratedWeights() -> CableMachineConfig {
+    /// Cable machine with free weights (single of each)
+    static func cableMachineWithFreeWeights() -> CableMachineConfig {
         var config = simpleCableMachine()
-        config.integratedFreeWeights = [2.5, 5.0]
+        config.freeWeights = [
+            CableMachineConfig.FreeWeight(weight: 2.5, count: 1),
+            CableMachineConfig.FreeWeight(weight: 5.0, count: 1)
+        ]
         return config
     }
 
-    /// Cable machine with floating free weights
-    static func cableMachineWithFloatingWeights() -> CableMachineConfig {
+    /// Cable machine with multiple free weights of same type (e.g., 3x 5lb)
+    static func cableMachineWithMultipleFreeWeights() -> CableMachineConfig {
         var config = simpleCableMachine()
-        config.usesFloatingFreeWeights = true
+        config.freeWeights = [
+            CableMachineConfig.FreeWeight(weight: 5.0, count: 3)
+        ]
         return config
+    }
+
+    // Legacy alias for backwards compatibility with existing tests
+    static func cableMachineWithIntegratedWeights() -> CableMachineConfig {
+        cableMachineWithFreeWeights()
     }
 
     // MARK: - Date Helpers

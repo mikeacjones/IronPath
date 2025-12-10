@@ -707,15 +707,7 @@ struct GymEquipmentSettingsView: View {
                 } header: {
                     Label("Cable Machines", systemImage: "cable.connector")
                 } footer: {
-                    Text("Configure plate stacks for your cable machines. Custom configs can be set per-exercise when logging sets.")
-                }
-
-                Section {
-                    FloatingFreeWeightsEditor(weights: $settings.floatingCableFreeWeights)
-                } header: {
-                    Label("Cable Free Weights", systemImage: "plus.circle")
-                } footer: {
-                    Text("Add-on weights (e.g., 2.5lb or 4.5lb plates) that can be attached to cable machines for finer weight adjustments. These can be used on any cable machine.")
+                    Text("Configure plate stacks and free weights for your cable machines. Custom configs can be set per-exercise when logging sets.")
                 }
 
                 Section {
@@ -789,95 +781,6 @@ struct GymEquipmentSettingsView: View {
     }
 }
 
-// MARK: - Floating Free Weights Editor
-
-struct FloatingFreeWeightsEditor: View {
-    @Binding var weights: [Double]
-    @State private var newWeight: String = ""
-
-    /// Common free weight values for quick add
-    private let commonWeights: [Double] = [2.5, 4.5, 5.0, 7.5, 10.0]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Current weights
-            if weights.isEmpty {
-                Text("No free weights configured")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                FlowLayout(spacing: 8) {
-                    ForEach(weights.sorted(), id: \.self) { weight in
-                        HStack(spacing: 4) {
-                            Text("\(formatWeight(weight)) lb")
-                                .font(.subheadline)
-                            Button {
-                                weights.removeAll { $0 == weight }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.caption)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.15))
-                        .foregroundStyle(.blue)
-                        .cornerRadius(16)
-                    }
-                }
-            }
-
-            Divider()
-
-            // Quick add buttons
-            Text("Quick Add")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                ForEach(commonWeights.filter { !weights.contains($0) }, id: \.self) { weight in
-                    Button {
-                        if !weights.contains(weight) {
-                            weights.append(weight)
-                        }
-                    } label: {
-                        Text("\(formatWeight(weight)) lb")
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(16)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            // Custom weight entry
-            HStack {
-                TextField("Custom weight", text: $newWeight)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
-
-                Text("lb")
-                    .foregroundStyle(.secondary)
-
-                Button("Add") {
-                    if let weight = Double(newWeight), weight > 0, !weights.contains(weight) {
-                        weights.append(weight)
-                        newWeight = ""
-                    }
-                }
-                .disabled(Double(newWeight) == nil || Double(newWeight)! <= 0)
-            }
-        }
-    }
-
-    private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
-    }
-}
-
 /// A simple flow layout that wraps content to new lines
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
@@ -915,6 +818,156 @@ struct FlowLayout: Layout {
         }
 
         return (y + rowHeight, positions)
+    }
+}
+
+// MARK: - Free Weights Editor
+
+/// Editor for free weights on a cable machine with count support
+/// Allows adding multiple of the same weight (e.g., 3x 5lb plates)
+struct FreeWeightsEditor: View {
+    @Binding var freeWeights: [CableMachineConfig.FreeWeight]
+    @State private var newWeight: String = ""
+    @State private var newCount: Int = 1
+
+    /// Common free weight values for quick add
+    private let commonWeights: [Double] = [2.5, 5.0, 7.5, 10.0]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Current free weights display
+            if freeWeights.isEmpty {
+                Text("No free weights configured")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach($freeWeights) { $freeWeight in
+                        HStack {
+                            // Weight display
+                            Text("\(formatWeight(freeWeight.weight)) lb")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Spacer()
+
+                            // Count stepper
+                            HStack(spacing: 8) {
+                                Button {
+                                    if freeWeight.count > 1 {
+                                        freeWeight.count -= 1
+                                    }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(freeWeight.count > 1 ? .blue : .gray)
+                                }
+                                .disabled(freeWeight.count <= 1)
+
+                                Text("\(freeWeight.count)")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .frame(minWidth: 24)
+
+                                Button {
+                                    freeWeight.count += 1
+                                } label: {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+
+                            // Delete button
+                            Button {
+                                withAnimation {
+                                    freeWeights.removeAll { $0.id == freeWeight.id }
+                                }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 8)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Quick add buttons for common weights
+            Text("Quick Add")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(commonWeights.filter { weight in
+                        !freeWeights.contains { $0.weight == weight }
+                    }, id: \.self) { weight in
+                        Button {
+                            withAnimation {
+                                freeWeights.append(CableMachineConfig.FreeWeight(weight: weight, count: 1))
+                            }
+                        } label: {
+                            Text("\(formatWeight(weight)) lb")
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(16)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Custom weight entry
+            HStack {
+                TextField("Weight", text: $newWeight)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 70)
+
+                Text("lb")
+                    .foregroundStyle(.secondary)
+
+                Text("×")
+                    .foregroundStyle(.secondary)
+
+                Stepper("\(newCount)", value: $newCount, in: 1...10)
+                    .labelsHidden()
+                    .frame(width: 94)
+
+                Text("\(newCount)")
+                    .frame(width: 20)
+
+                Button("Add") {
+                    if let weight = Double(newWeight), weight > 0 {
+                        // Check if this weight already exists
+                        if let existingIndex = freeWeights.firstIndex(where: { $0.weight == weight }) {
+                            // Add to existing count
+                            freeWeights[existingIndex].count += newCount
+                        } else {
+                            // Add new free weight
+                            withAnimation {
+                                freeWeights.append(CableMachineConfig.FreeWeight(weight: weight, count: newCount))
+                            }
+                        }
+                        newWeight = ""
+                        newCount = 1
+                    }
+                }
+                .disabled(Double(newWeight) == nil || (Double(newWeight) ?? 0) <= 0)
+            }
+        }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
     }
 }
 
@@ -977,27 +1030,15 @@ struct CableMachineConfigEditor: View {
                 }
 
                 Section {
-                    Toggle("Uses Floating Free Weights", isOn: $config.usesFloatingFreeWeights)
-                        .disabled(!config.integratedFreeWeights.isEmpty)
-
-                    if !config.usesFloatingFreeWeights {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Integrated Free Weights")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            FloatingFreeWeightsEditor(weights: $config.integratedFreeWeights)
-                        }
-                    }
+                    FreeWeightsEditor(freeWeights: $config.freeWeights)
                 } header: {
                     Text("Free Weights")
                 } footer: {
-                    if config.usesFloatingFreeWeights {
-                        Text("This machine will use the global floating free weights configured in your gym settings.")
-                    } else if config.integratedFreeWeights.isEmpty {
-                        Text("Configure add-on weights that are built into this specific machine, or enable floating free weights.")
+                    if config.freeWeights.isEmpty {
+                        Text("Add-on weights that can be attached to the cable (e.g., 2.5lb or 5lb plates). These are optional when selecting a weight.")
                     } else {
-                        Text("This machine has its own integrated add-on weights that cannot be removed.")
+                        let totalFreeWeights = config.freeWeights.reduce(0) { $0 + $1.count }
+                        Text("This machine has \(totalFreeWeights) free weight plate(s) available.")
                     }
                 }
 

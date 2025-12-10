@@ -9,18 +9,26 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
     var name: String  // e.g., "Lat Pulldown", "Cable Crossover"
     var plateTiers: [PlateTier]  // Different plate tiers with their own weights
 
-    /// Integrated free weights that are part of this specific machine
-    /// (e.g., built-in 2.5lb or 5lb add-on plates that can't be moved)
-    var integratedFreeWeights: [Double] = []
-
-    /// Whether this machine uses floating free weights from the gym's global pool
-    /// (mutually exclusive with integrated free weights)
-    var usesFloatingFreeWeights: Bool = false
+    /// Free weights available on this machine (e.g., add-on plates)
+    /// Each entry tracks a weight value and how many of that weight are available
+    var freeWeights: [FreeWeight] = []
 
     struct PlateTier: Codable, Identifiable, Equatable {
         var id: UUID = UUID()
         var plateWeight: Double  // Weight per plate in this tier
         var plateCount: Int      // Number of plates in this tier
+    }
+
+    /// Represents a free weight add-on for a cable machine
+    struct FreeWeight: Codable, Identifiable, Equatable {
+        var id: UUID = UUID()
+        var weight: Double  // Weight in lbs (e.g., 5.0)
+        var count: Int      // How many of this weight are available (e.g., 3)
+
+        /// Total weight if all of this type are used
+        var totalWeight: Double {
+            weight * Double(count)
+        }
     }
 
     /// Calculate the base stack weights (without free weights)
@@ -38,27 +46,42 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
         return weights.sorted()
     }
 
-    /// Get the effective free weights for this machine
-    /// Returns integrated free weights if set, or floating free weights from GymSettings if enabled
-    var effectiveFreeWeights: [Double] {
-        if !integratedFreeWeights.isEmpty {
-            return integratedFreeWeights
-        } else if usesFloatingFreeWeights {
-            return GymSettings.shared.floatingCableFreeWeights
+    /// Calculate all possible free weight combinations
+    /// Returns array of total add-on weights possible (e.g., [0, 5, 10, 15] for 3x5lb)
+    private var freeWeightCombinations: [Double] {
+        guard !freeWeights.isEmpty else { return [0] }
+
+        var combinations: Set<Double> = [0]
+
+        // Generate all combinations of free weights
+        // For each free weight type, we can use 0, 1, 2, ... count of them
+        func generateCombinations(index: Int, currentTotal: Double) {
+            if index >= freeWeights.count {
+                combinations.insert(currentTotal)
+                return
+            }
+
+            let fw = freeWeights[index]
+            for numUsed in 0...fw.count {
+                let addedWeight = Double(numUsed) * fw.weight
+                generateCombinations(index: index + 1, currentTotal: currentTotal + addedWeight)
+            }
         }
-        return []
+
+        generateCombinations(index: 0, currentTotal: 0)
+        return Array(combinations).sorted()
     }
 
     /// Calculate all available weights including free weight combinations
     var availableWeights: [Double] {
         let stackWeights = baseStackWeights
-        var allWeights = Set(stackWeights)
+        var allWeights = Set<Double>()
 
-        // Add free weight combinations
-        let freeWeights = effectiveFreeWeights
-        for freeWeight in freeWeights {
-            for stackWeight in stackWeights {
-                allWeights.insert(stackWeight + freeWeight)
+        // For each stack weight, add all possible free weight combinations
+        let freeWeightOptions = freeWeightCombinations
+        for stackWeight in stackWeights {
+            for freeWeightTotal in freeWeightOptions {
+                allWeights.insert(stackWeight + freeWeightTotal)
             }
         }
 
@@ -106,10 +129,9 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
     /// Human-readable description of the weight stack
     var stackDescription: String {
         var desc = plateTiers.map { "\($0.plateCount)×\(formatWeight($0.plateWeight))lb" }.joined(separator: " + ")
-        let freeWeights = effectiveFreeWeights
         if !freeWeights.isEmpty {
-            let freeWeightStr = freeWeights.map { formatWeight($0) }.joined(separator: ", ")
-            desc += " + free weights: \(freeWeightStr)lb"
+            let freeWeightStr = freeWeights.map { "\($0.count)×\(formatWeight($0.weight))lb" }.joined(separator: ", ")
+            desc += " + free: \(freeWeightStr)"
         }
         return desc
     }
@@ -119,21 +141,16 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
         availableWeights.contains { abs($0 - weight) < 0.01 }
     }
 
-    /// Get the breakdown of a weight into pin position and free weight
+    /// Get the breakdown of a weight into pin position and free weight total
     /// Returns nil if the weight is not achievable
     func weightBreakdown(for weight: Double) -> (pin: Int, pinWeight: Double, freeWeight: Double)? {
         guard weight > 0 else { return nil }
 
-        // First try to find exact stack match (no free weight needed)
-        if let pin = pinLocationForStackWeight(weight) {
-            return (pin, weight, 0)
-        }
-
-        // Try free weight combinations
-        for freeWeight in effectiveFreeWeights {
-            let stackWeight = weight - freeWeight
+        // Try each possible free weight combination
+        for freeWeightTotal in freeWeightCombinations {
+            let stackWeight = weight - freeWeightTotal
             if stackWeight >= 0, let pin = pinLocationForStackWeight(stackWeight) {
-                return (pin, stackWeight, freeWeight)
+                return (pin, stackWeight, freeWeightTotal)
             }
         }
 
@@ -185,6 +202,11 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
             return nil
         }
 
+        // Handle case where pin weight is 0 (only free weights used)
+        if breakdown.pinWeight == 0 {
+            return (0, "No pin (free weights only)", breakdown.freeWeight)
+        }
+
         // Now find the tier info for the stack weight
         var currentWeight: Double = 0
         var plateNumber = 0
@@ -208,5 +230,20 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
 
     private func formatWeight(_ w: Double) -> String {
         w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+
+    // MARK: - Migration from old format
+
+    /// Migrate from old integratedFreeWeights array format
+    mutating func migrateFromLegacyFormat(integratedFreeWeights: [Double]) {
+        // Count occurrences of each weight
+        var weightCounts: [Double: Int] = [:]
+        for weight in integratedFreeWeights {
+            weightCounts[weight, default: 0] += 1
+        }
+
+        // Convert to new FreeWeight format
+        freeWeights = weightCounts.map { FreeWeight(weight: $0.key, count: $0.value) }
+            .sorted { $0.weight < $1.weight }
     }
 }

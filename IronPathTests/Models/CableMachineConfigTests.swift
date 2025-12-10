@@ -85,6 +85,42 @@ final class CableMachineConfigTests: XCTestCase {
         XCTAssertEqual(weights.count, Set(weights).count)
     }
 
+    func testAvailableWeightsWithMultipleFreeWeightsOfSameType() {
+        // Given a cable machine with 3x 5lb free weights
+        let config = TestFixtures.cableMachineWithMultipleFreeWeights()
+
+        // Then available weights should include all combinations:
+        // Stack only, stack + 5, stack + 10, stack + 15
+        let weights = config.availableWeights
+
+        // Base stack weight of 5lbs should have combinations:
+        XCTAssertTrue(weights.contains(5))   // Base stack only (pin at 5)
+        XCTAssertTrue(weights.contains(10))  // 5 + 5 (one free weight) OR base 10
+        XCTAssertTrue(weights.contains(15))  // 5 + 10 (two free weights) OR base 15
+        XCTAssertTrue(weights.contains(20))  // 5 + 15 (all three free weights) OR base 20
+
+        // Also verify we can get odd combinations
+        XCTAssertTrue(weights.contains(25))  // 10 + 15 (three free weights)
+    }
+
+    func testFreeWeightCombinationsWithMixedWeights() {
+        // Given a cable machine with 2x 2.5lb and 1x 5lb free weights
+        var config = TestFixtures.simpleCableMachine()
+        config.freeWeights = [
+            CableMachineConfig.FreeWeight(weight: 2.5, count: 2),
+            CableMachineConfig.FreeWeight(weight: 5.0, count: 1)
+        ]
+
+        let weights = config.availableWeights
+
+        // Should be able to add various combinations to pin at 10:
+        XCTAssertTrue(weights.contains(10))    // Pin only
+        XCTAssertTrue(weights.contains(12.5))  // 10 + 2.5
+        XCTAssertTrue(weights.contains(15))    // 10 + 5 or 10 + 2.5 + 2.5
+        XCTAssertTrue(weights.contains(17.5))  // 10 + 5 + 2.5
+        XCTAssertTrue(weights.contains(20))    // 10 + 5 + 2.5 + 2.5
+    }
+
     // MARK: - Nearest Weight Tests
 
     func testNearestWeightExactMatch() {
@@ -355,9 +391,10 @@ final class CableMachineConfigTests: XCTestCase {
         // Given a cable machine with free weights
         let config = TestFixtures.cableMachineWithIntegratedWeights()
 
-        // Then description should include free weights
+        // Then description should include free weights info
         let description = config.stackDescription
-        XCTAssertTrue(description.contains("free weights"))
+        XCTAssertTrue(description.contains("free"))
+        XCTAssertTrue(description.contains("2.5") || description.contains("5"))
     }
 
     // MARK: - Edge Cases
@@ -381,19 +418,21 @@ final class CableMachineConfigTests: XCTestCase {
         XCTAssertEqual(config.baseStackWeights, [0, 10])
     }
 
-    func testEffectiveFreeWeightsWithIntegrated() {
-        // Given a cable machine with integrated free weights
-        let config = TestFixtures.cableMachineWithIntegratedWeights()
+    func testFreeWeightsWithConfig() {
+        // Given a cable machine with free weights
+        let config = TestFixtures.cableMachineWithFreeWeights()
 
-        // Then effective free weights should return integrated weights
-        XCTAssertEqual(config.effectiveFreeWeights, [2.5, 5.0])
+        // Then free weights should return configured weights
+        XCTAssertEqual(config.freeWeights.count, 2)
+        XCTAssertTrue(config.freeWeights.contains { $0.weight == 2.5 && $0.count == 1 })
+        XCTAssertTrue(config.freeWeights.contains { $0.weight == 5.0 && $0.count == 1 })
     }
 
-    func testEffectiveFreeWeightsWithNeither() {
+    func testFreeWeightsEmpty() {
         // Given a simple cable machine with no free weights
         let config = TestFixtures.simpleCableMachine()
 
-        // Then effective free weights should be empty
-        XCTAssertTrue(config.effectiveFreeWeights.isEmpty)
+        // Then free weights should be empty
+        XCTAssertTrue(config.freeWeights.isEmpty)
     }
 }
