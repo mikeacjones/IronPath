@@ -71,7 +71,7 @@ struct DropSetConfig: Codable, Hashable {
         self.drops = drops
     }
 
-    /// Calculate suggested weights for drops based on starting weight
+    /// Calculate suggested weights for drops based on starting weight (legacy - uses simple percentage)
     func suggestedWeights(startingWeight: Double) -> [Double] {
         var weights: [Double] = [startingWeight]
         var currentWeight = startingWeight
@@ -81,6 +81,59 @@ struct DropSetConfig: Codable, Hashable {
             // Round to nearest 2.5 lbs for practical weight selection
             currentWeight = (currentWeight / 2.5).rounded() * 2.5
             weights.append(max(currentWeight, 5)) // Minimum 5 lbs
+        }
+
+        return weights
+    }
+
+    /// Calculate suggested weights for drops based on available equipment
+    /// This ensures drop weights are actual valid weights the user can select
+    func suggestedWeights(startingWeight: Double, equipment: Equipment, exerciseName: String?) -> [Double] {
+        let gymSettings = GymSettings.shared
+        let validWeights = gymSettings.validWeights(for: equipment, exerciseName: exerciseName)
+
+        // Fall back to percentage-based if no valid weights available
+        guard !validWeights.isEmpty else {
+            return suggestedWeights(startingWeight: startingWeight)
+        }
+
+        // Snap starting weight to nearest valid weight
+        let snappedStart = gymSettings.roundToValidWeight(startingWeight, for: equipment, exerciseName: exerciseName)
+
+        // Find the index of snapped starting weight
+        guard let startIndex = validWeights.firstIndex(of: snappedStart) else {
+            // If exact match not found, find closest index
+            let closestIndex = validWeights.enumerated()
+                .min(by: { abs($0.element - snappedStart) < abs($1.element - snappedStart) })?.offset ?? 0
+            return calculateDropsFromIndex(closestIndex, validWeights: validWeights)
+        }
+
+        return calculateDropsFromIndex(startIndex, validWeights: validWeights)
+    }
+
+    /// Calculate drop weights by stepping down through valid weights
+    private func calculateDropsFromIndex(_ startIndex: Int, validWeights: [Double]) -> [Double] {
+        var weights: [Double] = [validWeights[startIndex]]
+
+        // Calculate step size - for larger weight sets, step down more weights per drop
+        // For smaller sets (like limited hotel gym), step 1-2 weights
+        let totalWeights = validWeights.count
+        let stepSize: Int
+        if totalWeights <= 10 {
+            stepSize = 1  // Limited equipment - drop by 1 weight each time
+        } else if totalWeights <= 20 {
+            stepSize = 2  // Medium set - drop by 2 weights
+        } else {
+            stepSize = 3  // Full set - drop by 3 weights for more meaningful drops
+        }
+
+        var currentIndex = startIndex
+        for _ in 0..<numberOfDrops {
+            currentIndex = max(0, currentIndex - stepSize)
+            weights.append(validWeights[currentIndex])
+
+            // Stop if we've hit the minimum
+            if currentIndex == 0 { break }
         }
 
         return weights
@@ -175,7 +228,7 @@ struct RestPauseMiniSet: Codable, Identifiable, Hashable {
 // MARK: - Helper Extensions
 
 extension ExerciseSet {
-    /// Create a drop set with default configuration
+    /// Create a drop set with default configuration (legacy - uses percentage-based drops)
     static func createDropSet(
         setNumber: Int,
         targetReps: Int = 8,
@@ -191,6 +244,51 @@ extension ExerciseSet {
             let suggestedWeight: Double?
             if let w = weight {
                 let weights = dropConfig.suggestedWeights(startingWeight: w)
+                suggestedWeight = weights[safe: i]
+            } else {
+                suggestedWeight = nil
+            }
+
+            dropConfig.drops.append(DropSetEntry(
+                dropNumber: i,
+                targetWeight: suggestedWeight,
+                targetReps: targetReps
+            ))
+        }
+
+        return ExerciseSet(
+            setNumber: setNumber,
+            setType: .dropSet,
+            targetReps: targetReps,
+            weight: weight,
+            restPeriod: restPeriod,
+            dropSetConfig: dropConfig
+        )
+    }
+
+    /// Create a drop set with equipment-aware weight calculation
+    /// This ensures drop weights are actual valid weights available at the gym
+    static func createDropSet(
+        setNumber: Int,
+        targetReps: Int = 8,
+        weight: Double? = nil,
+        restPeriod: TimeInterval = 90,
+        numberOfDrops: Int = 2,
+        dropPercentage: Double = 0.2,
+        equipment: Equipment,
+        exerciseName: String
+    ) -> ExerciseSet {
+        var dropConfig = DropSetConfig(numberOfDrops: numberOfDrops, dropPercentage: dropPercentage)
+
+        // Pre-populate drops using equipment-aware weight calculation
+        for i in 0...(numberOfDrops) {
+            let suggestedWeight: Double?
+            if let w = weight {
+                let weights = dropConfig.suggestedWeights(
+                    startingWeight: w,
+                    equipment: equipment,
+                    exerciseName: exerciseName
+                )
                 suggestedWeight = weights[safe: i]
             } else {
                 suggestedWeight = nil
