@@ -21,6 +21,7 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var dumbbellIncrement: Double = 5.0
     var dumbbellMinWeight: Double = 5.0
     var dumbbellMaxWeight: Double = 120.0
+    var availableDumbbells: Set<Double>? = nil  // nil = use range mode, Set = use specific dumbbells
 
     // Plate settings
     var defaultAvailablePlates: [Double] = GymSettings.standardPlates
@@ -184,6 +185,7 @@ class GymProfileManager: ObservableObject {
         profile.dumbbellIncrement = settings.dumbbellIncrement
         profile.dumbbellMinWeight = settings.dumbbellMinWeight
         profile.dumbbellMaxWeight = settings.dumbbellMaxWeight
+        profile.availableDumbbells = settings.availableDumbbells
         profile.defaultAvailablePlates = settings.defaultAvailablePlates
         profile.exercisePlateConfigs = settings.exercisePlateConfigs
         profile.selectedBarWeight = settings.selectedBarWeight
@@ -218,6 +220,9 @@ class GymSettings: ObservableObject {
     @Published var dumbbellMaxWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
+    @Published var availableDumbbells: Set<Double>? {
+        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
+    }
 
     // Plate settings - per exercise
     @Published var exercisePlateConfigs: [String: [Double]] = [:] {
@@ -233,6 +238,20 @@ class GymSettings: ObservableObject {
     /// Standard plate sizes (without 100lb - not common in most areas)
     static let standardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
 
+    /// Standard dumbbell sizes commonly found in gyms (in lbs)
+    static let standardDumbbells: [Double] = [
+        2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25,
+        27.5, 30, 32.5, 35, 37.5, 40, 42.5, 45, 47.5, 50,
+        52.5, 55, 57.5, 60, 65, 70, 75, 80, 85, 90,
+        95, 100, 105, 110, 115, 120, 125, 130, 135, 140,
+        145, 150
+    ]
+
+    /// Common dumbbell sizes for hotel/limited gyms (in lbs)
+    static let limitedDumbbells: [Double] = [
+        5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+    ]
+
     private var isLoading = false  // Prevent save during load
 
     private init() {
@@ -240,6 +259,7 @@ class GymSettings: ObservableObject {
         self.dumbbellIncrement = 5.0
         self.dumbbellMinWeight = 5.0
         self.dumbbellMaxWeight = 120.0
+        self.availableDumbbells = nil  // nil means use range mode
         self.defaultCableConfig = .defaultConfig
         self.cableMachineConfigs = [:]
         self.defaultAvailablePlates = GymSettings.standardPlates
@@ -257,6 +277,7 @@ class GymSettings: ObservableObject {
             self.dumbbellIncrement = profile.dumbbellIncrement
             self.dumbbellMinWeight = profile.dumbbellMinWeight
             self.dumbbellMaxWeight = profile.dumbbellMaxWeight
+            self.availableDumbbells = profile.availableDumbbells
             self.defaultAvailablePlates = profile.defaultAvailablePlates
             self.exercisePlateConfigs = profile.exercisePlateConfigs
             self.selectedBarWeight = profile.selectedBarWeight
@@ -304,6 +325,10 @@ class GymSettings: ObservableObject {
             }
             return defaultCableConfig.availableWeights
         case .dumbbells:
+            // Use specific dumbbells if configured, otherwise use range
+            if let specificDumbbells = availableDumbbells {
+                return specificDumbbells.sorted()
+            }
             return stride(from: dumbbellMinWeight, through: dumbbellMaxWeight, by: dumbbellIncrement).map { $0 }
         case .barbell, .squat:
             return stride(from: 45.0, through: 500.0, by: 5.0).map { $0 }
@@ -330,7 +355,13 @@ class GymSettings: ObservableObject {
         var summary = "GYM EQUIPMENT CONSTRAINTS:\n"
 
         // Dumbbells
-        summary += "- Dumbbells: \(Int(dumbbellMinWeight))-\(Int(dumbbellMaxWeight)) lbs in \(Int(dumbbellIncrement)) lb increments\n"
+        if let specificDumbbells = availableDumbbells {
+            let sortedDumbbells = specificDumbbells.sorted()
+            let dumbbellList = sortedDumbbells.map { formatWeight($0) }.joined(separator: ", ")
+            summary += "- Dumbbells available: \(dumbbellList) lbs\n"
+        } else {
+            summary += "- Dumbbells: \(Int(dumbbellMinWeight))-\(Int(dumbbellMaxWeight)) lbs in \(Int(dumbbellIncrement)) lb increments\n"
+        }
 
         // Default cable machine
         summary += "- Default cable machine: \(defaultCableConfig.stackDescription)\n"
@@ -347,5 +378,14 @@ class GymSettings: ObservableObject {
         summary += "\nIMPORTANT: Only suggest weights that are achievable with the above equipment. For cable exercises, suggest weights from the available weight list."
 
         return summary
+    }
+
+    /// Format weight for display (removes .0 for whole numbers)
+    private func formatWeight(_ weight: Double) -> String {
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", weight)
+        } else {
+            return String(format: "%.1f", weight)
+        }
     }
 }

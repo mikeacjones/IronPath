@@ -1180,14 +1180,37 @@ struct ActiveExerciseCard: View {
         exercise.sets.filter { $0.isCompleted }.count
     }
 
+    var setProgress: Double {
+        guard exercise.sets.count > 0 else { return 0 }
+        return Double(completedSetsCount) / Double(exercise.sets.count)
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
-                // Completion indicator
+                // Completion indicator with progress circle
                 ZStack {
+                    // Background circle
                     Circle()
-                        .stroke(exercise.isCompleted ? Color.green : Color.gray.opacity(0.3), lineWidth: 3)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 3)
                         .frame(width: 44, height: 44)
+
+                    // Progress arc (only shown when not fully completed)
+                    if !exercise.isCompleted && completedSetsCount > 0 {
+                        Circle()
+                            .trim(from: 0, to: setProgress)
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .frame(width: 44, height: 44)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 0.3), value: setProgress)
+                    }
+
+                    // Completed state: full green circle
+                    if exercise.isCompleted {
+                        Circle()
+                            .stroke(Color.green, lineWidth: 3)
+                            .frame(width: 44, height: 44)
+                    }
 
                     if exercise.isCompleted {
                         Image(systemName: "checkmark")
