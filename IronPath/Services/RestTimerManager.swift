@@ -6,8 +6,18 @@ import Combine
 // MARK: - Rest Timer Manager
 
 /// Manages a global rest timer that persists when navigating away from exercise detail
+/// Timer state is persisted to UserDefaults so it survives app restarts
 class RestTimerManager: ObservableObject {
     static let shared = RestTimerManager()
+
+    // UserDefaults keys for persistence
+    private let endTimeKey = "rest_timer_end_time"
+    private let totalDurationKey = "rest_timer_total_duration"
+    private let exerciseNameKey = "rest_timer_exercise_name"
+    private let setNumberKey = "rest_timer_set_number"
+    private let isGroupTimerKey = "rest_timer_is_group"
+    private let groupTypeKey = "rest_timer_group_type"
+    private let nextExerciseNameKey = "rest_timer_next_exercise"
 
     @Published var isActive: Bool = false
     @Published var totalDuration: TimeInterval = 0
@@ -28,6 +38,7 @@ class RestTimerManager: ObservableObject {
     private init() {
         requestNotificationPermission()
         setupAppLifecycleObservers()
+        restoreTimerState()
     }
 
     deinit {
@@ -67,6 +78,9 @@ class RestTimerManager: ObservableObject {
         self.groupType = nil
         self.nextExerciseName = nil
 
+        // Persist state for app restart recovery
+        persistTimerState()
+
         // Schedule local notification for when timer completes
         scheduleCompletionNotification(in: duration)
 
@@ -92,6 +106,9 @@ class RestTimerManager: ObservableObject {
         self.groupType = groupType
         self.nextExerciseName = exerciseNames.first
 
+        // Persist state for app restart recovery
+        persistTimerState()
+
         scheduleGroupCompletionNotification(in: duration, groupType: groupType)
         startDisplayTimer()
     }
@@ -100,6 +117,9 @@ class RestTimerManager: ObservableObject {
         guard let currentEndTime = endTime else { return }
         endTime = currentEndTime.addingTimeInterval(seconds)
         totalDuration += seconds
+
+        // Persist updated state
+        persistTimerState()
 
         // Reschedule notification
         cancelScheduledNotification()
@@ -119,6 +139,76 @@ class RestTimerManager: ObservableObject {
         isGroupTimer = false
         groupType = nil
         nextExerciseName = nil
+        clearPersistedState()
+    }
+
+    // MARK: - Persistence
+
+    /// Save timer state to UserDefaults for restoration after app restart
+    private func persistTimerState() {
+        let defaults = UserDefaults.standard
+
+        if let endTime = endTime {
+            defaults.set(endTime.timeIntervalSince1970, forKey: endTimeKey)
+            defaults.set(totalDuration, forKey: totalDurationKey)
+            defaults.set(exerciseName, forKey: exerciseNameKey)
+            defaults.set(setNumber, forKey: setNumberKey)
+            defaults.set(isGroupTimer, forKey: isGroupTimerKey)
+            if let groupType = groupType {
+                defaults.set(groupType.rawValue, forKey: groupTypeKey)
+            }
+            if let nextExercise = nextExerciseName {
+                defaults.set(nextExercise, forKey: nextExerciseNameKey)
+            }
+        }
+    }
+
+    /// Clear persisted timer state
+    private func clearPersistedState() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: endTimeKey)
+        defaults.removeObject(forKey: totalDurationKey)
+        defaults.removeObject(forKey: exerciseNameKey)
+        defaults.removeObject(forKey: setNumberKey)
+        defaults.removeObject(forKey: isGroupTimerKey)
+        defaults.removeObject(forKey: groupTypeKey)
+        defaults.removeObject(forKey: nextExerciseNameKey)
+    }
+
+    /// Restore timer state from UserDefaults after app restart
+    private func restoreTimerState() {
+        let defaults = UserDefaults.standard
+
+        let endTimeInterval = defaults.double(forKey: endTimeKey)
+        guard endTimeInterval > 0 else { return }
+
+        let restoredEndTime = Date(timeIntervalSince1970: endTimeInterval)
+
+        // Check if timer has already expired
+        if restoredEndTime.timeIntervalSinceNow <= 0 {
+            // Timer expired while app was closed - show completion banner briefly
+            clearPersistedState()
+            showCompletionBanner = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                self?.showCompletionBanner = false
+            }
+            return
+        }
+
+        // Restore timer state
+        self.endTime = restoredEndTime
+        self.totalDuration = defaults.double(forKey: totalDurationKey)
+        self.exerciseName = defaults.string(forKey: exerciseNameKey) ?? ""
+        self.setNumber = defaults.integer(forKey: setNumberKey)
+        self.isGroupTimer = defaults.bool(forKey: isGroupTimerKey)
+
+        if let groupTypeRaw = defaults.string(forKey: groupTypeKey) {
+            self.groupType = ExerciseGroupType(rawValue: groupTypeRaw)
+        }
+        self.nextExerciseName = defaults.string(forKey: nextExerciseNameKey)
+
+        self.isActive = true
+        startDisplayTimer()
     }
 
     /// Start the display timer that updates the UI
