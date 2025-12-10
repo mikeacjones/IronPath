@@ -2,17 +2,39 @@ import Foundation
 import CloudKit
 import Combine
 
+/// Sync status for tracking data restoration progress
+enum CloudSyncStatus: Equatable {
+    case idle
+    case syncing
+    case completed
+    case failed(String)
+
+    var isLoading: Bool {
+        if case .syncing = self { return true }
+        return false
+    }
+}
+
 /// Manages iCloud sync for app data persistence across installs
 /// Uses NSUbiquitousKeyValueStore for small data and CloudKit for larger data
-class CloudSyncManager {
+class CloudSyncManager: ObservableObject {
     static let shared = CloudSyncManager()
 
     private let kvStore = NSUbiquitousKeyValueStore.default
     private let container = CKContainer(identifier: "iCloud.com.kotrs.IronPath")
     private var privateDatabase: CKDatabase { container.privateCloudDatabase }
 
+    /// Published sync status for UI observation
+    @Published private(set) var syncStatus: CloudSyncStatus = .idle
+
+    /// Whether initial sync has completed (important for fresh installs)
+    @Published var hasCompletedInitialSync = false
+
+    /// Number of workouts restored from cloud (for UI feedback)
+    @Published private(set) var restoredWorkoutsCount: Int = 0
+
     /// Check if iCloud is available (user is signed in)
-    private var isICloudAvailable: Bool {
+    var isICloudAvailable: Bool {
         FileManager.default.ubiquityIdentityToken != nil
     }
 
@@ -21,6 +43,7 @@ class CloudSyncManager {
         static let userProfile = "cloud_user_profile"
         static let apiKey = "cloud_api_key"
         static let hasCompletedOnboarding = "cloud_has_completed_onboarding"
+        static let activeGymProfileId = "cloud_active_gym_profile_id"
     }
 
     // CloudKit record types (large data)
@@ -33,23 +56,45 @@ class CloudSyncManager {
     private let decoder = JSONDecoder()
 
     private init() {
+        // Register for iCloud KV change notifications (always register, check availability when handling)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(cloudDataDidChange),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: kvStore
+        )
+
         // Only set up iCloud sync if signed in
         if isICloudAvailable {
-            // Register for iCloud KV change notifications
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(cloudDataDidChange),
-                name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-                object: kvStore
-            )
-
             // Sync on launch
             kvStore.synchronize()
 
             // Fetch CloudKit data on launch
-            Task {
-                await fetchCloudKitData()
+            Task { @MainActor in
+                await performInitialSync()
             }
+        } else {
+            // No iCloud, mark as completed immediately
+            hasCompletedInitialSync = true
+            print("CloudSync: iCloud not available, using local storage only")
+        }
+    }
+
+    /// Perform initial sync on app launch - waits for CloudKit data
+    @MainActor
+    private func performInitialSync() async {
+        syncStatus = .syncing
+        print("CloudSync: Starting initial sync...")
+
+        do {
+            await fetchCloudKitData()
+            syncStatus = .completed
+            hasCompletedInitialSync = true
+            print("CloudSync: Initial sync completed successfully")
+        } catch {
+            syncStatus = .failed(error.localizedDescription)
+            hasCompletedInitialSync = true // Still mark as completed so app isn't blocked
+            print("CloudSync: Initial sync failed - \(error.localizedDescription)")
         }
     }
 
@@ -216,46 +261,124 @@ class CloudSyncManager {
 
         let recordID = CKRecord.ID(recordName: "workout_history_v1")
 
-        do {
-            let record = try await privateDatabase.record(for: recordID)
-            if let data = record["data"] as? Data,
-               let cloudUpdatedAt = record["updatedAt"] as? Date {
+        // Retry logic for transient failures
+        var retryCount = 0
+        let maxRetries = 3
 
-                // Check if local data exists
-                let localData = UserDefaults.standard.data(forKey: "workout_history")
-                let localUpdatedAt = UserDefaults.standard.object(forKey: "workout_history_updated") as? Date ?? Date.distantPast
+        while retryCount < maxRetries {
+            do {
+                let record = try await privateDatabase.record(for: recordID)
+                if let data = record["data"] as? Data,
+                   let cloudUpdatedAt = record["updatedAt"] as? Date {
 
-                // If local is empty (fresh install) or cloud is newer, use cloud data
-                let localIsEmpty = localData == nil || (try? decoder.decode([Workout].self, from: localData!))?.isEmpty ?? true
+                    // Check if local data exists
+                    let localData = UserDefaults.standard.data(forKey: "workout_history")
+                    let localUpdatedAt = UserDefaults.standard.object(forKey: "workout_history_updated") as? Date ?? Date.distantPast
 
-                if localIsEmpty || cloudUpdatedAt > localUpdatedAt {
-                    // Cloud is newer or local is empty, update local
-                    UserDefaults.standard.set(data, forKey: "workout_history")
-                    UserDefaults.standard.set(cloudUpdatedAt, forKey: "workout_history_updated")
+                    // If local is empty (fresh install) or cloud is newer, use cloud data
+                    let localWorkouts = localData.flatMap { try? decoder.decode([Workout].self, from: $0) } ?? []
+                    let localIsEmpty = localWorkouts.isEmpty
 
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
+                    if localIsEmpty || cloudUpdatedAt > localUpdatedAt {
+                        // Cloud is newer or local is empty, update local
+                        UserDefaults.standard.set(data, forKey: "workout_history")
+                        UserDefaults.standard.set(cloudUpdatedAt, forKey: "workout_history_updated")
+
+                        let restoredCount = (try? decoder.decode([Workout].self, from: data))?.count ?? 0
+
+                        await MainActor.run {
+                            self.restoredWorkoutsCount = restoredCount
+                            NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
+                        }
+                        print("CloudSync: Restored \(restoredCount) workouts from iCloud")
+                    } else if !localWorkouts.isEmpty && localUpdatedAt > cloudUpdatedAt {
+                        // Local is newer and not empty, push to cloud
+                        await saveWorkoutHistoryToCloud(localData!)
                     }
-                    print("CloudSync: Restored \((try? self.decoder.decode([Workout].self, from: data))?.count ?? 0) workouts from iCloud")
-                } else if localData != nil && localUpdatedAt > cloudUpdatedAt {
-                    // Local is newer and not empty, push to cloud
-                    await saveWorkoutHistoryToCloud(localData!)
                 }
+                return // Success, exit retry loop
+
+            } catch let error as CKError where error.code == .unknownItem {
+                // No cloud record exists yet, push local data if available
+                if let localData = UserDefaults.standard.data(forKey: "workout_history") {
+                    await saveWorkoutHistoryToCloud(localData)
+                    print("CloudSync: Pushed local workout history to iCloud (no cloud record existed)")
+                }
+                return
+
+            } catch let error as CKError where error.code == .notAuthenticated {
+                // User not signed into iCloud - silently use local storage only
+                print("CloudSync: User not signed into iCloud")
+                return
+
+            } catch let error as CKError where error.code == .networkUnavailable || error.code == .networkFailure {
+                // Network issue - retry
+                retryCount += 1
+                if retryCount < maxRetries {
+                    print("CloudSync: Network error, retrying (\(retryCount)/\(maxRetries))...")
+                    try? await Task.sleep(nanoseconds: UInt64(retryCount) * 1_000_000_000) // Exponential backoff
+                } else {
+                    print("CloudSync: Network error after \(maxRetries) retries - \(error.localizedDescription)")
+                }
+
+            } catch let error as CKError where error.code == .serviceUnavailable || error.code == .requestRateLimited {
+                // Service temporarily unavailable - retry with longer delay
+                retryCount += 1
+                if retryCount < maxRetries {
+                    print("CloudSync: Service unavailable, retrying (\(retryCount)/\(maxRetries))...")
+                    try? await Task.sleep(nanoseconds: UInt64(retryCount * 2) * 1_000_000_000)
+                } else {
+                    print("CloudSync: Service unavailable after \(maxRetries) retries")
+                }
+
+            } catch {
+                // Log error for debugging
+                print("CloudSync: Error fetching workout history - \(error.localizedDescription)")
+                return
             }
-        } catch let error as CKError where error.code == .unknownItem {
-            // No cloud record exists yet, push local data if available
-            if let localData = UserDefaults.standard.data(forKey: "workout_history") {
-                await saveWorkoutHistoryToCloud(localData)
-                print("CloudSync: Pushed local workout history to iCloud (no cloud record existed)")
-            }
-        } catch let error as CKError where error.code == .notAuthenticated {
-            // User not signed into iCloud - silently use local storage only
-            print("CloudSync: User not signed into iCloud")
-            return
-        } catch {
-            // Log error for debugging
-            print("CloudSync: Error fetching workout history - \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Active Gym Profile ID (KV Store)
+
+    func saveActiveGymProfileId(_ id: UUID?) {
+        let idString = id?.uuidString
+
+        // Always save locally
+        UserDefaults.standard.set(idString, forKey: "activeGymProfileId")
+
+        // Sync to iCloud if available
+        if isICloudAvailable {
+            if let idString = idString {
+                kvStore.set(idString, forKey: KVKeys.activeGymProfileId)
+            } else {
+                kvStore.removeObject(forKey: KVKeys.activeGymProfileId)
+            }
+            kvStore.synchronize()
+        }
+    }
+
+    func loadActiveGymProfileId() -> UUID? {
+        // Try iCloud first if available
+        if isICloudAvailable,
+           let idString = kvStore.string(forKey: KVKeys.activeGymProfileId),
+           let id = UUID(uuidString: idString) {
+            UserDefaults.standard.set(idString, forKey: "activeGymProfileId")
+            return id
+        }
+
+        // Fallback to local
+        if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
+           let id = UUID(uuidString: idString) {
+            // Sync to iCloud if available
+            if isICloudAvailable {
+                kvStore.set(idString, forKey: KVKeys.activeGymProfileId)
+                kvStore.synchronize()
+            }
+            return id
+        }
+
+        return nil
     }
 
     // MARK: - Gym Profiles (CloudKit - potentially large)
@@ -401,6 +524,62 @@ class CloudSyncManager {
         }
         Task {
             await fetchCloudKitData()
+        }
+    }
+
+    // MARK: - Clear All Data
+
+    /// Clears all app data from both local storage and iCloud
+    func clearAllData() async {
+        // Clear local UserDefaults
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "workout_history")
+        defaults.removeObject(forKey: "workout_history_updated")
+        defaults.removeObject(forKey: "user_profile")
+        defaults.removeObject(forKey: "hasCompletedOnboarding")
+        defaults.removeObject(forKey: "gymProfiles")
+        defaults.removeObject(forKey: "gym_settings_updated")
+        defaults.removeObject(forKey: "activeGymProfileId")
+        defaults.removeObject(forKey: "anthropic_api_key")
+        defaults.removeObject(forKey: "exercisePreferences")
+
+        // Clear iCloud KV Store
+        if isICloudAvailable {
+            kvStore.removeObject(forKey: KVKeys.userProfile)
+            kvStore.removeObject(forKey: KVKeys.hasCompletedOnboarding)
+            kvStore.removeObject(forKey: KVKeys.activeGymProfileId)
+            kvStore.removeObject(forKey: KVKeys.apiKey)
+            kvStore.synchronize()
+        }
+
+        // Delete CloudKit records
+        await deleteCloudKitRecord(recordName: "workout_history_v1", recordType: RecordTypes.workoutHistory)
+        await deleteCloudKitRecord(recordName: "gym_settings_v1", recordType: RecordTypes.gymSettings)
+
+        // Reset restored count
+        await MainActor.run {
+            restoredWorkoutsCount = 0
+        }
+
+        print("CloudSync: All data cleared from local and iCloud storage")
+    }
+
+    /// Delete a specific CloudKit record
+    private func deleteCloudKitRecord(recordName: String, recordType: String) async {
+        guard isICloudAvailable else { return }
+
+        let recordID = CKRecord.ID(recordName: recordName)
+
+        do {
+            try await privateDatabase.deleteRecord(withID: recordID)
+            print("CloudSync: Deleted CloudKit record: \(recordName)")
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record doesn't exist, nothing to delete
+            print("CloudSync: CloudKit record \(recordName) doesn't exist, nothing to delete")
+        } catch let error as CKError where error.code == .notAuthenticated {
+            print("CloudSync: Not authenticated to delete CloudKit record")
+        } catch {
+            print("CloudSync: Error deleting CloudKit record \(recordName): \(error.localizedDescription)")
         }
     }
 }

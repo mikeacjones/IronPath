@@ -27,9 +27,6 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var exercisePlateConfigs: [String: [Double]] = [:]
     var selectedBarWeight: Double = 45.0
 
-    // Exercise preferences (suggest more/less/never)
-    var exercisePreferences: [String: ExerciseSuggestionPreference] = [:]
-
     static var defaultProfile: GymProfile {
         GymProfile(
             name: "My Gym",
@@ -73,7 +70,8 @@ class GymProfileManager: ObservableObject {
     @Published var activeProfileId: UUID? {
         didSet {
             guard !isInitializing else { return }
-            UserDefaults.standard.set(activeProfileId?.uuidString, forKey: "activeGymProfileId")
+            // Save to both local and cloud
+            CloudSyncManager.shared.saveActiveGymProfileId(activeProfileId)
             // Notify GymSettings to reload
             GymSettings.shared.loadFromActiveProfile()
         }
@@ -115,7 +113,7 @@ class GymProfileManager: ObservableObject {
     }
 
     private func loadProfiles() {
-        // Try to load from local storage (CloudKit syncs in background)
+        // Try to load from local storage (CloudKit syncs in background and updates UserDefaults)
         if let data = UserDefaults.standard.data(forKey: "gymProfiles"),
            let decoded = try? JSONDecoder().decode([GymProfile].self, from: data) {
             self.profiles = decoded
@@ -124,9 +122,13 @@ class GymProfileManager: ObservableObject {
             self.profiles = [GymProfile.defaultProfile]
         }
 
-        // Load active profile ID
-        if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
-           let id = UUID(uuidString: idString) {
+        // Load active profile ID - try cloud first, then local
+        if let cloudId = CloudSyncManager.shared.loadActiveGymProfileId(),
+           profiles.contains(where: { $0.id == cloudId }) {
+            self.activeProfileId = cloudId
+        } else if let idString = UserDefaults.standard.string(forKey: "activeGymProfileId"),
+           let id = UUID(uuidString: idString),
+           profiles.contains(where: { $0.id == id }) {
             self.activeProfileId = id
         } else {
             self.activeProfileId = profiles.first?.id
@@ -136,8 +138,8 @@ class GymProfileManager: ObservableObject {
     private func saveProfiles() {
         if let data = try? JSONEncoder().encode(profiles) {
             UserDefaults.standard.set(data, forKey: "gymProfiles")
-            // Sync to CloudKit via GymSettings wrapper
-            CloudSyncManager.shared.saveGymSettings(GymSettings.shared)
+            // Sync to CloudKit - use saveGymProfiles which properly handles timestamps
+            CloudSyncManager.shared.saveGymProfiles(data)
         }
     }
 
@@ -185,7 +187,6 @@ class GymProfileManager: ObservableObject {
         profile.defaultAvailablePlates = settings.defaultAvailablePlates
         profile.exercisePlateConfigs = settings.exercisePlateConfigs
         profile.selectedBarWeight = settings.selectedBarWeight
-        profile.exercisePreferences = settings.exercisePreferences
 
         updateProfile(profile)
     }
@@ -218,11 +219,6 @@ class GymSettings: ObservableObject {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
-    // Exercise suggestion preferences
-    @Published var exercisePreferences: [String: ExerciseSuggestionPreference] = [:] {
-        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
-    }
-
     // Plate settings - per exercise
     @Published var exercisePlateConfigs: [String: [Double]] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
@@ -246,7 +242,6 @@ class GymSettings: ObservableObject {
         self.dumbbellMaxWeight = 120.0
         self.defaultCableConfig = .defaultConfig
         self.cableMachineConfigs = [:]
-        self.exercisePreferences = [:]
         self.defaultAvailablePlates = GymSettings.standardPlates
         self.exercisePlateConfigs = [:]
         self.selectedBarWeight = 45.0
@@ -265,7 +260,6 @@ class GymSettings: ObservableObject {
             self.defaultAvailablePlates = profile.defaultAvailablePlates
             self.exercisePlateConfigs = profile.exercisePlateConfigs
             self.selectedBarWeight = profile.selectedBarWeight
-            self.exercisePreferences = profile.exercisePreferences
         }
 
         isLoading = false
@@ -294,20 +288,6 @@ class GymSettings: ObservableObject {
     /// Get cable config for specific exercise, or default if none set
     func cableConfig(for exerciseName: String) -> CableMachineConfig {
         cableMachineConfigs[exerciseName] ?? defaultCableConfig
-    }
-
-    /// Get suggestion preference for an exercise
-    func suggestionPreference(for exerciseName: String) -> ExerciseSuggestionPreference {
-        exercisePreferences[exerciseName] ?? .normal
-    }
-
-    /// Set suggestion preference for an exercise
-    func setSuggestionPreference(_ preference: ExerciseSuggestionPreference, for exerciseName: String) {
-        if preference == .normal {
-            exercisePreferences.removeValue(forKey: exerciseName)
-        } else {
-            exercisePreferences[exerciseName] = preference
-        }
     }
 
     /// Set cable config for specific exercise
@@ -365,33 +345,6 @@ class GymSettings: ObservableObject {
         }
 
         summary += "\nIMPORTANT: Only suggest weights that are achievable with the above equipment. For cable exercises, suggest weights from the available weight list."
-
-        return summary
-    }
-
-    /// Generate exercise preference instructions for Claude
-    func exercisePreferencesForClaude() -> String {
-        let preferMore = exercisePreferences.filter { $0.value == .suggestMore }.keys.sorted()
-        let preferLess = exercisePreferences.filter { $0.value == .suggestLess }.keys.sorted()
-        let neverSuggest = exercisePreferences.filter { $0.value == .never }.keys.sorted()
-
-        guard !preferMore.isEmpty || !preferLess.isEmpty || !neverSuggest.isEmpty else {
-            return ""
-        }
-
-        var summary = "EXERCISE PREFERENCES:\n"
-
-        if !neverSuggest.isEmpty {
-            summary += "NEVER include these exercises: \(neverSuggest.joined(separator: ", "))\n"
-        }
-
-        if !preferLess.isEmpty {
-            summary += "AVOID these exercises unless specifically requested: \(preferLess.joined(separator: ", "))\n"
-        }
-
-        if !preferMore.isEmpty {
-            summary += "PRIORITIZE including these exercises when appropriate: \(preferMore.joined(separator: ", "))\n"
-        }
 
         return summary
     }

@@ -2,8 +2,10 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
+    @FocusState private var isTextFieldFocused: Bool
     @State private var currentStep = 0
     @State private var name = ""
+    @State private var gymName = "My Gym"
     @State private var fitnessLevel: FitnessLevel = .beginner
     @State private var selectedGoals: Set<FitnessGoal> = []
     @State private var selectedEquipment: Set<Equipment> = []
@@ -14,7 +16,13 @@ struct OnboardingView: View {
     @State private var workoutSplit: WorkoutSplit = .pushPullLegs
     @State private var showingMachineSelection = false
 
-    private let totalSteps = 6
+    // Advanced technique settings
+    @State private var warmupSetMode: TechniqueRequirementMode = .allowed
+    @State private var dropSetMode: TechniqueRequirementMode = .allowed
+    @State private var restPauseSetMode: TechniqueRequirementMode = .allowed
+    @State private var supersetMode: TechniqueRequirementMode = .allowed
+
+    private let totalSteps = 9
 
     var body: some View {
         NavigationStack {
@@ -26,7 +34,7 @@ struct OnboardingView: View {
                     WelcomeStep()
                         .tag(0)
 
-                    NameStep(name: $name)
+                    NameStep(name: $name, isFocused: $isTextFieldFocused)
                         .tag(1)
 
                     FitnessLevelStep(fitnessLevel: $fitnessLevel)
@@ -38,14 +46,32 @@ struct OnboardingView: View {
                     TrainingProgramStep(trainingStyle: $trainingStyle, workoutSplit: $workoutSplit)
                         .tag(4)
 
+                    ScheduleStep(workoutsPerWeek: $workoutsPerWeek, workoutDuration: $workoutDuration)
+                        .tag(5)
+
+                    GymNameStep(gymName: $gymName, isFocused: $isTextFieldFocused)
+                        .tag(6)
+
                     EquipmentStep(
                         selectedEquipment: $selectedEquipment,
                         selectedMachines: $selectedMachines,
                         showingMachineSelection: $showingMachineSelection
                     )
-                        .tag(5)
+                        .tag(7)
+
+                    AdvancedTechniquesStep(
+                        warmupSetMode: $warmupSetMode,
+                        dropSetMode: $dropSetMode,
+                        restPauseSetMode: $restPauseSetMode,
+                        supersetMode: $supersetMode
+                    )
+                        .tag(8)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .onChange(of: currentStep) { _, _ in
+                    // Dismiss keyboard when changing steps
+                    isTextFieldFocused = false
+                }
 
                 HStack {
                     if currentStep > 0 {
@@ -87,12 +113,22 @@ struct OnboardingView: View {
         case 2: return true
         case 3: return !selectedGoals.isEmpty
         case 4: return true // Training program always has defaults
-        case 5: return !selectedEquipment.isEmpty
+        case 5: return true // Schedule always has defaults
+        case 6: return !gymName.isEmpty
+        case 7: return !selectedEquipment.isEmpty
+        case 8: return true // Advanced techniques always has defaults
         default: return false
         }
     }
 
     private func completeOnboarding() {
+        let advancedSettings = AdvancedTechniqueSettings(
+            warmupSetMode: warmupSetMode,
+            dropSetMode: dropSetMode,
+            restPauseSetMode: restPauseSetMode,
+            supersetMode: supersetMode
+        )
+
         let profile = UserProfile(
             name: name,
             fitnessLevel: fitnessLevel,
@@ -102,13 +138,15 @@ struct OnboardingView: View {
                 preferredWorkoutDuration: workoutDuration,
                 workoutsPerWeek: workoutsPerWeek,
                 trainingStyle: trainingStyle,
-                workoutSplit: workoutSplit
+                workoutSplit: workoutSplit,
+                advancedTechniqueSettings: advancedSettings
             )
         )
         appState.completeOnboarding(profile: profile)
 
-        // Update the default gym profile with selected machines
+        // Update the default gym profile with name, equipment, and machines
         if var gymProfile = GymProfileManager.shared.activeProfile {
+            gymProfile.name = gymName
             gymProfile.availableEquipment = selectedEquipment
             gymProfile.availableMachines = selectedMachines
             GymProfileManager.shared.updateProfile(gymProfile)
@@ -141,6 +179,7 @@ struct WelcomeStep: View {
 
 struct NameStep: View {
     @Binding var name: String
+    var isFocused: FocusState<Bool>.Binding
 
     var body: some View {
         VStack(spacing: 30) {
@@ -150,6 +189,7 @@ struct NameStep: View {
 
             TextField("Enter your name", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .focused(isFocused)
                 .padding(.horizontal)
         }
         .padding()
@@ -454,6 +494,225 @@ struct MachineSelectionView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct ScheduleStep: View {
+    @Binding var workoutsPerWeek: Int
+    @Binding var workoutDuration: Int
+
+    var body: some View {
+        VStack(spacing: 30) {
+            Text("Your workout schedule")
+                .font(.title)
+                .fontWeight(.bold)
+
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Workouts per week")
+                        .font(.headline)
+
+                    HStack(spacing: 8) {
+                        ForEach([2, 3, 4, 5, 6], id: \.self) { count in
+                            Button {
+                                workoutsPerWeek = count
+                            } label: {
+                                Text("\(count)")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .frame(width: 50, height: 50)
+                                    .background(workoutsPerWeek == count ? Color.blue : Color(.systemGray6))
+                                    .foregroundStyle(workoutsPerWeek == count ? .white : .primary)
+                                    .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Workout duration")
+                        .font(.headline)
+
+                    VStack(spacing: 8) {
+                        ForEach([30, 45, 60, 75, 90], id: \.self) { duration in
+                            Button {
+                                workoutDuration = duration
+                            } label: {
+                                HStack {
+                                    Text("\(duration) minutes")
+                                        .font(.headline)
+                                    Spacer()
+                                    if workoutDuration == duration {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                                .padding()
+                                .background(workoutDuration == duration ? Color.blue.opacity(0.2) : Color(.systemGray6))
+                                .cornerRadius(12)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding()
+    }
+}
+
+struct GymNameStep: View {
+    @Binding var gymName: String
+    var isFocused: FocusState<Bool>.Binding
+
+    var body: some View {
+        VStack(spacing: 30) {
+            Image(systemName: "dumbbell.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.blue)
+
+            Text("Name your gym")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text("You can add more gym profiles later for different locations")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            TextField("My Gym", text: $gymName)
+                .textFieldStyle(.roundedBorder)
+                .focused(isFocused)
+                .padding(.horizontal)
+        }
+        .padding()
+    }
+}
+
+struct AdvancedTechniquesStep: View {
+    @Binding var warmupSetMode: TechniqueRequirementMode
+    @Binding var dropSetMode: TechniqueRequirementMode
+    @Binding var restPauseSetMode: TechniqueRequirementMode
+    @Binding var supersetMode: TechniqueRequirementMode
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Advanced techniques")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text("Configure advanced training techniques for AI-generated workouts")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            // Legend
+            HStack(spacing: 16) {
+                ForEach(TechniqueRequirementMode.allCases, id: \.self) { mode in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(mode.swiftUIColor)
+                            .frame(width: 8, height: 8)
+                        Text(mode.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    AdvancedTechniqueRow(
+                        title: "Warmup Sets",
+                        description: "Light sets to prepare muscles before working sets",
+                        icon: "flame",
+                        color: .orange,
+                        mode: $warmupSetMode
+                    )
+
+                    AdvancedTechniqueRow(
+                        title: "Drop Sets",
+                        description: "Continue with reduced weight after reaching failure",
+                        icon: "arrow.down.circle",
+                        color: .red,
+                        mode: $dropSetMode
+                    )
+
+                    AdvancedTechniqueRow(
+                        title: "Rest-Pause Sets",
+                        description: "Brief rest then continue reps within the same set",
+                        icon: "pause.circle",
+                        color: .blue,
+                        mode: $restPauseSetMode
+                    )
+
+                    AdvancedTechniqueRow(
+                        title: "Supersets & Circuits",
+                        description: "Multiple exercises performed back-to-back",
+                        icon: "arrow.triangle.2.circlepath",
+                        color: .purple,
+                        mode: $supersetMode
+                    )
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical)
+    }
+}
+
+struct AdvancedTechniqueRow: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+    @Binding var mode: TechniqueRequirementMode
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                    .frame(width: 40)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            // Segmented picker for mode
+            Picker("", selection: $mode) {
+                ForEach(TechniqueRequirementMode.allCases, id: \.self) { m in
+                    Text(m.rawValue).tag(m)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+extension TechniqueRequirementMode {
+    var swiftUIColor: Color {
+        switch self {
+        case .disabled: return .red
+        case .allowed: return .orange
+        case .required: return .green
         }
     }
 }

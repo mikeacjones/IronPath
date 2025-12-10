@@ -308,10 +308,10 @@ struct ExerciseLibraryDetailView: View {
 /// Picker for exercise suggestion preference
 struct ExercisePreferencePickerView: View {
     let exerciseName: String
-    @ObservedObject private var gymSettings = GymSettings.shared
+    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
 
     private var currentPreference: ExerciseSuggestionPreference {
-        gymSettings.suggestionPreference(for: exerciseName)
+        preferenceManager.getPreference(for: exerciseName)
     }
 
     var body: some View {
@@ -325,7 +325,7 @@ struct ExercisePreferencePickerView: View {
                         preference: preference,
                         isSelected: currentPreference == preference,
                         onTap: {
-                            gymSettings.setSuggestionPreference(preference, for: exerciseName)
+                            preferenceManager.setPreference(preference, for: exerciseName)
                         }
                     )
                 }
@@ -344,11 +344,11 @@ struct ExercisePreferencePickerView: View {
         switch currentPreference {
         case .normal:
             return "This exercise will be suggested based on your workout type and goals."
-        case .suggestMore:
+        case .preferMore:
             return "Claude will prioritize including this exercise in your workouts."
-        case .suggestLess:
+        case .preferLess:
             return "Claude will avoid this exercise unless you specifically request it."
-        case .never:
+        case .doNotSuggest:
             return "This exercise will never be included in generated workouts."
         }
     }
@@ -359,10 +359,20 @@ struct PreferenceButton: View {
     let isSelected: Bool
     let onTap: () -> Void
 
+    private var preferenceColor: Color {
+        switch preference.color {
+        case "gray": return .secondary
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        default: return .secondary
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 4) {
-                Image(systemName: preference.icon)
+                Image(systemName: preference.iconName)
                     .font(.title3)
                 Text(shortLabel)
                     .font(.caption2)
@@ -371,12 +381,12 @@ struct PreferenceButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(isSelected ? preference.color.opacity(0.2) : Color(.systemGray5))
-            .foregroundStyle(isSelected ? preference.color : .secondary)
+            .background(isSelected ? preferenceColor.opacity(0.2) : Color(.systemGray5))
+            .foregroundStyle(isSelected ? preferenceColor : .secondary)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? preference.color : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? preferenceColor : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)
@@ -385,9 +395,9 @@ struct PreferenceButton: View {
     private var shortLabel: String {
         switch preference {
         case .normal: return "Normal"
-        case .suggestMore: return "More"
-        case .suggestLess: return "Less"
-        case .never: return "Never"
+        case .preferMore: return "More"
+        case .preferLess: return "Less"
+        case .doNotSuggest: return "Never"
         }
     }
 }

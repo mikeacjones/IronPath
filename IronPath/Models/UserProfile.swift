@@ -273,6 +273,7 @@ struct WorkoutPreferences: Codable {
     var avoidInjuries: [String] // body parts to avoid
     var trainingStyle: TrainingStyle
     var workoutSplit: WorkoutSplit
+    var advancedTechniqueSettings: AdvancedTechniqueSettings
 
     init(
         preferredWorkoutDuration: Int = 60,
@@ -280,7 +281,8 @@ struct WorkoutPreferences: Codable {
         preferredRestTime: Int = 90,
         avoidInjuries: [String] = [],
         trainingStyle: TrainingStyle = .hypertrophy,
-        workoutSplit: WorkoutSplit = .pushPullLegs
+        workoutSplit: WorkoutSplit = .pushPullLegs,
+        advancedTechniqueSettings: AdvancedTechniqueSettings = AdvancedTechniqueSettings()
     ) {
         self.preferredWorkoutDuration = preferredWorkoutDuration
         self.workoutsPerWeek = workoutsPerWeek
@@ -288,5 +290,145 @@ struct WorkoutPreferences: Codable {
         self.avoidInjuries = avoidInjuries
         self.trainingStyle = trainingStyle
         self.workoutSplit = workoutSplit
+        self.advancedTechniqueSettings = advancedTechniqueSettings
+    }
+}
+
+// MARK: - Advanced Training Technique Settings
+
+/// Global settings for how AI should handle advanced training techniques
+struct AdvancedTechniqueSettings: Codable, Equatable {
+    /// Mode for warmup sets
+    var warmupSetMode: TechniqueRequirementMode
+
+    /// Mode for drop sets
+    var dropSetMode: TechniqueRequirementMode
+
+    /// Mode for rest-pause sets
+    var restPauseSetMode: TechniqueRequirementMode
+
+    /// Mode for supersets/circuits
+    var supersetMode: TechniqueRequirementMode
+
+    init(
+        warmupSetMode: TechniqueRequirementMode = .allowed,
+        dropSetMode: TechniqueRequirementMode = .allowed,
+        restPauseSetMode: TechniqueRequirementMode = .allowed,
+        supersetMode: TechniqueRequirementMode = .allowed
+    ) {
+        self.warmupSetMode = warmupSetMode
+        self.dropSetMode = dropSetMode
+        self.restPauseSetMode = restPauseSetMode
+        self.supersetMode = supersetMode
+    }
+
+    /// Whether any advanced techniques are enabled (allowed or required)
+    var anyEnabled: Bool {
+        warmupSetMode != .disabled || dropSetMode != .disabled ||
+        restPauseSetMode != .disabled || supersetMode != .disabled
+    }
+
+    // Legacy compatibility - convert from old boolean format
+    init(
+        allowWarmupSets: Bool,
+        allowDropSets: Bool,
+        allowRestPauseSets: Bool,
+        allowSupersets: Bool
+    ) {
+        self.warmupSetMode = allowWarmupSets ? .allowed : .disabled
+        self.dropSetMode = allowDropSets ? .allowed : .disabled
+        self.restPauseSetMode = allowRestPauseSets ? .allowed : .disabled
+        self.supersetMode = allowSupersets ? .allowed : .disabled
+    }
+}
+
+// MARK: - Per-Workout Generation Options
+
+/// Options for a single workout generation request
+struct WorkoutGenerationOptions: Codable, Equatable {
+    /// Requirement mode for warmup sets
+    var warmupSetMode: TechniqueRequirementMode
+
+    /// Requirement mode for drop sets
+    var dropSetMode: TechniqueRequirementMode
+
+    /// Requirement mode for rest-pause sets
+    var restPauseMode: TechniqueRequirementMode
+
+    /// Requirement mode for supersets/circuits
+    var supersetMode: TechniqueRequirementMode
+
+    init(
+        warmupSetMode: TechniqueRequirementMode = .allowed,
+        dropSetMode: TechniqueRequirementMode = .allowed,
+        restPauseMode: TechniqueRequirementMode = .allowed,
+        supersetMode: TechniqueRequirementMode = .allowed
+    ) {
+        self.warmupSetMode = warmupSetMode
+        self.dropSetMode = dropSetMode
+        self.restPauseMode = restPauseMode
+        self.supersetMode = supersetMode
+    }
+
+    /// Apply global settings - combine per-workout options with global profile settings
+    func applying(globalSettings: AdvancedTechniqueSettings) -> WorkoutGenerationOptions {
+        WorkoutGenerationOptions(
+            warmupSetMode: effectiveMode(perWorkout: warmupSetMode, global: globalSettings.warmupSetMode),
+            dropSetMode: effectiveMode(perWorkout: dropSetMode, global: globalSettings.dropSetMode),
+            restPauseMode: effectiveMode(perWorkout: restPauseMode, global: globalSettings.restPauseSetMode),
+            supersetMode: effectiveMode(perWorkout: supersetMode, global: globalSettings.supersetMode)
+        )
+    }
+
+    /// Determines the effective mode based on global and per-workout settings
+    /// - Global "required" always wins (user wants this on all workouts)
+    /// - Global "disabled" always wins (user never wants this)
+    /// - Global "allowed" defers to per-workout setting
+    private func effectiveMode(perWorkout: TechniqueRequirementMode, global: TechniqueRequirementMode) -> TechniqueRequirementMode {
+        switch global {
+        case .required:
+            // Global required = always required, can't be overridden
+            return .required
+        case .disabled:
+            // Global disabled = always disabled, can't be overridden
+            return .disabled
+        case .allowed:
+            // Global allowed = defer to per-workout setting
+            return perWorkout
+        }
+    }
+}
+
+/// How a technique should be handled in workout generation
+enum TechniqueRequirementMode: String, Codable, CaseIterable, Equatable, RawRepresentable {
+    case disabled = "Disabled"
+    case allowed = "Allowed"
+    case required = "Required"
+
+    var description: String {
+        switch self {
+        case .disabled:
+            return "AI will not include this technique"
+        case .allowed:
+            return "AI may include if appropriate"
+        case .required:
+            return "AI must include this technique"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .disabled: return "xmark.circle"
+        case .allowed: return "checkmark.circle"
+        case .required: return "exclamationmark.circle.fill"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .disabled: return "gray"
+        case .allowed: return "blue"
+        case .required: return "orange"
+        }
     }
 }
