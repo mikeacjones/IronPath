@@ -156,7 +156,7 @@ struct WorkoutDetailView: View {
                     Button {
                         onRegenerate()
                     } label: {
-                        Text("Generate Different Workout")
+                        Text("Discard Workout")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -249,9 +249,6 @@ struct WorkoutDetailView: View {
     }
 
     private func removeExercise(_ exercise: WorkoutExercise) {
-        // Don't allow removing the last exercise
-        guard workout.exercises.count > 1 else { return }
-
         // Remove exercise from any group it belongs to
         if var groups = workout.exerciseGroups {
             for i in groups.indices {

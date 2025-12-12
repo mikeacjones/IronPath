@@ -345,9 +345,9 @@ struct ExercisePreferencePickerView: View {
         case .normal:
             return "This exercise will be suggested based on your workout type and goals."
         case .preferMore:
-            return "Claude will prioritize including this exercise in your workouts."
+            return "Your AI will prioritize including this exercise in your workouts."
         case .preferLess:
-            return "Claude will avoid this exercise unless you specifically request it."
+            return "Your AI will avoid this exercise unless you specifically request it."
         case .doNotSuggest:
             return "This exercise will never be included in generated workouts."
         }

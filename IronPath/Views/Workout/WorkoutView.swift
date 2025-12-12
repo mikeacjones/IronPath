@@ -55,7 +55,7 @@ struct WorkoutView: View {
                             .font(.title)
                             .fontWeight(.bold)
 
-                        Text("Let Claude generate a personalized workout based on your profile, goals, and recent training")
+                        Text("Let your AI generate a personalized workout based on your profile, goals, and recent training")
                             .font(.body)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
@@ -75,15 +75,31 @@ struct WorkoutView: View {
                             .controlSize(.large)
                             .accessibilityIdentifier("auto_generate_workout_button")
 
-                            // Manual selection button
+                            // Manual selection button - still AI generated but with options
                             Button {
                                 showWorkoutSetup = true
                             } label: {
-                                Text("Choose Workout Type")
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                    Text("Generate with Options")
+                                }
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
                             .accessibilityIdentifier("choose_workout_type_button")
+
+                            // Build your own - no AI, empty workout
+                            Button {
+                                createEmptyWorkout()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "hammer")
+                                    Text("Build Your Own")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                            .accessibilityIdentifier("build_your_own_button")
                         }
                     }
                     .padding()
@@ -223,5 +239,14 @@ struct WorkoutView: View {
                 }
             }
         }
+    }
+
+    private func createEmptyWorkout() {
+        let workout = Workout(
+            name: "Custom Workout",
+            exercises: [],
+            notes: ""
+        )
+        pendingWorkoutManager.pendingWorkout = workout
     }
 }

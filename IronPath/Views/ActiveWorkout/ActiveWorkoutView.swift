@@ -2407,7 +2407,7 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Available Plates")
                 } footer: {
-                    Text("Set count per side (0 = unlimited). Swipe left to remove.")
+                    Text("Swipe left to remove available plates")
                 }
 
                 Section {
@@ -2441,7 +2441,7 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Add Plate")
                 } footer: {
-                    Text("Enter weight and quantity per side (leave qty empty for unlimited)")
+                    Text("Enter weight and quantity of plates (leave qty empty for unlimited)")
                 }
 
                 Section {
@@ -2541,7 +2541,7 @@ struct PlateRowEditor: View {
                     }
                 }
 
-            Text("/side")
+            Text("")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
