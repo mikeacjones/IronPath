@@ -15,6 +15,8 @@ struct Exercise: Codable, Identifiable, Hashable {
     var videoURL: String? // YouTube video URL for demonstration
     var isCustom: Bool // User-created vs pre-defined
     var customEquipmentId: UUID? // Reference to CustomEquipment if using custom equipment
+    var movementPattern: MovementPattern? // Classification for similarity matching
+    var isUnilateral: Bool // Single-arm/leg exercises (e.g., single-arm rows, lunges)
 
     init(
         id: UUID = UUID(),
@@ -29,7 +31,9 @@ struct Exercise: Codable, Identifiable, Hashable {
         formTips: String = "",
         videoURL: String? = nil,
         isCustom: Bool = false,
-        customEquipmentId: UUID? = nil
+        customEquipmentId: UUID? = nil,
+        movementPattern: MovementPattern? = nil,
+        isUnilateral: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -44,6 +48,18 @@ struct Exercise: Codable, Identifiable, Hashable {
         self.videoURL = videoURL
         self.isCustom = isCustom
         self.customEquipmentId = customEquipmentId
+        self.movementPattern = movementPattern
+        self.isUnilateral = isUnilateral
+    }
+
+    /// Whether this is a compound (multi-joint) movement
+    var isCompound: Bool {
+        guard let pattern = movementPattern else {
+            // Fallback: compound if targets multiple muscle groups
+            return primaryMuscleGroups.count > 1 || !secondaryMuscleGroups.isEmpty
+        }
+        // Isolation and isometric are not compound
+        return pattern != .isolation && pattern != .isometric
     }
 
     /// Extract YouTube video ID from URL
@@ -74,6 +90,34 @@ struct Exercise: Codable, Identifiable, Hashable {
         }
 
         return nil
+    }
+
+    // MARK: - Codable (backward compatibility)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, alternateNames, primaryMuscleGroups, secondaryMuscleGroups
+        case equipment, specificMachine, difficulty, instructions, formTips
+        case videoURL, isCustom, customEquipmentId, movementPattern, isUnilateral
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        alternateNames = try container.decodeIfPresent([String].self, forKey: .alternateNames) ?? []
+        primaryMuscleGroups = try container.decode(Set<MuscleGroup>.self, forKey: .primaryMuscleGroups)
+        secondaryMuscleGroups = try container.decodeIfPresent(Set<MuscleGroup>.self, forKey: .secondaryMuscleGroups) ?? []
+        equipment = try container.decode(Equipment.self, forKey: .equipment)
+        specificMachine = try container.decodeIfPresent(SpecificMachine.self, forKey: .specificMachine)
+        difficulty = try container.decodeIfPresent(ExerciseDifficulty.self, forKey: .difficulty) ?? .intermediate
+        instructions = try container.decodeIfPresent(String.self, forKey: .instructions) ?? ""
+        formTips = try container.decodeIfPresent(String.self, forKey: .formTips) ?? ""
+        videoURL = try container.decodeIfPresent(String.self, forKey: .videoURL)
+        isCustom = try container.decodeIfPresent(Bool.self, forKey: .isCustom) ?? false
+        customEquipmentId = try container.decodeIfPresent(UUID.self, forKey: .customEquipmentId)
+        // New properties - default to nil/false for backward compatibility
+        movementPattern = try container.decodeIfPresent(MovementPattern.self, forKey: .movementPattern)
+        isUnilateral = try container.decodeIfPresent(Bool.self, forKey: .isUnilateral) ?? false
     }
 }
 

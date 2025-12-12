@@ -50,6 +50,9 @@ class CustomExerciseStore: ObservableObject {
         var customExercise = exercise
         customExercise.isCustom = true
         exercises.append(customExercise)
+
+        // Calculate similarity scores for the new exercise
+        ExerciseSimilarityService.shared.updateSimilaritiesForCustomExercise(customExercise)
     }
 
     /// Add a single exercise without duplicate checking (legacy method for compatibility)
@@ -57,6 +60,9 @@ class CustomExerciseStore: ObservableObject {
         var customExercise = exercise
         customExercise.isCustom = true
         exercises.append(customExercise)
+
+        // Calculate similarity scores for the new exercise
+        ExerciseSimilarityService.shared.updateSimilaritiesForCustomExercise(customExercise)
     }
 
     /// Batch add exercises, filtering out duplicates
@@ -73,6 +79,9 @@ class CustomExerciseStore: ObservableObject {
                 customExercise.isCustom = true
                 exercises.append(customExercise)
                 added.append(customExercise)
+
+                // Calculate similarity scores for the new exercise
+                ExerciseSimilarityService.shared.updateSimilaritiesForCustomExercise(customExercise)
             }
         }
 
@@ -84,17 +93,33 @@ class CustomExerciseStore: ObservableObject {
     /// Update an existing exercise
     func updateExercise(_ exercise: Exercise) {
         if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
+            let oldName = exercises[index].name
             exercises[index] = exercise
+
+            // Update similarity cache if name changed
+            if oldName != exercise.name {
+                ExerciseSimilarityService.shared.removeSimilaritiesForCustomExercise(named: oldName)
+            }
+            ExerciseSimilarityService.shared.updateSimilaritiesForCustomExercise(exercise)
         }
     }
 
     /// Delete an exercise by ID
     func deleteExercise(id: UUID) {
+        if let exercise = exercises.first(where: { $0.id == id }) {
+            ExerciseSimilarityService.shared.removeSimilaritiesForCustomExercise(named: exercise.name)
+        }
         exercises.removeAll { $0.id == id }
     }
 
     /// Delete exercises at specified indices
     func deleteExercises(at offsets: IndexSet) {
+        // Remove from similarity cache first
+        for index in offsets {
+            if index < exercises.count {
+                ExerciseSimilarityService.shared.removeSimilaritiesForCustomExercise(named: exercises[index].name)
+            }
+        }
         exercises.remove(atOffsets: offsets)
     }
 
