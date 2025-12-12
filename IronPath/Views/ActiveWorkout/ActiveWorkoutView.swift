@@ -2043,17 +2043,31 @@ struct PlateCalculatorView: View {
     }
 
     /// Calculate plate difference from previous set (positive = add, negative = remove)
+    /// Prefers showing only additions when possible - only shows removals when mathematically necessary
     private var plateDifference: [(Double, Int)]? {
         guard let prevPlates = previousPlatesNeeded,
+              let prevPerSide = previousWeightPerSide,
               previousWeight != totalWeight else { return nil }
 
-        // Convert current and previous plates to dictionaries
+        // If weight is increasing, try to achieve it by only adding plates
+        if weightPerSide > prevPerSide {
+            let additionalWeightNeeded = weightPerSide - prevPerSide
+            let additionalPlates = calculatePlatesForWeight(additionalWeightNeeded)
+
+            // Check if we can make up the exact difference with available plates
+            let achievedWeight = additionalPlates.reduce(0.0) { $0 + $1.0 * Double($1.1) }
+            if abs(achievedWeight - additionalWeightNeeded) < 0.01 {
+                // Success! We can reach the target by just adding plates
+                return additionalPlates.isEmpty ? nil : additionalPlates
+            }
+        }
+
+        // Fall back to full recalculation (for weight decrease or when add-only is impossible)
         let currentDict = Dictionary(uniqueKeysWithValues: platesNeeded)
-        var prevDict = Dictionary(uniqueKeysWithValues: prevPlates)
+        let prevDict = Dictionary(uniqueKeysWithValues: prevPlates)
 
         var diff: [(Double, Int)] = []
 
-        // Check all plate sizes
         let allWeights = Set(currentDict.keys).union(prevDict.keys)
         for weight in allWeights.sorted(by: >) {
             let currentCount = currentDict[weight] ?? 0
@@ -2065,6 +2079,25 @@ struct PlateCalculatorView: View {
         }
 
         return diff.isEmpty ? nil : diff
+    }
+
+    /// Calculate plates needed for a specific weight using greedy algorithm
+    private func calculatePlatesForWeight(_ targetWeight: Double) -> [(Double, Int)] {
+        var remaining = targetWeight
+        var plates: [(Double, Int)] = []
+
+        for plate in currentPlates {
+            var count = Int(remaining / plate.weight)
+            if plate.hasLimit {
+                count = min(count, plate.count)
+            }
+            if count > 0 {
+                plates.append((plate.weight, count))
+                remaining -= Double(count) * plate.weight
+            }
+        }
+
+        return plates
     }
 
     /// Whether we're adding or removing plates overall
