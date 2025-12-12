@@ -262,7 +262,8 @@ private struct ExerciseCardContent: View {
                 onExerciseTap: onExerciseTap,
                 onExerciseReplace: onExerciseReplace,
                 onExerciseRemove: onExerciseRemove,
-                onReorderWithinGroup: onReorderWithinGroup
+                onReorderWithinGroup: onReorderWithinGroup,
+                onGroupTap: nil // Group tap handled internally via onExerciseTap
             )
         }
     }
@@ -416,14 +417,27 @@ private struct SupersetGroupContent: View {
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onReorderWithinGroup: (ExerciseGroup) -> Void
+    let onGroupTap: (() -> Void)?
 
     private var groupColor: Color {
         group.groupType.swiftUIColor
     }
 
+    /// Find the next exercise with incomplete sets in this group
+    private var nextExerciseWithIncompleteSets: WorkoutExercise? {
+        // First, try to find the first exercise with incomplete sets
+        for exercise in exercises {
+            if exercise.sets.contains(where: { !$0.isCompleted }) {
+                return exercise
+            }
+        }
+        // All complete, return first exercise
+        return exercises.first
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
+            // Header - tappable to jump to next exercise
             HStack(spacing: 8) {
                 Image(systemName: group.groupType.iconName)
                     .foregroundStyle(groupColor)
@@ -433,6 +447,15 @@ private struct SupersetGroupContent: View {
                     .foregroundStyle(groupColor)
 
                 Spacer()
+
+                if isLiveWorkout {
+                    // Show progress
+                    let completedSets = exercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
+                    let totalSets = exercises.flatMap { $0.sets }.count
+                    Text("\(completedSets)/\(totalSets)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Button {
                     onReorderWithinGroup(group)
@@ -448,6 +471,12 @@ private struct SupersetGroupContent: View {
             .padding(.horizontal, 12)
             .padding(.top, 10)
             .padding(.bottom, 8)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isLiveWorkout, let nextExercise = nextExerciseWithIncompleteSets {
+                    onExerciseTap(nextExercise)
+                }
+            }
 
             // Exercises
             VStack(spacing: 6) {
