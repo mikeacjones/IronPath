@@ -34,6 +34,9 @@ struct ActiveWorkoutView: View {
     @State private var completedWorkoutForSummary: Workout?
     @State private var isFinishing = false
 
+    // Reorder state
+    @State private var isReordering = false
+
     init(workout: Workout, userProfile: UserProfile?, onComplete: @escaping (Workout) -> Void, onCancel: @escaping () -> Void) {
         self.workout = workout
         self.userProfile = userProfile
@@ -53,39 +56,6 @@ struct ActiveWorkoutView: View {
         currentWorkout.exercises.allSatisfy { $0.isCompleted }
     }
 
-    /// Organizes exercises into display items (standalone or grouped)
-    /// Groups exercises that belong to the same superset/circuit together
-    var exerciseDisplayItems: [ExerciseDisplayItem] {
-        var items: [ExerciseDisplayItem] = []
-        var processedExerciseIds: Set<UUID> = []
-
-        for exercise in currentWorkout.exercises {
-            // Skip if already processed (part of a group we already added)
-            guard !processedExerciseIds.contains(exercise.id) else { continue }
-
-            // Check if this exercise belongs to a group
-            if let group = currentWorkout.group(for: exercise.id) {
-                // Get all exercises in this group, in the order defined by the group
-                let groupExercises = group.exerciseIds.compactMap { exerciseId in
-                    currentWorkout.exercises.first { $0.id == exerciseId }
-                }
-
-                // Mark all exercises in this group as processed
-                for groupExercise in groupExercises {
-                    processedExerciseIds.insert(groupExercise.id)
-                }
-
-                items.append(.group(group, groupExercises))
-            } else {
-                // Standalone exercise
-                processedExerciseIds.insert(exercise.id)
-                items.append(.standalone(exercise))
-            }
-        }
-
-        return items
-    }
-
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -103,68 +73,51 @@ struct ActiveWorkoutView: View {
                 // Exercise list
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(exerciseDisplayItems) { item in
-                            switch item {
-                            case .standalone(let exercise):
-                                ActiveExerciseCard(
-                                    exercise: exercise,
-                                    currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
-                                    onTap: {
-                                        selectedExercise = exercise
-                                    },
-                                    onReplace: {
-                                        exerciseToReplace = exercise
-                                        replacementNotes = ""
-                                        showReplacementSheet = true
-                                    },
-                                    onRemove: {
-                                        exerciseToRemove = exercise
-                                        showRemoveConfirmation = true
-                                    },
-                                    onSetPreference: { preference in
-                                        preferenceManager.setPreference(
-                                            preference,
-                                            for: exercise.exercise.name
-                                        )
-                                    }
-                                )
-
-                            case .group(let group, let exercises):
-                                SupersetGroupCard(
-                                    group: group,
-                                    exercises: exercises,
-                                    preferenceManager: preferenceManager,
-                                    onExerciseTap: { exercise in
-                                        selectedExercise = exercise
-                                    },
-                                    onExerciseReplace: { exercise in
-                                        exerciseToReplace = exercise
-                                        replacementNotes = ""
-                                        showReplacementSheet = true
-                                    },
-                                    onExerciseRemove: { exercise in
-                                        exerciseToRemove = exercise
-                                        showRemoveConfirmation = true
-                                    }
+                        ReorderableExerciseList(
+                            workout: $currentWorkout,
+                            isLiveWorkout: true,
+                            isReordering: isReordering,
+                            preferenceManager: preferenceManager,
+                            onExerciseTap: { exercise in
+                                selectedExercise = exercise
+                            },
+                            onExerciseReplace: { exercise in
+                                exerciseToReplace = exercise
+                                replacementNotes = ""
+                                showReplacementSheet = true
+                            },
+                            onExerciseRemove: { exercise in
+                                exerciseToRemove = exercise
+                                showRemoveConfirmation = true
+                            },
+                            onSetPreference: { exercise, preference in
+                                preferenceManager.setPreference(
+                                    preference,
+                                    for: exercise.exercise.name
                                 )
                             }
+                        )
+                        .onChange(of: currentWorkout) { _, _ in
+                            persistWorkoutState()
                         }
 
-                        // Add Exercise button
-                        Button {
-                            showAddExerciseSheet = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                Text("Add Exercise")
-                                    .fontWeight(.medium)
+                        // Add Exercise button (hidden in reorder mode)
+                        if !isReordering {
+                            Button {
+                                showAddExerciseSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.title2)
+                                    Text("Add Exercise")
+                                        .fontWeight(.medium)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .foregroundStyle(.blue)
+                                .cornerRadius(12)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .foregroundStyle(.blue)
-                            .cornerRadius(12)
                         }
                     }
                     .padding()
@@ -212,6 +165,15 @@ struct ActiveWorkoutView: View {
                     Button("Keep Going", role: .cancel) { }
                 } message: {
                     Text("Are you sure you want to cancel this workout? Your progress will be lost.")
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    withAnimation {
+                        isReordering.toggle()
+                    }
+                } label: {
+                    Text(isReordering ? "Done" : "Reorder")
                 }
             }
         }
@@ -579,23 +541,6 @@ struct ExerciseGroupInfo {
     let position: Int
     let isFirst: Bool
     let isLast: Bool
-}
-
-// MARK: - Exercise Display Item
-
-/// Represents either a standalone exercise or a group of exercises for display
-enum ExerciseDisplayItem: Identifiable {
-    case standalone(WorkoutExercise)
-    case group(ExerciseGroup, [WorkoutExercise])
-
-    var id: String {
-        switch self {
-        case .standalone(let exercise):
-            return "standalone-\(exercise.id.uuidString)"
-        case .group(let group, _):
-            return "group-\(group.id.uuidString)"
-        }
-    }
 }
 
 // MARK: - Exercise Card With Grouping
