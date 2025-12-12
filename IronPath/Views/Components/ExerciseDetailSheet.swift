@@ -173,7 +173,8 @@ struct ExerciseDetailSheet: View {
                                     isLastSet: setIndex == updatedExercise.sets.count - 1,
                                     onSetCompleted: (isLiveWorkout && isInSuperset) ? {
                                         handleSupersetSetCompletion(forSetIndex: setIndex)
-                                    } : nil
+                                    } : nil,
+                                    isLiveWorkout: isLiveWorkout
                                 )
 
                                 // Delete set button (only show if more than 1 set)
