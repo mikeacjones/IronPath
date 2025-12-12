@@ -4,12 +4,31 @@ import SwiftUI
 
 struct WorkoutDetailView: View {
     @State var workout: Workout
+    @EnvironmentObject var appState: AppState
+    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
+
     let onStartWorkout: (Workout) -> Void
     let onRegenerate: () -> Void
     let onConvertToNormal: ((Workout) -> Void)?
     let onWorkoutUpdated: ((Workout) -> Void)?
 
-    @State private var editingExerciseIndex: Int?
+    // Editing state
+    @State private var selectedExercise: WorkoutExercise?
+
+    // Add exercise state
+    @State private var showAddExerciseSheet = false
+
+    // Remove exercise state
+    @State private var exerciseToRemove: WorkoutExercise?
+    @State private var showRemoveConfirmation = false
+
+    // Replace exercise state
+    @State private var exerciseToReplace: WorkoutExercise?
+    @State private var showReplacementSheet = false
+    @State private var replacementNotes: String = ""
+    @State private var isReplacingExercise = false
+    @State private var replacementError: String?
+    @State private var showReplacementError = false
 
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
         self._workout = State(initialValue: workout)
@@ -27,9 +46,42 @@ struct WorkoutDetailView: View {
         self.onWorkoutUpdated = onWorkoutUpdated
     }
 
+    /// Organizes exercises into display items (standalone or grouped)
+    /// Groups exercises that belong to the same superset/circuit together
+    var exerciseDisplayItems: [ExerciseDisplayItem] {
+        var items: [ExerciseDisplayItem] = []
+        var processedExerciseIds: Set<UUID> = []
+
+        for exercise in workout.exercises {
+            // Skip if already processed (part of a group we already added)
+            guard !processedExerciseIds.contains(exercise.id) else { continue }
+
+            // Check if this exercise belongs to a group
+            if let group = workout.group(for: exercise.id) {
+                // Get all exercises in this group, in the order defined by the group
+                let groupExercises = group.exerciseIds.compactMap { exerciseId in
+                    workout.exercises.first { $0.id == exerciseId }
+                }
+
+                // Mark all exercises in this group as processed
+                for groupExercise in groupExercises {
+                    processedExerciseIds.insert(groupExercise.id)
+                }
+
+                items.append(.group(group, groupExercises))
+            } else {
+                // Standalone exercise
+                processedExerciseIds.insert(exercise.id)
+                items.append(.standalone(exercise))
+            }
+        }
+
+        return items
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
                 // Deload banner with option to switch to normal
                 if workout.isDeload {
                     VStack(spacing: 12) {
@@ -73,19 +125,80 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                Text("Tap an exercise to edit sets, reps, or weight")
+                Text("Tap an exercise to edit sets, reps, or weight. Use the menu to add, remove, or replace exercises.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
 
-                ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { index, workoutExercise in
-                    Button {
-                        editingExerciseIndex = index
-                    } label: {
-                        ExerciseCard(workoutExercise: workoutExercise)
+                // Exercise list using shared components
+                VStack(spacing: 12) {
+                    ForEach(exerciseDisplayItems) { item in
+                        switch item {
+                        case .standalone(let exercise):
+                            ActiveExerciseCard(
+                                exercise: exercise,
+                                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                                isLiveWorkout: false,
+                                onTap: {
+                                    selectedExercise = exercise
+                                },
+                                onReplace: {
+                                    exerciseToReplace = exercise
+                                    replacementNotes = ""
+                                    showReplacementSheet = true
+                                },
+                                onRemove: {
+                                    exerciseToRemove = exercise
+                                    showRemoveConfirmation = true
+                                },
+                                onSetPreference: { preference in
+                                    preferenceManager.setPreference(
+                                        preference,
+                                        for: exercise.exercise.name
+                                    )
+                                }
+                            )
+
+                        case .group(let group, let exercises):
+                            SupersetGroupCard(
+                                group: group,
+                                exercises: exercises,
+                                isLiveWorkout: false,
+                                preferenceManager: preferenceManager,
+                                onExerciseTap: { exercise in
+                                    selectedExercise = exercise
+                                },
+                                onExerciseReplace: { exercise in
+                                    exerciseToReplace = exercise
+                                    replacementNotes = ""
+                                    showReplacementSheet = true
+                                },
+                                onExerciseRemove: { exercise in
+                                    exerciseToRemove = exercise
+                                    showRemoveConfirmation = true
+                                }
+                            )
+                        }
                     }
-                    .buttonStyle(.plain)
+
+                    // Add Exercise button
+                    Button {
+                        showAddExerciseSheet = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                            Text("Add Exercise")
+                                .fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .foregroundStyle(.blue)
+                        .cornerRadius(12)
+                    }
                 }
+                .padding(.horizontal)
 
                 VStack(spacing: 12) {
                     Button {
@@ -109,12 +222,14 @@ struct WorkoutDetailView: View {
                 .padding()
             }
         }
-        .sheet(item: $editingExerciseIndex) { index in
+        .sheet(item: $selectedExercise) { exercise in
+            // Get current version of exercise from workout (in case it was updated)
+            let currentExercise = workout.exercises.first { $0.id == exercise.id } ?? exercise
+
             ExerciseDetailSheet(
-                exercise: workout.exercises[index],
+                exercise: currentExercise,
                 onUpdate: { updatedExercise in
-                    workout.exercises[index] = updatedExercise
-                    onWorkoutUpdated?(workout)
+                    updateExercise(updatedExercise)
                 },
                 isLiveWorkout: false,
                 isPendingWorkout: true,
@@ -122,6 +237,181 @@ struct WorkoutDetailView: View {
                 showFormTipsOverride: false
             )
         }
+        .sheet(isPresented: $showAddExerciseSheet) {
+            AddExerciseSheet(
+                existingExercises: workout.exercises.map { $0.exercise.name },
+                userProfile: appState.userProfile
+            ) { exercise in
+                addExerciseFromLibrary(exercise)
+            }
+        }
+        .sheet(isPresented: $showReplacementSheet) {
+            ExerciseReplacementSheet(
+                exercise: exerciseToReplace,
+                currentWorkoutExercises: workout.exercises.map { $0.exercise.name },
+                notes: $replacementNotes,
+                isLoading: $isReplacingExercise,
+                onReplace: {
+                    replaceExercise()
+                },
+                onQuickReplace: { newExercise in
+                    quickReplaceExercise(with: newExercise)
+                },
+                onCancel: {
+                    showReplacementSheet = false
+                    exerciseToReplace = nil
+                }
+            )
+        }
+        .alert(
+            "Remove Exercise?",
+            isPresented: $showRemoveConfirmation,
+            presenting: exerciseToRemove
+        ) { exercise in
+            Button("Remove", role: .destructive) {
+                removeExercise(exercise)
+            }
+            Button("Cancel", role: .cancel) {
+                exerciseToRemove = nil
+            }
+        } message: { exercise in
+            Text("Remove \(exercise.exercise.name) from this workout?")
+        }
+        .alert("Replacement Error", isPresented: $showReplacementError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(replacementError ?? "Failed to replace exercise")
+        }
+    }
+
+    // MARK: - Exercise Management
+
+    private func addExerciseFromLibrary(_ exercise: Exercise) {
+        let sets = (1...3).map { setNum in
+            ExerciseSet(
+                setNumber: setNum,
+                targetReps: 10,
+                restPeriod: 90
+            )
+        }
+
+        let workoutExercise = WorkoutExercise(
+            exercise: exercise,
+            sets: sets,
+            orderIndex: workout.exercises.count,
+            notes: ""
+        )
+
+        workout.exercises.append(workoutExercise)
+        onWorkoutUpdated?(workout)
+    }
+
+    private func removeExercise(_ exercise: WorkoutExercise) {
+        // Don't allow removing the last exercise
+        guard workout.exercises.count > 1 else { return }
+
+        // Remove exercise from any group it belongs to
+        if var groups = workout.exerciseGroups {
+            for i in groups.indices {
+                if groups[i].exerciseIds.contains(exercise.id) {
+                    // Remove the exercise from this group
+                    groups[i].exerciseIds.removeAll { $0 == exercise.id }
+                }
+            }
+
+            // Remove any groups that now have only 1 or 0 exercises
+            // (a group with 1 exercise is no longer a valid superset/circuit)
+            groups.removeAll { $0.exerciseIds.count <= 1 }
+
+            // Update group types based on new exercise counts
+            for i in groups.indices {
+                groups[i].groupType = ExerciseGroupType.suggestedType(for: groups[i].exerciseIds.count)
+            }
+
+            workout.exerciseGroups = groups.isEmpty ? nil : groups
+        }
+
+        workout.exercises.removeAll { $0.id == exercise.id }
+
+        // Reindex remaining exercises
+        for i in workout.exercises.indices {
+            workout.exercises[i].orderIndex = i
+        }
+
+        exerciseToRemove = nil
+        onWorkoutUpdated?(workout)
+    }
+
+    private func updateExercise(_ updatedExercise: WorkoutExercise) {
+        if let index = workout.exercises.firstIndex(where: { $0.id == updatedExercise.id }) {
+            workout.exercises[index] = updatedExercise
+        }
+        selectedExercise = nil
+        onWorkoutUpdated?(workout)
+    }
+
+    private func replaceExercise() {
+        guard let exerciseToReplace = exerciseToReplace,
+              let profile = appState.userProfile else { return }
+
+        isReplacingExercise = true
+
+        Task {
+            do {
+                let provider = AIProviderManager.shared.currentProvider
+                let replacement = try await provider.replaceExercise(
+                    exercise: exerciseToReplace,
+                    profile: profile,
+                    reason: replacementNotes.isEmpty ? nil : replacementNotes,
+                    currentWorkout: workout
+                )
+
+                await MainActor.run {
+                    if let index = workout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
+                        workout.exercises[index] = replacement
+                    }
+                    onWorkoutUpdated?(workout)
+                    isReplacingExercise = false
+                    showReplacementSheet = false
+                    self.exerciseToReplace = nil
+                }
+            } catch {
+                await MainActor.run {
+                    replacementError = error.localizedDescription
+                    showReplacementError = true
+                    isReplacingExercise = false
+                }
+            }
+        }
+    }
+
+    private func quickReplaceExercise(with newExercise: Exercise) {
+        guard let exerciseToReplace = exerciseToReplace else { return }
+
+        // Create a new WorkoutExercise with the same sets structure but new exercise
+        let newSets = exerciseToReplace.sets.map { oldSet in
+            ExerciseSet(
+                setNumber: oldSet.setNumber,
+                targetReps: oldSet.targetReps,
+                weight: oldSet.weight,
+                restPeriod: oldSet.restPeriod
+            )
+        }
+
+        let replacement = WorkoutExercise(
+            exercise: newExercise,
+            sets: newSets,
+            orderIndex: exerciseToReplace.orderIndex,
+            notes: ""
+        )
+
+        if let index = workout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
+            workout.exercises[index] = replacement
+        }
+        onWorkoutUpdated?(workout)
+
+        showReplacementSheet = false
+        self.exerciseToReplace = nil
     }
 
     private func convertToNormalWorkout() {
@@ -165,38 +455,5 @@ struct WorkoutDetailView: View {
 
         workout = updatedWorkout
         onConvertToNormal?(updatedWorkout)
-    }
-}
-
-// MARK: - Exercise Card
-
-struct ExerciseCard: View {
-    let workoutExercise: WorkoutExercise
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(workoutExercise.exercise.name)
-                .font(.headline)
-
-            HStack {
-                Label("\(workoutExercise.sets.count) sets", systemImage: "repeat")
-                Spacer()
-                Label("\(workoutExercise.sets.first?.targetReps ?? 0) reps", systemImage: "number")
-                Spacer()
-                Label("\(Int(workoutExercise.sets.first?.restPeriod ?? 0))s rest", systemImage: "clock")
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-
-            if !workoutExercise.notes.isEmpty {
-                Text(workoutExercise.notes)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .padding(.horizontal)
     }
 }
