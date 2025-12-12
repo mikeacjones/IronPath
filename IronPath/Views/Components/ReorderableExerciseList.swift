@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - Draggable Exercise List
 
@@ -16,98 +15,204 @@ struct DraggableExerciseList: View {
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
 
     // Drag state
-    @State private var draggingItem: ExerciseDisplayItem?
-    @State private var draggedOverItem: ExerciseDisplayItem?
+    @State private var draggingItemID: String?
+    @State private var dragOffset: CGFloat = 0
+    @State private var itemFrames: [String: CGRect] = [:]
+    @State private var initialDragItemIndex: Int?
+    @State private var currentHoverIndex: Int?
 
     // State for group reordering sheet
     @State private var groupToReorder: ExerciseGroup?
 
+    // Haptic feedback
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+
     var body: some View {
         VStack(spacing: 12) {
-            ForEach(workout.displayItems) { item in
-                DraggableItemView(
+            ForEach(Array(workout.displayItems.enumerated()), id: \.element.id) { index, item in
+                let isDragging = draggingItemID == item.id
+                let shouldOffset = calculateOffset(for: index)
+
+                ExerciseItemView(
                     item: item,
                     workout: workout,
                     isLiveWorkout: isLiveWorkout,
                     preferenceManager: preferenceManager,
-                    draggingItem: $draggingItem,
-                    draggedOverItem: $draggedOverItem,
                     onExerciseTap: onExerciseTap,
                     onExerciseReplace: onExerciseReplace,
                     onExerciseRemove: onExerciseRemove,
                     onSetPreference: onSetPreference,
                     onReorderWithinGroup: { group in
                         groupToReorder = group
-                    },
-                    onDrop: { fromItem, toItem in
-                        reorderItems(from: fromItem, to: toItem)
                     }
+                )
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear {
+                                itemFrames[item.id] = geo.frame(in: .named("reorderSpace"))
+                            }
+                            .onChange(of: geo.frame(in: .named("reorderSpace"))) { _, newFrame in
+                                if draggingItemID == nil {
+                                    itemFrames[item.id] = newFrame
+                                }
+                            }
+                    }
+                )
+                .offset(y: isDragging ? dragOffset : shouldOffset)
+                .zIndex(isDragging ? 100 : 0)
+                .scaleEffect(isDragging ? 1.03 : 1.0)
+                .shadow(
+                    color: isDragging ? .black.opacity(0.2) : .clear,
+                    radius: isDragging ? 10 : 0,
+                    y: isDragging ? 5 : 0
+                )
+                .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: shouldOffset)
+                .animation(.easeInOut(duration: 0.2), value: isDragging)
+                .gesture(
+                    LongPressGesture(minimumDuration: 0.3)
+                        .sequenced(before: DragGesture())
+                        .onChanged { value in
+                            switch value {
+                            case .first(true):
+                                // Long press recognized
+                                break
+                            case .second(true, let drag):
+                                if let drag = drag {
+                                    handleDragChange(item: item, index: index, translation: drag.translation.height)
+                                }
+                            default:
+                                break
+                            }
+                        }
+                        .onEnded { value in
+                            handleDragEnd()
+                        }
                 )
             }
         }
+        .coordinateSpace(name: "reorderSpace")
         .sheet(item: $groupToReorder) { group in
             GroupReorderSheet(group: group, workout: $workout)
         }
     }
 
-    private func reorderItems(from sourceItem: ExerciseDisplayItem, to destItem: ExerciseDisplayItem) {
-        let items = workout.displayItems
-        guard let sourceIndex = items.firstIndex(where: { $0.id == sourceItem.id }),
-              let destIndex = items.firstIndex(where: { $0.id == destItem.id }),
-              sourceIndex != destIndex else { return }
+    private func handleDragChange(item: ExerciseDisplayItem, index: Int, translation: CGFloat) {
+        if draggingItemID == nil {
+            // Starting drag
+            draggingItemID = item.id
+            initialDragItemIndex = index
+            currentHoverIndex = index
+            impactFeedback.impactOccurred()
+        }
 
-        let direction = sourceIndex < destIndex ? 1 : 0
-        workout.reorderDisplayItems(from: IndexSet(integer: sourceIndex), to: destIndex + direction)
+        dragOffset = translation
+
+        // Calculate which index we're hovering over
+        guard let initialIndex = initialDragItemIndex,
+              let draggedFrame = itemFrames[item.id] else { return }
+
+        let draggedCenter = draggedFrame.midY + translation
+        let items = workout.displayItems
+
+        var newHoverIndex = initialIndex
+
+        for (i, otherItem) in items.enumerated() {
+            guard i != initialIndex,
+                  let frame = itemFrames[otherItem.id] else { continue }
+
+            if translation > 0 {
+                // Dragging down
+                if i > initialIndex && draggedCenter > frame.midY {
+                    newHoverIndex = i
+                }
+            } else {
+                // Dragging up
+                if i < initialIndex && draggedCenter < frame.midY {
+                    newHoverIndex = i
+                }
+            }
+        }
+
+        if newHoverIndex != currentHoverIndex {
+            currentHoverIndex = newHoverIndex
+            impactFeedback.impactOccurred(intensity: 0.5)
+        }
+    }
+
+    private func handleDragEnd() {
+        guard let initialIndex = initialDragItemIndex,
+              let hoverIndex = currentHoverIndex,
+              initialIndex != hoverIndex else {
+            // Reset without reordering
+            withAnimation(.easeOut(duration: 0.2)) {
+                draggingItemID = nil
+                dragOffset = 0
+                initialDragItemIndex = nil
+                currentHoverIndex = nil
+            }
+            return
+        }
+
+        // Perform the reorder
+        let destination = hoverIndex > initialIndex ? hoverIndex + 1 : hoverIndex
+        workout.reorderDisplayItems(from: IndexSet(integer: initialIndex), to: destination)
+
+        // Reset state
+        withAnimation(.easeOut(duration: 0.2)) {
+            draggingItemID = nil
+            dragOffset = 0
+            initialDragItemIndex = nil
+            currentHoverIndex = nil
+        }
+
+        // Clear and rebuild frames after reorder
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            itemFrames.removeAll()
+        }
+    }
+
+    private func calculateOffset(for index: Int) -> CGFloat {
+        guard let draggingID = draggingItemID,
+              let initialIndex = initialDragItemIndex,
+              let hoverIndex = currentHoverIndex,
+              workout.displayItems[index].id != draggingID else {
+            return 0
+        }
+
+        guard let draggedFrame = itemFrames[draggingID] else { return 0 }
+        let itemHeight = draggedFrame.height + 12 // Include spacing
+
+        if initialIndex < hoverIndex {
+            // Dragging down - items between initial and hover move up
+            if index > initialIndex && index <= hoverIndex {
+                return -itemHeight
+            }
+        } else if initialIndex > hoverIndex {
+            // Dragging up - items between hover and initial move down
+            if index >= hoverIndex && index < initialIndex {
+                return itemHeight
+            }
+        }
+
+        return 0
     }
 }
 
-// MARK: - Draggable Item View
+// MARK: - Exercise Item View
 
-private struct DraggableItemView: View {
+private struct ExerciseItemView: View {
     let item: ExerciseDisplayItem
     let workout: Workout
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
-    @Binding var draggingItem: ExerciseDisplayItem?
-    @Binding var draggedOverItem: ExerciseDisplayItem?
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
     let onReorderWithinGroup: (ExerciseGroup) -> Void
-    let onDrop: (ExerciseDisplayItem, ExerciseDisplayItem) -> Void
-
-    private var isDragging: Bool {
-        draggingItem?.id == item.id
-    }
-
-    private var isDropTarget: Bool {
-        draggedOverItem?.id == item.id && draggingItem?.id != item.id
-    }
 
     var body: some View {
-        itemContent
-            .opacity(isDragging ? 0.5 : 1.0)
-            .overlay(
-                // Drop indicator
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.blue, lineWidth: 2)
-                    .opacity(isDropTarget ? 1 : 0)
-            )
-            .onDrag {
-                self.draggingItem = item
-                return NSItemProvider(object: item.id as NSString)
-            }
-            .onDrop(of: [.text], delegate: ExerciseDropDelegate(
-                item: item,
-                draggingItem: $draggingItem,
-                draggedOverItem: $draggedOverItem,
-                onDrop: onDrop
-            ))
-    }
-
-    @ViewBuilder
-    private var itemContent: some View {
         switch item {
         case .standalone(let exercise):
             ActiveExerciseCard(
@@ -146,36 +251,6 @@ private struct DraggableItemView: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - Exercise Drop Delegate
-
-private struct ExerciseDropDelegate: DropDelegate {
-    let item: ExerciseDisplayItem
-    @Binding var draggingItem: ExerciseDisplayItem?
-    @Binding var draggedOverItem: ExerciseDisplayItem?
-    let onDrop: (ExerciseDisplayItem, ExerciseDisplayItem) -> Void
-
-    func dropEntered(info: DropInfo) {
-        guard let dragging = draggingItem, dragging.id != item.id else { return }
-        draggedOverItem = item
-    }
-
-    func dropExited(info: DropInfo) {
-        draggedOverItem = nil
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        return DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard let dragging = draggingItem else { return false }
-        onDrop(dragging, item)
-        draggingItem = nil
-        draggedOverItem = nil
-        return true
     }
 }
 
