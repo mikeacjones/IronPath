@@ -1820,6 +1820,7 @@ struct PlateCalculatorView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var settings = GymSettings.shared
     @State private var showingPlateEditor = false
+    @State private var customWeightText: String = ""
 
     /// Whether this equipment has a bar (vs leg press sled)
     private var hasBar: Bool {
@@ -1831,8 +1832,14 @@ struct PlateCalculatorView: View {
         }
     }
 
+    /// Whether custom bar weight is currently selected
+    private var isCustomBarWeight: Bool {
+        settings.selectedBarWeight == GymSettings.customBarWeightTag
+    }
+
     private var barWeight: Double {
-        hasBar ? settings.selectedBarWeight : 0
+        guard hasBar else { return 0 }
+        return isCustomBarWeight ? settings.customBarWeight : settings.selectedBarWeight
     }
 
     private var equipmentLabel: String {
@@ -1919,10 +1926,30 @@ struct PlateCalculatorView: View {
                                 Text("45 lbs").tag(45.0)
                                 Text("35 lbs").tag(35.0)
                                 Text("20 lbs").tag(20.0)
-                                Text("15 lbs").tag(15.0)
+                                Text("Custom").tag(GymSettings.customBarWeightTag)
                             }
                             .pickerStyle(.segmented)
                             .padding(.horizontal)
+
+                            // Custom weight input field
+                            if isCustomBarWeight {
+                                HStack {
+                                    TextField("Weight", text: $customWeightText)
+                                        .keyboardType(.decimalPad)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+                                        .onChange(of: customWeightText) { _, newValue in
+                                            if let weight = Double(newValue) {
+                                                settings.customBarWeight = weight
+                                            }
+                                        }
+                                    Text("lbs")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .onAppear {
+                                    customWeightText = settings.customBarWeight > 0 ? formatWeight(settings.customBarWeight) : ""
+                                }
+                            }
                         }
                     }
 
