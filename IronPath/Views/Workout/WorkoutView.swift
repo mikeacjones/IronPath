@@ -24,56 +24,6 @@ struct WorkoutView: View {
         get { pendingWorkoutManager.pendingWorkout }
     }
 
-    /// Determines what workout to do today based on split and recent history
-    private var recommendedWorkoutDay: WorkoutSplitDay? {
-        guard let profile = appState.userProfile else { return nil }
-        let split = profile.workoutPreferences.workoutSplit
-        let rotation = split.workoutRotation
-        guard !rotation.isEmpty else { return nil }
-
-        let history = WorkoutDataManager.shared.getWorkoutHistory()
-
-        // Find the most recent workout that matches a split day
-        if let lastWorkout = history.first {
-            // Try to determine what type of workout was last done
-            let lastWorkoutDay = determineWorkoutDay(from: lastWorkout, split: split)
-
-            if let lastDay = lastWorkoutDay,
-               let lastIndex = rotation.firstIndex(of: lastDay) {
-                // Return the next workout in rotation
-                let nextIndex = (lastIndex + 1) % rotation.count
-                return rotation[nextIndex]
-            }
-        }
-
-        // No history or couldn't determine, start from beginning
-        return rotation.first
-    }
-
-    /// Try to determine what split day a workout was based on the exercises
-    private func determineWorkoutDay(from workout: Workout, split: WorkoutSplit) -> WorkoutSplitDay? {
-        // Get all primary muscle groups from the workout
-        var workoutMuscles = Set<MuscleGroup>()
-        for exercise in workout.exercises {
-            workoutMuscles.formUnion(exercise.exercise.primaryMuscleGroups)
-        }
-
-        // Find the best matching split day
-        var bestMatch: WorkoutSplitDay?
-        var bestScore = 0
-
-        for day in split.workoutRotation {
-            let targetMuscles = day.targetMuscleGroups
-            let overlap = workoutMuscles.intersection(targetMuscles).count
-            if overlap > bestScore {
-                bestScore = overlap
-                bestMatch = day
-            }
-        }
-
-        return bestMatch
-    }
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -105,39 +55,25 @@ struct WorkoutView: View {
                             .font(.title)
                             .fontWeight(.bold)
 
-                        if let recommended = recommendedWorkoutDay,
-                           let profile = appState.userProfile {
-                            VStack(spacing: 8) {
-                                Text("Recommended: \(recommended.rawValue)")
-                                    .font(.headline)
-                                    .foregroundStyle(.blue)
-                                Text("Based on your \(profile.workoutPreferences.workoutSplit.rawValue) split")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Text("Let Claude generate a personalized workout based on your profile and goals")
+                        Text("Let Claude generate a personalized workout based on your profile, goals, and recent training")
                             .font(.body)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
 
                         VStack(spacing: 12) {
-                            // Auto-generate button (uses split recommendation)
-                            if let recommended = recommendedWorkoutDay {
-                                Button {
-                                    autoGenerateWorkout(for: recommended)
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "sparkles")
-                                        Text("Auto Generate \(recommended.rawValue)")
-                                    }
+                            // Auto-generate button - LLM decides workout type
+                            Button {
+                                autoGenerateWorkout()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                    Text("Auto Generate")
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .accessibilityIdentifier("auto_generate_workout_button")
                             }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .accessibilityIdentifier("auto_generate_workout_button")
 
                             // Manual selection button
                             Button {
@@ -185,8 +121,8 @@ struct WorkoutView: View {
         activeWorkoutManager.startWorkout(workout)
     }
 
-    /// Auto-generate a workout based on the recommended split day using agentic approach
-    private func autoGenerateWorkout(for splitDay: WorkoutSplitDay) {
+    /// Auto-generate a workout - LLM decides the type based on split and history
+    private func autoGenerateWorkout() {
         guard let profile = appState.userProfile else {
             errorMessage = "Please complete onboarding first"
             showError = true
@@ -212,10 +148,10 @@ struct WorkoutView: View {
             do {
                 let provider = AIProviderManager.shared.currentProvider
 
-                // Create agentic builder
+                // Create agentic builder - no specific workout type, LLM decides
                 let builder = AgentWorkoutBuilder(
-                    workoutType: splitDay.rawValue,
-                    targetMuscleGroups: splitDay.targetMuscleGroups,
+                    workoutType: nil,
+                    targetMuscleGroups: nil,
                     userNotes: styleNotes,
                     techniqueOptions: effectiveOptions,
                     profile: profile

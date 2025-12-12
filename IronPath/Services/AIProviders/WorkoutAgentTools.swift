@@ -452,11 +452,23 @@ enum WorkoutAgentTools {
 
         if let workoutType = workoutType {
             prompt += "Workout Type: \(workoutType)\n"
-        }
 
-        if let muscleGroups = targetMuscleGroups, !muscleGroups.isEmpty {
-            let groupNames = muscleGroups.map { $0.rawValue }.joined(separator: ", ")
-            prompt += "Target Muscle Groups: \(groupNames)\n"
+            if let muscleGroups = targetMuscleGroups, !muscleGroups.isEmpty {
+                let groupNames = muscleGroups.map { $0.rawValue }.joined(separator: ", ")
+                prompt += "Target Muscle Groups: \(groupNames)\n"
+            }
+        } else {
+            // No workout type specified - LLM should decide based on user's split and history
+            prompt += """
+            I want you to decide what type of workout I should do today. To make this decision:
+            1. Call get_user_profile to see my workout split (e.g., Push/Pull/Legs, Upper/Lower, etc.)
+            2. Call get_workout_history to see my recent workouts and what muscle groups I've trained
+            3. Based on my split rotation and what I did recently, determine the appropriate workout type for today
+            4. Then build that workout
+
+            For example, if I use a Push/Pull/Legs split and my last workout was Pull, I should do Legs next.
+
+            """
         }
 
         if isDeload {
