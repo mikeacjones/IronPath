@@ -14,6 +14,9 @@ struct ExerciseDetailSheet: View {
     /// When true, rest timers and live workout features are enabled
     let isLiveWorkout: Bool
 
+    /// When true, this is editing a pending (not started) workout - edits update target values
+    let isPendingWorkout: Bool
+
     /// Override for showing YouTube videos (nil = use app settings)
     let showVideosOverride: Bool?
 
@@ -50,6 +53,7 @@ struct ExerciseDetailSheet: View {
         onNavigateToNextInGroup: (() -> Void)? = nil,
         nextExerciseInGroup: WorkoutExercise? = nil,
         isLiveWorkout: Bool = true,
+        isPendingWorkout: Bool = false,
         showVideosOverride: Bool? = nil,
         showFormTipsOverride: Bool? = nil
     ) {
@@ -60,6 +64,7 @@ struct ExerciseDetailSheet: View {
         self.onNavigateToNextInGroup = onNavigateToNextInGroup
         self.nextExerciseInGroup = nextExerciseInGroup
         self.isLiveWorkout = isLiveWorkout
+        self.isPendingWorkout = isPendingWorkout
         self.showVideosOverride = showVideosOverride
         self.showFormTipsOverride = showFormTipsOverride
         _updatedExercise = State(initialValue: exercise)
@@ -155,7 +160,12 @@ struct ExerciseDetailSheet: View {
                                         // Propagate reps to all subsequent standard sets that haven't been completed
                                         for i in (changedSetIndex + 1)..<updatedExercise.sets.count {
                                             if !updatedExercise.sets[i].isCompleted && updatedExercise.sets[i].setType == .standard {
-                                                updatedExercise.sets[i].actualReps = newReps
+                                                // For pending workouts, update targetReps instead of actualReps
+                                                if isPendingWorkout {
+                                                    updatedExercise.sets[i].targetReps = newReps
+                                                } else {
+                                                    updatedExercise.sets[i].actualReps = newReps
+                                                }
                                             }
                                         }
                                     },
@@ -167,14 +177,15 @@ struct ExerciseDetailSheet: View {
                                             }
                                         }
                                     },
-                                    // Suppress rest timer for historical entries or when in a superset
-                                    suppressRestTimer: !isLiveWorkout || isInSuperset,
+                                    // Suppress rest timer for historical entries, pending workouts, or when in a superset
+                                    suppressRestTimer: !isLiveWorkout || isPendingWorkout || isInSuperset,
                                     // Don't start rest timer after the last set of an exercise
                                     isLastSet: setIndex == updatedExercise.sets.count - 1,
                                     onSetCompleted: (isLiveWorkout && isInSuperset) ? {
                                         handleSupersetSetCompletion(forSetIndex: setIndex)
                                     } : nil,
-                                    isLiveWorkout: isLiveWorkout
+                                    isLiveWorkout: isLiveWorkout,
+                                    isPendingWorkout: isPendingWorkout
                                 )
 
                                 // Delete set button (only show if more than 1 set)

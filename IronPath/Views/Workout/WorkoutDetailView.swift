@@ -7,19 +7,24 @@ struct WorkoutDetailView: View {
     let onStartWorkout: (Workout) -> Void
     let onRegenerate: () -> Void
     let onConvertToNormal: ((Workout) -> Void)?
+    let onWorkoutUpdated: ((Workout) -> Void)?
+
+    @State private var editingExerciseIndex: Int?
 
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
         self._workout = State(initialValue: workout)
         self.onStartWorkout = { _ in onStartWorkout() }
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = nil
+        self.onWorkoutUpdated = nil
     }
 
-    init(workout: Workout, onStartWorkout: @escaping (Workout) -> Void, onRegenerate: @escaping () -> Void, onConvertToNormal: ((Workout) -> Void)? = nil) {
+    init(workout: Workout, onStartWorkout: @escaping (Workout) -> Void, onRegenerate: @escaping () -> Void, onConvertToNormal: ((Workout) -> Void)? = nil, onWorkoutUpdated: ((Workout) -> Void)? = nil) {
         self._workout = State(initialValue: workout)
         self.onStartWorkout = onStartWorkout
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = onConvertToNormal
+        self.onWorkoutUpdated = onWorkoutUpdated
     }
 
     var body: some View {
@@ -68,8 +73,18 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                ForEach(workout.exercises) { workoutExercise in
-                    ExerciseCard(workoutExercise: workoutExercise)
+                Text("Tap an exercise to edit sets, reps, or weight")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+
+                ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { index, workoutExercise in
+                    Button {
+                        editingExerciseIndex = index
+                    } label: {
+                        ExerciseCard(workoutExercise: workoutExercise)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 VStack(spacing: 12) {
@@ -93,6 +108,19 @@ struct WorkoutDetailView: View {
                 }
                 .padding()
             }
+        }
+        .sheet(item: $editingExerciseIndex) { index in
+            ExerciseDetailSheet(
+                exercise: workout.exercises[index],
+                onUpdate: { updatedExercise in
+                    workout.exercises[index] = updatedExercise
+                    onWorkoutUpdated?(workout)
+                },
+                isLiveWorkout: false,
+                isPendingWorkout: true,
+                showVideosOverride: false,
+                showFormTipsOverride: false
+            )
         }
     }
 
