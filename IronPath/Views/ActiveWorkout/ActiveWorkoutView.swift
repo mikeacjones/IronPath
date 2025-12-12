@@ -1261,7 +1261,7 @@ struct ActiveExerciseCard: View {
                     HStack {
                         Label("\(exercise.sets.count) sets", systemImage: "repeat")
                         Text("•")
-                        Label("\(exercise.sets.first?.targetReps ?? 0) reps", systemImage: "number")
+                        Label("\(exercise.sets.first?.actualReps ?? exercise.sets.first?.targetReps ?? 0) reps", systemImage: "number")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1820,6 +1820,7 @@ struct PlateCalculatorView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var settings = GymSettings.shared
     @State private var showingPlateEditor = false
+    @State private var customWeightText: String = ""
 
     /// Whether this equipment has a bar (vs leg press sled)
     private var hasBar: Bool {
@@ -1831,8 +1832,14 @@ struct PlateCalculatorView: View {
         }
     }
 
+    /// Whether custom bar weight is currently selected
+    private var isCustomBarWeight: Bool {
+        settings.selectedBarWeight == GymSettings.customBarWeightTag
+    }
+
     private var barWeight: Double {
-        hasBar ? settings.selectedBarWeight : 0
+        guard hasBar else { return 0 }
+        return isCustomBarWeight ? settings.customBarWeight : settings.selectedBarWeight
     }
 
     private var equipmentLabel: String {
@@ -1919,10 +1926,30 @@ struct PlateCalculatorView: View {
                                 Text("45 lbs").tag(45.0)
                                 Text("35 lbs").tag(35.0)
                                 Text("20 lbs").tag(20.0)
-                                Text("15 lbs").tag(15.0)
+                                Text("Custom").tag(GymSettings.customBarWeightTag)
                             }
                             .pickerStyle(.segmented)
                             .padding(.horizontal)
+
+                            // Custom weight input field
+                            if isCustomBarWeight {
+                                HStack {
+                                    TextField("Weight", text: $customWeightText)
+                                        .keyboardType(.decimalPad)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+                                        .onChange(of: customWeightText) { _, newValue in
+                                            if let weight = Double(newValue) {
+                                                settings.customBarWeight = weight
+                                            }
+                                        }
+                                    Text("lbs")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .onAppear {
+                                    customWeightText = settings.customBarWeight > 0 ? formatWeight(settings.customBarWeight) : ""
+                                }
+                            }
                         }
                     }
 
@@ -2311,12 +2338,14 @@ struct CableWeightCalculatorView: View {
                             GridItem(.flexible())
                         ], spacing: 10) {
                             ForEach(weightsNearTarget, id: \.self) { weight in
+                                let breakdown = config.weightBreakdown(for: weight)
                                 Button {
                                     onSelectWeight(weight)
                                 } label: {
                                     CableWeightButton(
                                         weight: weight,
-                                        pinNumber: config.pinLocation(for: weight),
+                                        pinNumber: breakdown?.pin,
+                                        freeWeight: breakdown?.freeWeight ?? 0,
                                         isSelected: weight == nearestWeight
                                     )
                                 }
@@ -2331,19 +2360,37 @@ struct CableWeightCalculatorView: View {
                                 LazyVGrid(columns: [
                                     GridItem(.flexible()),
                                     GridItem(.flexible()),
-                                    GridItem(.flexible()),
                                     GridItem(.flexible())
                                 ], spacing: 8) {
                                     ForEach(availableWeights, id: \.self) { weight in
+                                        let breakdown = config.weightBreakdown(for: weight)
                                         Button {
                                             onSelectWeight(weight)
                                         } label: {
-                                            Text("\(formatWeight(weight))")
-                                                .font(.caption)
-                                                .padding(.vertical, 8)
-                                                .frame(maxWidth: .infinity)
-                                                .background(Color(.systemGray6))
-                                                .cornerRadius(6)
+                                            VStack(spacing: 2) {
+                                                Text("\(formatWeight(weight))")
+                                                    .font(.caption)
+                                                    .fontWeight(.medium)
+                                                if let bd = breakdown {
+                                                    if bd.pin > 0 && bd.freeWeight > 0 {
+                                                        Text("Pin \(bd.pin)+\(formatWeight(bd.freeWeight))")
+                                                            .font(.system(size: 9))
+                                                            .foregroundStyle(.blue)
+                                                    } else if bd.pin > 0 {
+                                                        Text("Pin \(bd.pin)")
+                                                            .font(.system(size: 9))
+                                                            .foregroundStyle(.blue)
+                                                    } else if bd.freeWeight > 0 {
+                                                        Text("\(formatWeight(bd.freeWeight))lb free")
+                                                            .font(.system(size: 9))
+                                                            .foregroundStyle(.orange)
+                                                    }
+                                                }
+                                            }
+                                            .padding(.vertical, 6)
+                                            .frame(maxWidth: .infinity)
+                                            .background(Color(.systemGray6))
+                                            .cornerRadius(6)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -2386,7 +2433,15 @@ struct CableWeightCalculatorView: View {
 struct CableWeightButton: View {
     let weight: Double
     let pinNumber: Int?
+    let freeWeight: Double
     let isSelected: Bool
+
+    init(weight: Double, pinNumber: Int?, freeWeight: Double = 0, isSelected: Bool) {
+        self.weight = weight
+        self.pinNumber = pinNumber
+        self.freeWeight = freeWeight
+        self.isSelected = isSelected
+    }
 
     var body: some View {
         VStack(spacing: 4) {
@@ -2397,17 +2452,30 @@ struct CableWeightButton: View {
                 .font(.caption2)
                 .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
 
-            // Pin location indicator
-            if let pin = pinNumber {
-                HStack(spacing: 2) {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 8))
-                    Text("Pin \(pin)")
-                        .font(.caption2)
-                        .fontWeight(.medium)
+            // Pin location indicator with free weight info
+            if let pin = pinNumber, pin > 0 {
+                VStack(spacing: 1) {
+                    HStack(spacing: 2) {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 8))
+                        Text("Pin \(pin)")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
+                    if freeWeight > 0 {
+                        Text("+ \(formatWeight(freeWeight))lb")
+                            .font(.system(size: 9))
+                    }
                 }
                 .foregroundStyle(isSelected ? .white.opacity(0.9) : .blue)
                 .padding(.top, 2)
+            } else if freeWeight > 0 {
+                // Only free weights, no pin
+                Text("\(formatWeight(freeWeight))lb free")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .orange)
+                    .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity)

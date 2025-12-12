@@ -90,6 +90,9 @@ struct WorkoutView: View {
                         },
                         onConvertToNormal: { updatedWorkout in
                             pendingWorkoutManager.pendingWorkout = updatedWorkout
+                        },
+                        onWorkoutUpdated: { updatedWorkout in
+                            pendingWorkoutManager.pendingWorkout = updatedWorkout
                         }
                     )
                 } else {

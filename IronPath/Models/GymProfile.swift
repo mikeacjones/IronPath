@@ -27,6 +27,7 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var defaultAvailablePlates: [Double] = GymSettings.standardPlates
     var exercisePlateConfigs: [String: [Double]] = [:]
     var selectedBarWeight: Double = 45.0
+    var customBarWeight: Double = 0.0  // Used when selectedBarWeight is set to custom (-1)
 
     static var defaultProfile: GymProfile {
         GymProfile(
@@ -189,6 +190,7 @@ class GymProfileManager: ObservableObject {
         profile.defaultAvailablePlates = settings.defaultAvailablePlates
         profile.exercisePlateConfigs = settings.exercisePlateConfigs
         profile.selectedBarWeight = settings.selectedBarWeight
+        profile.customBarWeight = settings.customBarWeight
 
         updateProfile(profile)
     }
@@ -234,6 +236,12 @@ class GymSettings: ObservableObject {
     @Published var selectedBarWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
+    @Published var customBarWeight: Double {
+        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
+    }
+
+    /// Constant to indicate custom bar weight is selected
+    static let customBarWeightTag: Double = -1.0
 
     /// Standard plate sizes (without 100lb - not common in most areas)
     static let standardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
@@ -265,6 +273,7 @@ class GymSettings: ObservableObject {
         self.defaultAvailablePlates = GymSettings.standardPlates
         self.exercisePlateConfigs = [:]
         self.selectedBarWeight = 45.0
+        self.customBarWeight = 0.0
     }
 
     /// Load settings from the active gym profile
@@ -281,6 +290,7 @@ class GymSettings: ObservableObject {
             self.defaultAvailablePlates = profile.defaultAvailablePlates
             self.exercisePlateConfigs = profile.exercisePlateConfigs
             self.selectedBarWeight = profile.selectedBarWeight
+            self.customBarWeight = profile.customBarWeight
         }
 
         isLoading = false
@@ -398,7 +408,8 @@ class GymSettings: ObservableObject {
 
         // Barbells and plate-loaded
         summary += "BARBELLS & PLATE-LOADED:\n"
-        summary += "Bar weight: \(Int(selectedBarWeight)) lbs\n"
+        let effectiveBarWeight = selectedBarWeight == GymSettings.customBarWeightTag ? customBarWeight : selectedBarWeight
+        summary += "Bar weight: \(Int(effectiveBarWeight)) lbs\n"
         summary += "Weight increments: Use 5 lb increments (e.g., 95, 100, 105, 110...)\n"
 
         summary += "\n"
