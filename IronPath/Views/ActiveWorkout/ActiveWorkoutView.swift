@@ -1838,25 +1838,19 @@ struct PlateCalculatorView: View {
     @ObservedObject private var settings = GymSettings.shared
     @State private var showingPlateEditor = false
     @State private var customWeightText: String = ""
+    @State private var localMachineWeight: Double = 0
+    @State private var localIsSingleSided: Bool = false
 
-    /// Whether this equipment has a bar (vs leg press sled)
-    private var hasBar: Bool {
+    /// Label for the machine/bar weight based on equipment type
+    private var machineWeightLabel: String {
         switch equipment {
         case .legPress:
-            return false
+            return "Sled Weight"
+        case .smithMachine:
+            return "Bar Weight"
         default:
-            return true
+            return "Bar Weight"
         }
-    }
-
-    /// Whether custom bar weight is currently selected
-    private var isCustomBarWeight: Bool {
-        settings.selectedBarWeight == GymSettings.customBarWeightTag
-    }
-
-    private var barWeight: Double {
-        guard hasBar else { return 0 }
-        return isCustomBarWeight ? settings.customBarWeight : settings.selectedBarWeight
     }
 
     private var equipmentLabel: String {
@@ -1872,8 +1866,17 @@ struct PlateCalculatorView: View {
         }
     }
 
+    /// The weight to load with plates (total minus machine weight)
+    private var plateWeight: Double {
+        max(0, totalWeight - localMachineWeight)
+    }
+
+    /// Weight per side (or total if single-sided)
     private var weightPerSide: Double {
-        max(0, (totalWeight - barWeight) / 2)
+        if localIsSingleSided {
+            return plateWeight
+        }
+        return plateWeight / 2
     }
 
     private var currentPlates: [Double] {
@@ -1908,6 +1911,10 @@ struct PlateCalculatorView: View {
         settings.hasCustomPlateConfig(for: exerciseName)
     }
 
+    private var hasCustomMachineWeight: Bool {
+        settings.hasCustomMachineWeight(for: exerciseName)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -1924,57 +1931,89 @@ struct PlateCalculatorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        if hasCustomConfig {
-                            Text("Custom plates for \(exerciseName)")
+                        if hasCustomConfig || hasCustomMachineWeight {
+                            Text("Custom settings for \(exerciseName)")
                                 .font(.caption2)
                                 .foregroundStyle(.blue)
                         }
                     }
                     .padding(.top)
 
-                    // Bar weight selector (only for barbell exercises)
-                    if hasBar {
-                        VStack(spacing: 8) {
-                            Text("Bar Weight")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                    // Machine/Bar/Sled weight selector
+                    VStack(spacing: 8) {
+                        Text(machineWeightLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
 
-                            Picker("Bar Weight", selection: $settings.selectedBarWeight) {
-                                Text("45 lbs").tag(45.0)
-                                Text("35 lbs").tag(35.0)
-                                Text("20 lbs").tag(20.0)
-                                Text("Custom").tag(GymSettings.customBarWeightTag)
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
-
-                            // Custom weight input field
-                            if isCustomBarWeight {
-                                HStack {
-                                    TextField("Weight", text: $customWeightText)
-                                        .keyboardType(.decimalPad)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 80)
-                                        .onChange(of: customWeightText) { _, newValue in
-                                            if let weight = Double(newValue) {
-                                                settings.customBarWeight = weight
-                                            }
-                                        }
-                                    Text("lbs")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .onAppear {
-                                    customWeightText = settings.customBarWeight > 0 ? formatWeight(settings.customBarWeight) : ""
+                        // Preset weight buttons
+                        HStack(spacing: 8) {
+                            ForEach([0.0, 20.0, 35.0, 45.0], id: \.self) { weight in
+                                Button {
+                                    localMachineWeight = weight
+                                    saveMachineWeight()
+                                } label: {
+                                    Text("\(Int(weight))")
+                                        .font(.subheadline)
+                                        .fontWeight(localMachineWeight == weight ? .bold : .regular)
+                                        .frame(minWidth: 44)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(localMachineWeight == weight ? Color.blue : Color(.systemGray5))
+                                        .foregroundStyle(localMachineWeight == weight ? .white : .primary)
+                                        .cornerRadius(8)
                                 }
                             }
                         }
+
+                        // Custom weight input
+                        HStack {
+                            Text("Custom:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextField("", text: $customWeightText)
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 70)
+                                .onChange(of: customWeightText) { _, newValue in
+                                    if let weight = Double(newValue) {
+                                        localMachineWeight = weight
+                                        saveMachineWeight()
+                                    }
+                                }
+                            Text("lbs")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if hasCustomMachineWeight {
+                            Text("Saved for \(exerciseName)")
+                                .font(.caption2)
+                                .foregroundStyle(.blue)
+                        }
                     }
+
+                    // Single-sided toggle
+                    VStack(spacing: 4) {
+                        Toggle(isOn: $localIsSingleSided) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Single-sided")
+                                    .font(.subheadline)
+                                Text("Plates on one side only (e.g., T-Bar Row)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: localIsSingleSided) { _, newValue in
+                            settings.setSingleSided(newValue, for: exerciseName)
+                        }
+                    }
+                    .padding(.horizontal)
 
                     Divider()
 
-                    // Weight per side
+                    // Weight per side (or total plate weight if single-sided)
                     VStack(spacing: 8) {
-                        Text("Each Side")
+                        Text(localIsSingleSided ? "Total Plate Weight" : "Each Side")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Text("\(String(format: "%.1f", weightPerSide)) lbs")
@@ -1984,12 +2023,12 @@ struct PlateCalculatorView: View {
 
                     // Plate breakdown
                     if weightPerSide == 0 {
-                        Text(hasBar ? "Bar only - no plates needed" : "No plates needed")
+                        Text(localMachineWeight > 0 ? "\(machineWeightLabel) only - no plates needed" : "No plates needed")
                             .foregroundStyle(.secondary)
                             .padding()
                     } else {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Plates per side:")
+                            Text(localIsSingleSided ? "Plates needed:" : "Plates per side:")
                                 .font(.headline)
 
                             ForEach(platesNeeded, id: \.0) { plate, count in
@@ -2076,6 +2115,23 @@ struct PlateCalculatorView: View {
             .sheet(isPresented: $showingPlateEditor) {
                 AvailablePlatesEditor(exerciseName: exerciseName)
             }
+            .onAppear {
+                // Load saved settings for this exercise
+                localMachineWeight = settings.machineWeight(for: exerciseName, equipment: equipment)
+                localIsSingleSided = settings.isSingleSided(for: exerciseName)
+                // Update custom weight text if not a preset
+                if ![0.0, 20.0, 35.0, 45.0].contains(localMachineWeight) {
+                    customWeightText = formatWeight(localMachineWeight)
+                }
+            }
+        }
+    }
+
+    private func saveMachineWeight() {
+        settings.setMachineWeight(localMachineWeight, for: exerciseName)
+        // Update text field if it's a preset
+        if [0.0, 20.0, 35.0, 45.0].contains(localMachineWeight) {
+            customWeightText = ""
         }
     }
 
