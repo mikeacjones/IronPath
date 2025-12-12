@@ -34,6 +34,9 @@ struct ActiveWorkoutView: View {
     @State private var completedWorkoutForSummary: Workout?
     @State private var isFinishing = false
 
+    // Flag to prevent onDisappear from dismissing during superset navigation
+    @State private var isNavigatingBetweenExercises = false
+
     init(workout: Workout, userProfile: UserProfile?, onComplete: @escaping (Workout) -> Void, onCancel: @escaping () -> Void) {
         self.workout = workout
         self.userProfile = userProfile
@@ -185,23 +188,20 @@ struct ActiveWorkoutView: View {
             ExerciseDetailSheet(
                 exercise: currentExercise,
                 onUpdate: { updatedExercise in
+                    // Skip if we're navigating between exercises (onDisappear fires during navigation)
+                    guard !isNavigatingBetweenExercises else { return }
                     updateExercise(updatedExercise)
                 },
                 onUpdateWithoutDismiss: { updatedExercise in
                     // Update without dismissing - used for superset navigation
-                    updateExercise(updatedExercise, dismissSheet: false)
+                    // Also navigate to next exercise in group
+                    updateExerciseAndNavigateToNext(updatedExercise)
                 },
                 groupInfo: groupInfo,
-                onNavigateToNextInGroup: groupInfo != nil ? {
-                    // Smart navigation: find next exercise with incomplete sets
-                    // Handles rest timer when completing a round
-                    // Get fresh exercise state from currentWorkout
-                    if let freshExercise = currentWorkout.exercises.first(where: { $0.id == currentExercise.id }) {
-                        navigateToNextInSuperset(from: freshExercise)
-                    }
-                } : nil,
+                onNavigateToNextInGroup: nil, // Navigation now handled by onUpdateWithoutDismiss
                 nextExerciseInGroup: nextExercise
             )
+            .id(currentExercise.id) // Force SwiftUI to recreate view when exercise changes
         }
         .sheet(isPresented: $showReplacementSheet) {
             ExerciseReplacementSheet(
@@ -347,6 +347,19 @@ struct ActiveWorkoutView: View {
         persistWorkoutState()
     }
 
+    /// Update exercise and navigate to next in group (for superset navigation)
+    private func updateExerciseAndNavigateToNext(_ updatedExercise: WorkoutExercise) {
+        // First update the workout with the new exercise state
+        if let index = currentWorkout.exercises.firstIndex(where: { $0.id == updatedExercise.id }) {
+            currentWorkout.exercises[index] = updatedExercise
+        }
+        persistWorkoutState()
+
+        // Now use the UPDATED workout to find the next exercise
+        // The updatedExercise has the newly completed set
+        navigateToNextInSuperset(from: updatedExercise)
+    }
+
     private func replaceExercise() {
         guard let exerciseToReplace = exerciseToReplace,
               let profile = userProfile else { return }
@@ -488,14 +501,16 @@ struct ActiveWorkoutView: View {
     }
 
     /// Navigate to next exercise in superset, handling rest timer if completing a round
+    /// The exercise parameter should have the most recent state (with newly completed set)
     private func navigateToNextInSuperset(from exercise: WorkoutExercise) {
         guard let group = currentWorkout.group(for: exercise.id) else {
             return
         }
 
-        // Find the next exercise with incomplete sets
+        // Find the next exercise with incomplete sets using the updated currentWorkout
         guard let nextInfo = findNextExerciseWithIncompleteSets(for: exercise) else {
-            // All exercises complete - don't navigate
+            // All exercises complete - just dismiss
+            selectedExercise = nil
             return
         }
 
@@ -513,8 +528,18 @@ struct ActiveWorkoutView: View {
             )
         }
 
-        // Navigate to the next exercise (get fresh from currentWorkout)
-        selectedExercise = currentWorkout.exercises.first { $0.id == nextInfo.exercise.id }
+        // Navigate to the next exercise
+        // Set flag to prevent onDisappear from calling onUpdate (which would dismiss)
+        isNavigatingBetweenExercises = true
+        let nextExerciseId = nextInfo.exercise.id
+        selectedExercise = nil
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            // Get fresh exercise from currentWorkout at navigation time
+            self.selectedExercise = self.currentWorkout.exercises.first { $0.id == nextExerciseId }
+            // Reset flag after navigation is complete
+            self.isNavigatingBetweenExercises = false
+        }
     }
 }
 

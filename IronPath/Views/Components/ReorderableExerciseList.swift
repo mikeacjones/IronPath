@@ -560,16 +560,22 @@ private struct GroupExerciseRow: View {
 // MARK: - Group Reorder Sheet
 
 struct GroupReorderSheet: View {
-    let group: ExerciseGroup
+    let group: ExerciseGroup  // Initial group (for ID and display name)
     @Binding var workout: Workout
     @Environment(\.dismiss) private var dismiss
 
+    // Get current group from workout to reflect any changes
+    private var currentGroup: ExerciseGroup? {
+        workout.exerciseGroups?.first { $0.id == group.id }
+    }
+
     private var groupColor: Color {
-        group.groupType.swiftUIColor
+        (currentGroup ?? group).groupType.swiftUIColor
     }
 
     private var groupExercises: [WorkoutExercise] {
-        group.exerciseIds.compactMap { exerciseId in
+        guard let current = currentGroup else { return [] }
+        return current.exerciseIds.compactMap { exerciseId in
             workout.exercises.first { $0.id == exerciseId }
         }
     }
@@ -603,7 +609,7 @@ struct GroupReorderSheet: View {
                     }
                 } header: {
                     HStack(spacing: 8) {
-                        Image(systemName: group.groupType.iconName)
+                        Image(systemName: (currentGroup ?? group).groupType.iconName)
                             .foregroundStyle(groupColor)
                         Text("Drag to reorder exercises")
                     }

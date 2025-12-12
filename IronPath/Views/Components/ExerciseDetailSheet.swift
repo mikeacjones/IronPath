@@ -311,8 +311,13 @@ struct ExerciseDetailSheet: View {
             }
             .onDisappear {
                 // Save changes when sheet is dismissed (including swipe-to-dismiss)
-                // This ensures changes aren't lost if user swipes away instead of tapping Done
-                onUpdate(updatedExercise)
+                // But NOT if we're navigating to the next exercise in a superset
+                // (onUpdateWithoutDismiss handles that case)
+                if onUpdateWithoutDismiss == nil {
+                    // Not a live superset workout - safe to call onUpdate
+                    onUpdate(updatedExercise)
+                }
+                // For superset workouts, changes were already saved via onUpdateWithoutDismiss
             }
         }
     }
