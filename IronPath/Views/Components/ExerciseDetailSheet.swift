@@ -317,13 +317,16 @@ struct ExerciseDetailSheet: View {
         // Find first working set for warmup weight reference
         let firstWorkingSet = updatedExercise.sets.first { $0.setType != .warmup }
 
+        // Use actual reps if user changed them, otherwise fall back to target reps
+        let repsFromLastSet = lastSet?.actualReps ?? lastSet?.targetReps ?? 10
+
         let newSet: ExerciseSet
         switch type {
         case .standard:
             newSet = ExerciseSet(
                 setNumber: 0, // Will be renumbered
                 setType: .standard,
-                targetReps: lastSet?.targetReps ?? 10,
+                targetReps: repsFromLastSet,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90
             )
@@ -342,7 +345,7 @@ struct ExerciseDetailSheet: View {
         case .dropSet:
             newSet = ExerciseSet.createDropSet(
                 setNumber: 0, // Will be renumbered
-                targetReps: lastSet?.targetReps ?? 8,
+                targetReps: repsFromLastSet > 0 ? repsFromLastSet : 8,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90,
                 numberOfDrops: 2,
@@ -352,7 +355,7 @@ struct ExerciseDetailSheet: View {
         case .restPause:
             newSet = ExerciseSet.createRestPauseSet(
                 setNumber: 0, // Will be renumbered
-                targetReps: lastSet?.targetReps ?? 8,
+                targetReps: repsFromLastSet > 0 ? repsFromLastSet : 8,
                 weight: lastSet?.weight,
                 restPeriod: lastSet?.restPeriod ?? 90,
                 numberOfPauses: 2,
