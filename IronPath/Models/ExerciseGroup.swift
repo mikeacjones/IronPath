@@ -127,6 +127,33 @@ struct ExerciseGroup: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
+// MARK: - Exercise Display Item
+
+/// Represents either a standalone exercise or a group of exercises for display purposes
+enum ExerciseDisplayItem: Identifiable {
+    case standalone(WorkoutExercise)
+    case group(ExerciseGroup, [WorkoutExercise])
+
+    var id: String {
+        switch self {
+        case .standalone(let exercise):
+            return "standalone-\(exercise.id.uuidString)"
+        case .group(let group, _):
+            return "group-\(group.id.uuidString)"
+        }
+    }
+
+    /// Get the first exercise ID (for ordering purposes)
+    var firstExerciseId: UUID {
+        switch self {
+        case .standalone(let exercise):
+            return exercise.id
+        case .group(_, let exercises):
+            return exercises.first?.id ?? UUID()
+        }
+    }
+}
+
 // MARK: - Workout Extension for Groups
 
 extension Workout {
@@ -145,5 +172,97 @@ extension Workout {
     /// Check if an exercise is grouped
     func isGrouped(_ exerciseId: UUID) -> Bool {
         exerciseGroups?.contains { $0.contains(exerciseId: exerciseId) } ?? false
+    }
+
+    /// Get display items for the workout (standalone exercises and groups)
+    var displayItems: [ExerciseDisplayItem] {
+        var items: [ExerciseDisplayItem] = []
+        var processedExerciseIds: Set<UUID> = []
+
+        for exercise in exercises {
+            guard !processedExerciseIds.contains(exercise.id) else { continue }
+
+            if let group = group(for: exercise.id) {
+                let groupExercises = group.exerciseIds.compactMap { exerciseId in
+                    exercises.first { $0.id == exerciseId }
+                }
+                for groupExercise in groupExercises {
+                    processedExerciseIds.insert(groupExercise.id)
+                }
+                items.append(.group(group, groupExercises))
+            } else {
+                processedExerciseIds.insert(exercise.id)
+                items.append(.standalone(exercise))
+            }
+        }
+
+        return items
+    }
+
+    /// Reorder display items (moves groups as a unit, standalone exercises individually)
+    mutating func reorderDisplayItems(from source: IndexSet, to destination: Int) {
+        var items = displayItems
+        items.move(fromOffsets: source, toOffset: destination)
+
+        // Rebuild exercises array from new item order
+        var newExercises: [WorkoutExercise] = []
+        for item in items {
+            switch item {
+            case .standalone(let exercise):
+                var updatedExercise = exercise
+                updatedExercise.orderIndex = newExercises.count
+                newExercises.append(updatedExercise)
+            case .group(_, let groupExercises):
+                for exercise in groupExercises {
+                    var updatedExercise = exercise
+                    updatedExercise.orderIndex = newExercises.count
+                    newExercises.append(updatedExercise)
+                }
+            }
+        }
+
+        exercises = newExercises
+    }
+
+    /// Reorder exercises within a specific group
+    mutating func reorderExercisesInGroup(_ groupId: UUID, from source: IndexSet, to destination: Int) {
+        guard var groups = exerciseGroups,
+              let groupIndex = groups.firstIndex(where: { $0.id == groupId }) else { return }
+
+        // Reorder exerciseIds in the group
+        groups[groupIndex].exerciseIds.move(fromOffsets: source, toOffset: destination)
+        exerciseGroups = groups
+
+        // Rebuild exercises array to match new group order
+        rebuildExercisesOrder()
+    }
+
+    /// Rebuild the exercises array order to match the current display items and group ordering
+    mutating func rebuildExercisesOrder() {
+        var newExercises: [WorkoutExercise] = []
+        var processedExerciseIds: Set<UUID> = []
+
+        for exercise in exercises {
+            guard !processedExerciseIds.contains(exercise.id) else { continue }
+
+            if let group = group(for: exercise.id) {
+                // Add exercises in the order defined by the group
+                for exerciseId in group.exerciseIds {
+                    if let groupExercise = exercises.first(where: { $0.id == exerciseId }) {
+                        var updatedExercise = groupExercise
+                        updatedExercise.orderIndex = newExercises.count
+                        newExercises.append(updatedExercise)
+                        processedExerciseIds.insert(exerciseId)
+                    }
+                }
+            } else {
+                var updatedExercise = exercise
+                updatedExercise.orderIndex = newExercises.count
+                newExercises.append(updatedExercise)
+                processedExerciseIds.insert(exercise.id)
+            }
+        }
+
+        exercises = newExercises
     }
 }

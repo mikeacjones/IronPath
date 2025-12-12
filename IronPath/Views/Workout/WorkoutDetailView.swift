@@ -46,39 +46,6 @@ struct WorkoutDetailView: View {
         self.onWorkoutUpdated = onWorkoutUpdated
     }
 
-    /// Organizes exercises into display items (standalone or grouped)
-    /// Groups exercises that belong to the same superset/circuit together
-    var exerciseDisplayItems: [ExerciseDisplayItem] {
-        var items: [ExerciseDisplayItem] = []
-        var processedExerciseIds: Set<UUID> = []
-
-        for exercise in workout.exercises {
-            // Skip if already processed (part of a group we already added)
-            guard !processedExerciseIds.contains(exercise.id) else { continue }
-
-            // Check if this exercise belongs to a group
-            if let group = workout.group(for: exercise.id) {
-                // Get all exercises in this group, in the order defined by the group
-                let groupExercises = group.exerciseIds.compactMap { exerciseId in
-                    workout.exercises.first { $0.id == exerciseId }
-                }
-
-                // Mark all exercises in this group as processed
-                for groupExercise in groupExercises {
-                    processedExerciseIds.insert(groupExercise.id)
-                }
-
-                items.append(.group(group, groupExercises))
-            } else {
-                // Standalone exercise
-                processedExerciseIds.insert(exercise.id)
-                items.append(.standalone(exercise))
-            }
-        }
-
-        return items
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -125,60 +92,38 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                Text("Tap an exercise to edit sets, reps, or weight. Use the menu to add, remove, or replace exercises.")
+                Text("Tap an exercise to edit. Long press to drag and reorder.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
 
-                // Exercise list using shared components
+                // Exercise list with drag-to-reorder
                 VStack(spacing: 12) {
-                    ForEach(exerciseDisplayItems) { item in
-                        switch item {
-                        case .standalone(let exercise):
-                            ActiveExerciseCard(
-                                exercise: exercise,
-                                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
-                                isLiveWorkout: false,
-                                onTap: {
-                                    selectedExercise = exercise
-                                },
-                                onReplace: {
-                                    exerciseToReplace = exercise
-                                    replacementNotes = ""
-                                    showReplacementSheet = true
-                                },
-                                onRemove: {
-                                    exerciseToRemove = exercise
-                                    showRemoveConfirmation = true
-                                },
-                                onSetPreference: { preference in
-                                    preferenceManager.setPreference(
-                                        preference,
-                                        for: exercise.exercise.name
-                                    )
-                                }
-                            )
-
-                        case .group(let group, let exercises):
-                            SupersetGroupCard(
-                                group: group,
-                                exercises: exercises,
-                                isLiveWorkout: false,
-                                preferenceManager: preferenceManager,
-                                onExerciseTap: { exercise in
-                                    selectedExercise = exercise
-                                },
-                                onExerciseReplace: { exercise in
-                                    exerciseToReplace = exercise
-                                    replacementNotes = ""
-                                    showReplacementSheet = true
-                                },
-                                onExerciseRemove: { exercise in
-                                    exerciseToRemove = exercise
-                                    showRemoveConfirmation = true
-                                }
+                    DraggableExerciseList(
+                        workout: $workout,
+                        isLiveWorkout: false,
+                        preferenceManager: preferenceManager,
+                        onExerciseTap: { exercise in
+                            selectedExercise = exercise
+                        },
+                        onExerciseReplace: { exercise in
+                            exerciseToReplace = exercise
+                            replacementNotes = ""
+                            showReplacementSheet = true
+                        },
+                        onExerciseRemove: { exercise in
+                            exerciseToRemove = exercise
+                            showRemoveConfirmation = true
+                        },
+                        onSetPreference: { exercise, preference in
+                            preferenceManager.setPreference(
+                                preference,
+                                for: exercise.exercise.name
                             )
                         }
+                    )
+                    .onChange(of: workout) { _, newWorkout in
+                        onWorkoutUpdated?(newWorkout)
                     }
 
                     // Add Exercise button

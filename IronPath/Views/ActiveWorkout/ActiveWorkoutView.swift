@@ -34,6 +34,9 @@ struct ActiveWorkoutView: View {
     @State private var completedWorkoutForSummary: Workout?
     @State private var isFinishing = false
 
+    // Flag to prevent onDisappear from dismissing during superset navigation
+    @State private var isNavigatingBetweenExercises = false
+
     init(workout: Workout, userProfile: UserProfile?, onComplete: @escaping (Workout) -> Void, onCancel: @escaping () -> Void) {
         self.workout = workout
         self.userProfile = userProfile
@@ -53,39 +56,6 @@ struct ActiveWorkoutView: View {
         currentWorkout.exercises.allSatisfy { $0.isCompleted }
     }
 
-    /// Organizes exercises into display items (standalone or grouped)
-    /// Groups exercises that belong to the same superset/circuit together
-    var exerciseDisplayItems: [ExerciseDisplayItem] {
-        var items: [ExerciseDisplayItem] = []
-        var processedExerciseIds: Set<UUID> = []
-
-        for exercise in currentWorkout.exercises {
-            // Skip if already processed (part of a group we already added)
-            guard !processedExerciseIds.contains(exercise.id) else { continue }
-
-            // Check if this exercise belongs to a group
-            if let group = currentWorkout.group(for: exercise.id) {
-                // Get all exercises in this group, in the order defined by the group
-                let groupExercises = group.exerciseIds.compactMap { exerciseId in
-                    currentWorkout.exercises.first { $0.id == exerciseId }
-                }
-
-                // Mark all exercises in this group as processed
-                for groupExercise in groupExercises {
-                    processedExerciseIds.insert(groupExercise.id)
-                }
-
-                items.append(.group(group, groupExercises))
-            } else {
-                // Standalone exercise
-                processedExerciseIds.insert(exercise.id)
-                items.append(.standalone(exercise))
-            }
-        }
-
-        return items
-    }
-
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -103,51 +73,31 @@ struct ActiveWorkoutView: View {
                 // Exercise list
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(exerciseDisplayItems) { item in
-                            switch item {
-                            case .standalone(let exercise):
-                                ActiveExerciseCard(
-                                    exercise: exercise,
-                                    currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
-                                    onTap: {
-                                        selectedExercise = exercise
-                                    },
-                                    onReplace: {
-                                        exerciseToReplace = exercise
-                                        replacementNotes = ""
-                                        showReplacementSheet = true
-                                    },
-                                    onRemove: {
-                                        exerciseToRemove = exercise
-                                        showRemoveConfirmation = true
-                                    },
-                                    onSetPreference: { preference in
-                                        preferenceManager.setPreference(
-                                            preference,
-                                            for: exercise.exercise.name
-                                        )
-                                    }
-                                )
-
-                            case .group(let group, let exercises):
-                                SupersetGroupCard(
-                                    group: group,
-                                    exercises: exercises,
-                                    preferenceManager: preferenceManager,
-                                    onExerciseTap: { exercise in
-                                        selectedExercise = exercise
-                                    },
-                                    onExerciseReplace: { exercise in
-                                        exerciseToReplace = exercise
-                                        replacementNotes = ""
-                                        showReplacementSheet = true
-                                    },
-                                    onExerciseRemove: { exercise in
-                                        exerciseToRemove = exercise
-                                        showRemoveConfirmation = true
-                                    }
+                        DraggableExerciseList(
+                            workout: $currentWorkout,
+                            isLiveWorkout: true,
+                            preferenceManager: preferenceManager,
+                            onExerciseTap: { exercise in
+                                selectedExercise = exercise
+                            },
+                            onExerciseReplace: { exercise in
+                                exerciseToReplace = exercise
+                                replacementNotes = ""
+                                showReplacementSheet = true
+                            },
+                            onExerciseRemove: { exercise in
+                                exerciseToRemove = exercise
+                                showRemoveConfirmation = true
+                            },
+                            onSetPreference: { exercise, preference in
+                                preferenceManager.setPreference(
+                                    preference,
+                                    for: exercise.exercise.name
                                 )
                             }
+                        )
+                        .onChange(of: currentWorkout) { _, _ in
+                            persistWorkoutState()
                         }
 
                         // Add Exercise button
@@ -238,23 +188,20 @@ struct ActiveWorkoutView: View {
             ExerciseDetailSheet(
                 exercise: currentExercise,
                 onUpdate: { updatedExercise in
+                    // Skip if we're navigating between exercises (onDisappear fires during navigation)
+                    guard !isNavigatingBetweenExercises else { return }
                     updateExercise(updatedExercise)
                 },
                 onUpdateWithoutDismiss: { updatedExercise in
                     // Update without dismissing - used for superset navigation
-                    updateExercise(updatedExercise, dismissSheet: false)
+                    // Also navigate to next exercise in group
+                    updateExerciseAndNavigateToNext(updatedExercise)
                 },
                 groupInfo: groupInfo,
-                onNavigateToNextInGroup: groupInfo != nil ? {
-                    // Smart navigation: find next exercise with incomplete sets
-                    // Handles rest timer when completing a round
-                    // Get fresh exercise state from currentWorkout
-                    if let freshExercise = currentWorkout.exercises.first(where: { $0.id == currentExercise.id }) {
-                        navigateToNextInSuperset(from: freshExercise)
-                    }
-                } : nil,
+                onNavigateToNextInGroup: nil, // Navigation now handled by onUpdateWithoutDismiss
                 nextExerciseInGroup: nextExercise
             )
+            .id(currentExercise.id) // Force SwiftUI to recreate view when exercise changes
         }
         .sheet(isPresented: $showReplacementSheet) {
             ExerciseReplacementSheet(
@@ -400,6 +347,19 @@ struct ActiveWorkoutView: View {
         persistWorkoutState()
     }
 
+    /// Update exercise and navigate to next in group (for superset navigation)
+    private func updateExerciseAndNavigateToNext(_ updatedExercise: WorkoutExercise) {
+        // First update the workout with the new exercise state
+        if let index = currentWorkout.exercises.firstIndex(where: { $0.id == updatedExercise.id }) {
+            currentWorkout.exercises[index] = updatedExercise
+        }
+        persistWorkoutState()
+
+        // Now use the UPDATED workout to find the next exercise
+        // The updatedExercise has the newly completed set
+        navigateToNextInSuperset(from: updatedExercise)
+    }
+
     private func replaceExercise() {
         guard let exerciseToReplace = exerciseToReplace,
               let profile = userProfile else { return }
@@ -541,14 +501,16 @@ struct ActiveWorkoutView: View {
     }
 
     /// Navigate to next exercise in superset, handling rest timer if completing a round
+    /// The exercise parameter should have the most recent state (with newly completed set)
     private func navigateToNextInSuperset(from exercise: WorkoutExercise) {
         guard let group = currentWorkout.group(for: exercise.id) else {
             return
         }
 
-        // Find the next exercise with incomplete sets
+        // Find the next exercise with incomplete sets using the updated currentWorkout
         guard let nextInfo = findNextExerciseWithIncompleteSets(for: exercise) else {
-            // All exercises complete - don't navigate
+            // All exercises complete - just dismiss
+            selectedExercise = nil
             return
         }
 
@@ -566,8 +528,18 @@ struct ActiveWorkoutView: View {
             )
         }
 
-        // Navigate to the next exercise (get fresh from currentWorkout)
-        selectedExercise = currentWorkout.exercises.first { $0.id == nextInfo.exercise.id }
+        // Navigate to the next exercise
+        // Set flag to prevent onDisappear from calling onUpdate (which would dismiss)
+        isNavigatingBetweenExercises = true
+        let nextExerciseId = nextInfo.exercise.id
+        selectedExercise = nil
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            // Get fresh exercise from currentWorkout at navigation time
+            self.selectedExercise = self.currentWorkout.exercises.first { $0.id == nextExerciseId }
+            // Reset flag after navigation is complete
+            self.isNavigatingBetweenExercises = false
+        }
     }
 }
 
@@ -579,23 +551,6 @@ struct ExerciseGroupInfo {
     let position: Int
     let isFirst: Bool
     let isLast: Bool
-}
-
-// MARK: - Exercise Display Item
-
-/// Represents either a standalone exercise or a group of exercises for display
-enum ExerciseDisplayItem: Identifiable {
-    case standalone(WorkoutExercise)
-    case group(ExerciseGroup, [WorkoutExercise])
-
-    var id: String {
-        switch self {
-        case .standalone(let exercise):
-            return "standalone-\(exercise.id.uuidString)"
-        case .group(let group, _):
-            return "group-\(group.id.uuidString)"
-        }
-    }
 }
 
 // MARK: - Exercise Card With Grouping
@@ -1200,6 +1155,9 @@ struct ActiveExerciseCard: View {
     let exercise: WorkoutExercise
     let currentPreference: ExerciseSuggestionPreference
     var isLiveWorkout: Bool = true
+    var showDragHandle: Bool = false
+    var onDragGesture: ((DragGesture.Value) -> Void)?
+    var onDragEnd: (() -> Void)?
     let onTap: () -> Void
     let onReplace: () -> Void
     let onRemove: () -> Void
@@ -1215,9 +1173,28 @@ struct ActiveExerciseCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                if isLiveWorkout {
+        HStack(spacing: 0) {
+            // Drag handle (shown when reordering is enabled)
+            if showDragHandle {
+                Image(systemName: "line.3.horizontal")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                onDragGesture?(value)
+                            }
+                            .onEnded { _ in
+                                onDragEnd?()
+                            }
+                    )
+            }
+
+            Button(action: onTap) {
+                HStack(spacing: 16) {
+                    if isLiveWorkout {
                     // Completion indicator with progress circle (live workout)
                     ZStack {
                         // Background circle
@@ -1327,18 +1304,19 @@ struct ActiveExerciseCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
             }
-            .padding()
-            .background(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .background(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var preferenceColor: Color {

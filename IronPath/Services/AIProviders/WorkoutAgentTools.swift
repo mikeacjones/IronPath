@@ -452,11 +452,34 @@ enum WorkoutAgentTools {
 
         if let workoutType = workoutType {
             prompt += "Workout Type: \(workoutType)\n"
-        }
 
-        if let muscleGroups = targetMuscleGroups, !muscleGroups.isEmpty {
-            let groupNames = muscleGroups.map { $0.rawValue }.joined(separator: ", ")
-            prompt += "Target Muscle Groups: \(groupNames)\n"
+            if let muscleGroups = targetMuscleGroups, !muscleGroups.isEmpty {
+                let groupNames = muscleGroups.map { $0.rawValue }.joined(separator: ", ")
+                prompt += "Target Muscle Groups: \(groupNames)\n"
+            }
+        } else {
+            // No workout type specified - LLM should decide based on user's split and history
+            prompt += """
+            I want you to decide what type of workout I should do today. To make this decision:
+            1. Call get_user_profile to see my workout split type (e.g., Push/Pull/Legs, Upper/Lower, etc.)
+            2. Call get_workout_history to see my recent workouts
+
+            IMPORTANT: The split type tells you how many distinct workout types are in the rotation, but the user's HISTORY tells you what order they prefer. Do NOT assume a fixed order like Push→Pull→Legs. Instead:
+            - Look at the user's recent workouts in chronological order (oldest to newest)
+            - Identify the pattern/cycle they have been following
+            - Continue THEIR established rotation
+
+            Example: If split is "Push/Pull/Legs" and history shows:
+            - 3 days ago: Lower Body
+            - 2 days ago: Push
+            - 1 day ago: Pull
+            Then the user's pattern is Lower Body→Push→Pull, so today should be Lower Body.
+
+            Note: "Legs" workouts are called "Lower Body" in this app.
+
+            After determining the workout type, build that workout.
+
+            """
         }
 
         if isDeload {
