@@ -92,7 +92,7 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                Text("Tap an exercise to edit. Long press and drag to reorder.")
+                Text("Tap an exercise to edit. Long press to drag and reorder.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)

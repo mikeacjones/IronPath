@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Draggable Exercise List
 
-/// A component that displays exercises with drag handle for reordering
+/// A component that displays exercises with long-press drag to reorder
 struct DraggableExerciseList: View {
     @Binding var workout: Workout
     let isLiveWorkout: Bool
@@ -15,11 +15,10 @@ struct DraggableExerciseList: View {
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
 
     // Drag state
-    @State private var draggingItemID: String?
+    @State private var longPressIndex: Int? // Which item has active long press (before drag)
+    @State private var draggingIndex: Int?
     @State private var dragOffset: CGFloat = 0
-    @State private var itemFrames: [String: CGRect] = [:]
-    @State private var initialDragItemIndex: Int?
-    @State private var currentHoverIndex: Int?
+    @State private var itemHeights: [Int: CGFloat] = [:]
 
     // State for group reordering sheet
     @State private var groupToReorder: ExerciseGroup?
@@ -27,24 +26,25 @@ struct DraggableExerciseList: View {
     // Haptic feedback
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
 
+    private var averageItemHeight: CGFloat {
+        guard !itemHeights.isEmpty else { return 80 }
+        let total = itemHeights.values.reduce(0, +)
+        return total / CGFloat(itemHeights.count) + 12 // Add spacing
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             ForEach(Array(workout.displayItems.enumerated()), id: \.element.id) { index, item in
-                let isDragging = draggingItemID == item.id
-                let shouldOffset = calculateOffset(for: index)
+                let isDragging = draggingIndex == index
+                let isLongPressed = longPressIndex == index
 
-                ExerciseItemView(
+                ExerciseCardWrapper(
                     item: item,
                     workout: workout,
                     isLiveWorkout: isLiveWorkout,
                     preferenceManager: preferenceManager,
                     isDragging: isDragging,
-                    onDragChanged: { translation in
-                        handleDragChange(item: item, index: index, translation: translation)
-                    },
-                    onDragEnded: {
-                        handleDragEnd()
-                    },
+                    isLongPressed: isLongPressed,
                     onExerciseTap: onExerciseTap,
                     onExerciseReplace: onExerciseReplace,
                     onExerciseRemove: onExerciseRemove,
@@ -55,147 +55,185 @@ struct DraggableExerciseList: View {
                 )
                 .background(
                     GeometryReader { geo in
-                        Color.clear
-                            .onAppear {
-                                itemFrames[item.id] = geo.frame(in: .named("reorderSpace"))
-                            }
-                            .onChange(of: geo.frame(in: .named("reorderSpace"))) { _, newFrame in
-                                if draggingItemID == nil {
-                                    itemFrames[item.id] = newFrame
-                                }
-                            }
+                        Color.clear.preference(
+                            key: ItemHeightPreferenceKey.self,
+                            value: [index: geo.size.height]
+                        )
                     }
                 )
-                .offset(y: isDragging ? dragOffset : shouldOffset)
+                .offset(y: offsetForItem(at: index))
                 .zIndex(isDragging ? 100 : 0)
-                .scaleEffect(isDragging ? 1.02 : 1.0)
-                .shadow(
-                    color: isDragging ? .black.opacity(0.15) : .clear,
-                    radius: isDragging ? 8 : 0,
-                    y: isDragging ? 4 : 0
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.3)
+                        .sequenced(before: DragGesture(minimumDistance: 0))
+                        .onChanged { value in
+                            switch value {
+                            case .first(true):
+                                // Long press is in progress but not yet completed
+                                // Don't show visual feedback yet
+                                break
+                            case .second(true, let drag):
+                                // Long press COMPLETED, now in drag phase
+                                // Show elevated state first if not already shown
+                                if longPressIndex != index && draggingIndex != index {
+                                    longPressIndex = index
+                                    impactFeedback.impactOccurred(intensity: 0.5)
+                                }
+
+                                // Only allow dragging after visual feedback has been shown
+                                // (longPressIndex was set, or we're already dragging)
+                                if let drag = drag, abs(drag.translation.height) > 2 {
+                                    if longPressIndex == index || draggingIndex == index {
+                                        // Switch from long press state to drag state
+                                        if draggingIndex == nil {
+                                            longPressIndex = nil
+                                            draggingIndex = index
+                                            impactFeedback.impactOccurred()
+                                        }
+                                        dragOffset = drag.translation.height
+                                    }
+                                }
+                            default:
+                                break
+                            }
+                        }
+                        .onEnded { value in
+                            longPressIndex = nil
+                            finishDrag(from: index)
+                        }
                 )
-                .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: shouldOffset)
-                .animation(.easeInOut(duration: 0.15), value: isDragging)
             }
         }
-        .coordinateSpace(name: "reorderSpace")
+        .onPreferenceChange(ItemHeightPreferenceKey.self) { heights in
+            itemHeights.merge(heights) { _, new in new }
+        }
         .sheet(item: $groupToReorder) { group in
             GroupReorderSheet(group: group, workout: $workout)
         }
     }
 
-    private func handleDragChange(item: ExerciseDisplayItem, index: Int, translation: CGFloat) {
-        if draggingItemID == nil {
-            // Starting drag
-            draggingItemID = item.id
-            initialDragItemIndex = index
-            currentHoverIndex = index
-            impactFeedback.impactOccurred()
+    private func offsetForItem(at index: Int) -> CGFloat {
+        guard let draggingIdx = draggingIndex else { return 0 }
+
+        if index == draggingIdx {
+            // Dragged item follows the finger exactly
+            return dragOffset
         }
 
-        dragOffset = translation
+        // Calculate where the dragged item currently is
+        let currentPosition = calculateCurrentDragPosition()
+        let itemHeight = averageItemHeight
 
-        // Calculate which index we're hovering over
-        guard let initialIndex = initialDragItemIndex,
-              let draggedFrame = itemFrames[item.id] else { return }
-
-        let draggedCenter = draggedFrame.midY + translation
-        let items = workout.displayItems
-
-        var newHoverIndex = initialIndex
-
-        for (i, otherItem) in items.enumerated() {
-            guard i != initialIndex,
-                  let frame = itemFrames[otherItem.id] else { continue }
-
-            if translation > 0 {
-                // Dragging down
-                if i > initialIndex && draggedCenter > frame.midY {
-                    newHoverIndex = i
-                }
-            } else {
-                // Dragging up
-                if i < initialIndex && draggedCenter < frame.midY {
-                    newHoverIndex = i
-                }
-            }
-        }
-
-        if newHoverIndex != currentHoverIndex {
-            currentHoverIndex = newHoverIndex
-            impactFeedback.impactOccurred(intensity: 0.5)
-        }
-    }
-
-    private func handleDragEnd() {
-        guard let initialIndex = initialDragItemIndex,
-              let hoverIndex = currentHoverIndex,
-              initialIndex != hoverIndex else {
-            // Reset without reordering
-            withAnimation(.easeOut(duration: 0.2)) {
-                draggingItemID = nil
-                dragOffset = 0
-                initialDragItemIndex = nil
-                currentHoverIndex = nil
-            }
-            return
-        }
-
-        // Perform the reorder
-        let destination = hoverIndex > initialIndex ? hoverIndex + 1 : hoverIndex
-        workout.reorderDisplayItems(from: IndexSet(integer: initialIndex), to: destination)
-
-        // Reset state
-        withAnimation(.easeOut(duration: 0.2)) {
-            draggingItemID = nil
-            dragOffset = 0
-            initialDragItemIndex = nil
-            currentHoverIndex = nil
-        }
-
-        // Clear and rebuild frames after reorder
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            itemFrames.removeAll()
-        }
-    }
-
-    private func calculateOffset(for index: Int) -> CGFloat {
-        guard let draggingID = draggingItemID,
-              let initialIndex = initialDragItemIndex,
-              let hoverIndex = currentHoverIndex,
-              workout.displayItems[index].id != draggingID else {
-            return 0
-        }
-
-        guard let draggedFrame = itemFrames[draggingID] else { return 0 }
-        let itemHeight = draggedFrame.height + 12 // Include spacing
-
-        if initialIndex < hoverIndex {
-            // Dragging down - items between initial and hover move up
-            if index > initialIndex && index <= hoverIndex {
+        if draggingIdx < index {
+            // Item is below the original drag position
+            // Move up if dragged item has passed this position
+            let threshold = CGFloat(index - draggingIdx) * itemHeight
+            if dragOffset > threshold - itemHeight / 2 {
                 return -itemHeight
             }
-        } else if initialIndex > hoverIndex {
-            // Dragging up - items between hover and initial move down
-            if index >= hoverIndex && index < initialIndex {
+        } else {
+            // Item is above the original drag position
+            // Move down if dragged item has passed this position
+            let threshold = CGFloat(draggingIdx - index) * itemHeight
+            if dragOffset < -(threshold - itemHeight / 2) {
                 return itemHeight
             }
         }
 
         return 0
     }
+
+    private func calculateCurrentDragPosition() -> Int {
+        guard let draggingIdx = draggingIndex else { return 0 }
+        let itemHeight = averageItemHeight
+        let movement = Int(round(dragOffset / itemHeight))
+        let newPosition = draggingIdx + movement
+        return max(0, min(workout.displayItems.count - 1, newPosition))
+    }
+
+    private func finishDrag(from index: Int) {
+        guard let draggingIdx = draggingIndex else { return }
+
+        let destinationIndex = calculateCurrentDragPosition()
+
+        // Reset state immediately (no animation) to prevent snap-back visual
+        draggingIndex = nil
+        dragOffset = 0
+
+        // Then perform the reorder - this happens after state reset
+        // so the view updates with new order directly
+        if destinationIndex != draggingIdx {
+            let adjustedDest = destinationIndex > draggingIdx ? destinationIndex + 1 : destinationIndex
+            workout.reorderDisplayItems(from: IndexSet(integer: draggingIdx), to: adjustedDest)
+            impactFeedback.impactOccurred()
+        }
+    }
 }
 
-// MARK: - Exercise Item View
+// MARK: - Preference Key for Item Heights
 
-private struct ExerciseItemView: View {
+private struct ItemHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+// MARK: - Exercise Card Wrapper
+
+private struct ExerciseCardWrapper: View {
     let item: ExerciseDisplayItem
     let workout: Workout
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
     let isDragging: Bool
-    let onDragChanged: (CGFloat) -> Void
-    let onDragEnded: () -> Void
+    let isLongPressed: Bool
+    let onExerciseTap: (WorkoutExercise) -> Void
+    let onExerciseReplace: (WorkoutExercise) -> Void
+    let onExerciseRemove: (WorkoutExercise) -> Void
+    let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
+    let onReorderWithinGroup: (ExerciseGroup) -> Void
+
+    private var isElevated: Bool {
+        isDragging || isLongPressed
+    }
+
+    var body: some View {
+        ExerciseCardContent(
+            item: item,
+            workout: workout,
+            isLiveWorkout: isLiveWorkout,
+            preferenceManager: preferenceManager,
+            onExerciseTap: onExerciseTap,
+            onExerciseReplace: onExerciseReplace,
+            onExerciseRemove: onExerciseRemove,
+            onSetPreference: onSetPreference,
+            onReorderWithinGroup: onReorderWithinGroup
+        )
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isElevated ? Color.blue : Color(.systemGray4), lineWidth: isElevated ? 2 : 1)
+        )
+        .shadow(
+            color: isElevated ? .black.opacity(0.2) : .black.opacity(0.05),
+            radius: isElevated ? 12 : 2,
+            y: isElevated ? 8 : 1
+        )
+        .scaleEffect(isElevated ? 1.02 : 1.0)
+        .animation(.easeOut(duration: 0.15), value: isLongPressed)
+        .animation(.easeOut(duration: 0.15), value: isDragging)
+    }
+}
+
+// MARK: - Exercise Card Content
+
+private struct ExerciseCardContent: View {
+    let item: ExerciseDisplayItem
+    let workout: Workout
+    let isLiveWorkout: Bool
+    @ObservedObject var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
@@ -205,37 +243,22 @@ private struct ExerciseItemView: View {
     var body: some View {
         switch item {
         case .standalone(let exercise):
-            ActiveExerciseCard(
+            StandaloneExerciseCard(
                 exercise: exercise,
-                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
                 isLiveWorkout: isLiveWorkout,
-                showDragHandle: true,
-                onDragGesture: { value in
-                    onDragChanged(value.translation.height)
-                },
-                onDragEnd: onDragEnded,
-                onTap: {
-                    onExerciseTap(exercise)
-                },
-                onReplace: {
-                    onExerciseReplace(exercise)
-                },
-                onRemove: {
-                    onExerciseRemove(exercise)
-                },
-                onSetPreference: { preference in
-                    onSetPreference(exercise, preference)
-                }
+                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                onTap: { onExerciseTap(exercise) },
+                onReplace: { onExerciseReplace(exercise) },
+                onRemove: { onExerciseRemove(exercise) },
+                onSetPreference: { onSetPreference(exercise, $0) }
             )
 
         case .group(let group, let exercises):
-            SupersetGroupCardWithHandle(
+            SupersetGroupContent(
                 group: group,
                 exercises: exercises,
                 isLiveWorkout: isLiveWorkout,
                 preferenceManager: preferenceManager,
-                onDragChanged: onDragChanged,
-                onDragEnded: onDragEnded,
                 onExerciseTap: onExerciseTap,
                 onExerciseReplace: onExerciseReplace,
                 onExerciseRemove: onExerciseRemove,
@@ -245,15 +268,150 @@ private struct ExerciseItemView: View {
     }
 }
 
-// MARK: - Superset Group Card With Handle
+// MARK: - Standalone Exercise Card
 
-private struct SupersetGroupCardWithHandle: View {
+private struct StandaloneExerciseCard: View {
+    let exercise: WorkoutExercise
+    let isLiveWorkout: Bool
+    let currentPreference: ExerciseSuggestionPreference
+    let onTap: () -> Void
+    let onReplace: () -> Void
+    let onRemove: () -> Void
+    let onSetPreference: (ExerciseSuggestionPreference) -> Void
+
+    var completedSetsCount: Int {
+        exercise.sets.filter { $0.isCompleted }.count
+    }
+
+    var setProgress: Double {
+        guard exercise.sets.count > 0 else { return 0 }
+        return Double(completedSetsCount) / Double(exercise.sets.count)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Tappable content area
+            HStack(spacing: 12) {
+                if isLiveWorkout {
+                    // Progress indicator
+                    ZStack {
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                            .frame(width: 40, height: 40)
+
+                        if !exercise.isCompleted && completedSetsCount > 0 {
+                            Circle()
+                                .trim(from: 0, to: setProgress)
+                                .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                .frame(width: 40, height: 40)
+                                .rotationEffect(.degrees(-90))
+                        }
+
+                        if exercise.isCompleted {
+                            Circle()
+                                .stroke(Color.green, lineWidth: 3)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.green)
+                                .fontWeight(.bold)
+                        } else {
+                            Text("\(completedSetsCount)/\(exercise.sets.count)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                    }
+                } else {
+                    Image(systemName: "dumbbell.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                        .frame(width: 40, height: 40)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text(exercise.exercise.name)
+                            .font(.headline)
+                            .foregroundStyle(isLiveWorkout && exercise.isCompleted ? .secondary : .primary)
+
+                        if currentPreference != .normal {
+                            Image(systemName: currentPreference.iconName)
+                                .font(.caption)
+                                .foregroundStyle(preferenceColor)
+                        }
+                    }
+
+                    HStack {
+                        Text("\(exercise.sets.count) sets")
+                        Text("•")
+                        Text("\(exercise.sets.first?.actualReps ?? exercise.sets.first?.targetReps ?? 0) reps")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap()
+            }
+
+            // Menu - separate from tap area
+            Menu {
+                Button(action: onReplace) {
+                    Label("Replace Exercise", systemImage: "arrow.triangle.2.circlepath")
+                }
+                Divider()
+                Menu {
+                    ForEach(ExerciseSuggestionPreference.allCases, id: \.self) { pref in
+                        Button {
+                            onSetPreference(pref)
+                        } label: {
+                            HStack {
+                                Label(pref.displayName, systemImage: pref.iconName)
+                                if pref == currentPreference {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Suggestion Preference", systemImage: "hand.thumbsup")
+                }
+                Divider()
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove from Workout", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 8)
+            }
+        }
+        .padding(12)
+    }
+
+    private var preferenceColor: Color {
+        switch currentPreference {
+        case .normal: return .gray
+        case .preferMore: return .green
+        case .preferLess: return .orange
+        case .doNotSuggest: return .red
+        }
+    }
+}
+
+// MARK: - Superset Group Content
+
+private struct SupersetGroupContent: View {
     let group: ExerciseGroup
     let exercises: [WorkoutExercise]
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
-    let onDragChanged: (CGFloat) -> Void
-    let onDragEnded: () -> Void
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
@@ -264,69 +422,49 @@ private struct SupersetGroupCardWithHandle: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Drag handle
-            Image(systemName: "line.3.horizontal")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            onDragChanged(value.translation.height)
-                        }
-                        .onEnded { _ in
-                            onDragEnded()
-                        }
-                )
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: group.groupType.iconName)
+                    .foregroundStyle(groupColor)
+                Text(group.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(groupColor)
 
-            // The actual superset card content
-            VStack(alignment: .leading, spacing: 0) {
-                // Group header
-                HStack(spacing: 8) {
-                    Image(systemName: group.groupType.iconName)
-                        .foregroundStyle(groupColor)
-                    Text(group.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(groupColor)
+                Spacer()
 
-                    Spacer()
-
-                    // Reorder within group button
-                    Button {
-                        onReorderWithinGroup(group)
-                    } label: {
+                Button {
+                    onReorderWithinGroup(group)
+                } label: {
+                    HStack(spacing: 4) {
                         Image(systemName: "arrow.up.arrow.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text("Reorder")
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-                // Exercise cards within the group
-                VStack(spacing: 8) {
-                    ForEach(exercises) { exercise in
-                        GroupedExerciseRow(
-                            exercise: exercise,
-                            group: group,
-                            isLiveWorkout: isLiveWorkout,
-                            currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
-                            onTap: { onExerciseTap(exercise) },
-                            onReplace: { onExerciseReplace(exercise) },
-                            onRemove: { onExerciseRemove(exercise) }
-                        )
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
             }
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+
+            // Exercises
+            VStack(spacing: 6) {
+                ForEach(exercises) { exercise in
+                    GroupExerciseRow(
+                        exercise: exercise,
+                        groupColor: groupColor,
+                        isLiveWorkout: isLiveWorkout,
+                        onTap: { onExerciseTap(exercise) },
+                        onReplace: { onExerciseReplace(exercise) },
+                        onRemove: { onExerciseRemove(exercise) }
+                    )
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 10)
         }
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(groupColor.opacity(0.3), lineWidth: 1.5)
@@ -334,97 +472,93 @@ private struct SupersetGroupCardWithHandle: View {
     }
 }
 
-// MARK: - Grouped Exercise Row
+// MARK: - Group Exercise Row
 
-private struct GroupedExerciseRow: View {
+private struct GroupExerciseRow: View {
     let exercise: WorkoutExercise
-    let group: ExerciseGroup
+    let groupColor: Color
     let isLiveWorkout: Bool
-    let currentPreference: ExerciseSuggestionPreference
     let onTap: () -> Void
     let onReplace: () -> Void
     let onRemove: () -> Void
-
-    private var groupColor: Color {
-        group.groupType.swiftUIColor
-    }
 
     var completedSetsCount: Int {
         exercise.sets.filter { $0.isCompleted }.count
     }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            // Tappable content area
+            HStack(spacing: 10) {
                 if isLiveWorkout {
-                    // Completion indicator
                     ZStack {
                         Circle()
                             .stroke(exercise.isCompleted ? Color.green : Color.gray.opacity(0.3), lineWidth: 2)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
 
                         if exercise.isCompleted {
                             Image(systemName: "checkmark")
-                                .font(.caption)
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.green)
                         } else {
                             Text("\(completedSetsCount)/\(exercise.sets.count)")
-                                .font(.caption2)
+                                .font(.system(size: 9))
                         }
                     }
                 } else {
                     Circle()
                         .fill(groupColor.opacity(0.2))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 28, height: 28)
                         .overlay(
                             Image(systemName: "dumbbell.fill")
-                                .font(.caption)
+                                .font(.system(size: 10))
                                 .foregroundStyle(groupColor)
                         )
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(exercise.exercise.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-
                     Text("\(exercise.sets.count) sets × \(exercise.sets.first?.targetReps ?? 0) reps")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                // Menu for this exercise
-                Menu {
-                    Button(action: onReplace) {
-                        Label("Replace", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    Button(role: .destructive, action: onRemove) {
-                        Label("Remove", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 32)
-                }
-
                 Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(8)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap()
+            }
+
+            // Menu - separate from tap area
+            Menu {
+                Button(action: onReplace) {
+                    Label("Replace", systemImage: "arrow.triangle.2.circlepath")
+                }
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(8)
     }
 }
 
 // MARK: - Group Reorder Sheet
 
-/// Sheet for reordering exercises within a group (superset/circuit)
 struct GroupReorderSheet: View {
     let group: ExerciseGroup
     @Binding var workout: Workout
@@ -434,7 +568,6 @@ struct GroupReorderSheet: View {
         group.groupType.swiftUIColor
     }
 
-    /// Get exercises in this group, in group order
     private var groupExercises: [WorkoutExercise] {
         group.exerciseIds.compactMap { exerciseId in
             workout.exercises.first { $0.id == exerciseId }
@@ -456,7 +589,6 @@ struct GroupReorderSheet: View {
                                 Text(exercise.exercise.name)
                                     .font(.body)
                                     .fontWeight(.medium)
-
                                 Text("\(exercise.sets.count) sets")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
