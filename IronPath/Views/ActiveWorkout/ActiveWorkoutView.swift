@@ -16,7 +16,6 @@ struct ActiveWorkoutView: View {
 
     // Exercise replacement state
     @State private var exerciseToReplace: WorkoutExercise?
-    @State private var showReplacementSheet = false
     @State private var replacementNotes: String = ""
     @State private var isReplacingExercise = false
     @State private var replacementError: String?
@@ -81,9 +80,8 @@ struct ActiveWorkoutView: View {
                                 selectedExercise = exercise
                             },
                             onExerciseReplace: { exercise in
-                                exerciseToReplace = exercise
                                 replacementNotes = ""
-                                showReplacementSheet = true
+                                exerciseToReplace = exercise
                             },
                             onExerciseRemove: { exercise in
                                 exerciseToRemove = exercise
@@ -203,9 +201,9 @@ struct ActiveWorkoutView: View {
             )
             .id(currentExercise.id) // Force SwiftUI to recreate view when exercise changes
         }
-        .sheet(isPresented: $showReplacementSheet) {
+        .sheet(item: $exerciseToReplace) { exercise in
             ExerciseReplacementSheet(
-                exercise: exerciseToReplace,
+                exercise: exercise,
                 currentWorkoutExercises: currentWorkout.exercises.map { $0.exercise.name },
                 notes: $replacementNotes,
                 isLoading: $isReplacingExercise,
@@ -216,7 +214,6 @@ struct ActiveWorkoutView: View {
                     quickReplaceExercise(with: newExercise)
                 },
                 onCancel: {
-                    showReplacementSheet = false
                     exerciseToReplace = nil
                 }
             )
@@ -382,7 +379,6 @@ struct ActiveWorkoutView: View {
                     }
                     persistWorkoutState()
                     isReplacingExercise = false
-                    showReplacementSheet = false
                     self.exerciseToReplace = nil
                 }
             } catch {
@@ -420,7 +416,6 @@ struct ActiveWorkoutView: View {
         }
         persistWorkoutState()
 
-        showReplacementSheet = false
         self.exerciseToReplace = nil
     }
 
@@ -739,6 +734,8 @@ struct WorkoutCompletionSummaryView: View {
     @State private var showExportError = false
     @State private var healthKitAuthorized = false
     @State private var workoutPRs: [WorkoutPR] = []
+    @State private var aiSummary: String?
+    @State private var isGeneratingAISummary = false
 
     var body: some View {
         NavigationStack {
@@ -810,6 +807,42 @@ struct WorkoutCompletionSummaryView: View {
                         .background(Color.green.opacity(0.1))
                         .cornerRadius(12)
                         .padding(.horizontal)
+                    }
+
+                    // AI Summary section
+                    if AppSettings.shared.showAIWorkoutSummary {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Image(systemName: "text.bubble")
+                                    .foregroundStyle(.blue)
+                                Text("AI Summary")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+
+                            if isGeneratingAISummary {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Generating summary...")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(12)
+                                .padding(.horizontal)
+                            } else if let summary = aiSummary {
+                                Text(summary)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(.secondarySystemBackground))
+                                    .cornerRadius(12)
+                                    .padding(.horizontal)
+                            }
+                        }
                     }
 
                     // Personal Records section
@@ -906,8 +939,11 @@ struct WorkoutCompletionSummaryView: View {
                 Text(exportError ?? "Failed to export workout to Apple Health")
             }
             .task {
-                await estimateCalories()
                 detectPRs()
+                // Run calorie estimation and AI summary generation concurrently
+                async let caloriesTask: () = estimateCalories()
+                async let summaryTask: () = generateAISummary()
+                _ = await (caloriesTask, summaryTask)
             }
         }
     }
@@ -946,16 +982,70 @@ struct WorkoutCompletionSummaryView: View {
             let calories = try await provider.estimateCaloriesBurned(workoutSummary: summary)
             await MainActor.run {
                 // Ensure we never show 0 calories
-                estimatedCalories = max(calories, 50)
+                let finalCalories = max(calories, 50)
+                estimatedCalories = finalCalories
                 isEstimatingCalories = false
+
+                // Save calories to the workout for history display
+                saveCaloriesToWorkout(finalCalories)
             }
         } catch {
             // Fallback to a simple estimate based on duration
             let durationMinutes = (workout.duration ?? 0) / 60
             let fallbackCalories = Int(durationMinutes * 5) // ~5 cal/min conservative estimate
             await MainActor.run {
-                estimatedCalories = max(fallbackCalories, 50)
+                let finalCalories = max(fallbackCalories, 50)
+                estimatedCalories = finalCalories
                 isEstimatingCalories = false
+
+                // Save calories to the workout for history display
+                saveCaloriesToWorkout(finalCalories)
+            }
+        }
+    }
+
+    private func saveCaloriesToWorkout(_ calories: Int) {
+        var updatedWorkout = workout
+        updatedWorkout.estimatedCalories = calories
+        WorkoutDataManager.shared.updateWorkout(updatedWorkout)
+    }
+
+    private func generateAISummary() async {
+        guard AppSettings.shared.showAIWorkoutSummary else { return }
+
+        await MainActor.run {
+            isGeneratingAISummary = true
+        }
+
+        do {
+            let provider = AIProviderManager.shared.currentProvider
+
+            // Get recent workouts for context (excluding current workout)
+            let allWorkouts: [Workout] = WorkoutDataManager.shared.getWorkoutHistory()
+            let completedWorkouts = allWorkouts.filter { (w: Workout) -> Bool in
+                w.id != workout.id && w.completedAt != nil
+            }
+            let sortedWorkouts = completedWorkouts.sorted { (w1: Workout, w2: Workout) -> Bool in
+                let date1 = w1.completedAt ?? Date.distantPast
+                let date2 = w2.completedAt ?? Date.distantPast
+                return date1 > date2
+            }
+            let recentWorkouts: [Workout] = Array(sortedWorkouts.prefix(3))
+
+            let summary = try await provider.generateWorkoutSummary(
+                workout: workout,
+                recentWorkouts: recentWorkouts,
+                personalRecords: workoutPRs
+            )
+
+            await MainActor.run {
+                aiSummary = summary
+                isGeneratingAISummary = false
+            }
+        } catch {
+            print("Failed to generate AI summary: \(error)")
+            await MainActor.run {
+                isGeneratingAISummary = false
             }
         }
     }
@@ -1379,7 +1469,7 @@ struct SupersetHeaderView: View {
 // MARK: - Exercise Replacement Sheet
 
 struct ExerciseReplacementSheet: View {
-    let exercise: WorkoutExercise?
+    let exercise: WorkoutExercise
     let currentWorkoutExercises: [String]
     @Binding var notes: String
     @Binding var isLoading: Bool
@@ -1391,8 +1481,6 @@ struct ExerciseReplacementSheet: View {
 
     /// Get similarity-ranked replacement suggestions
     private var similarityRankedSuggestions: [(Exercise, Double)] {
-        guard let exercise = exercise else { return [] }
-
         // Get available equipment from gym profile
         let availableEquipment = GymProfileManager.shared.activeProfile?.availableEquipment ?? Set(Equipment.allCases)
         let availableMachines = GymProfileManager.shared.activeProfile?.availableMachines ?? Set(SpecificMachine.allCases)
@@ -1409,111 +1497,109 @@ struct ExerciseReplacementSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let exercise = exercise {
-                    // Current exercise info
-                    Section {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(exercise.exercise.name)
-                                .font(.headline)
-                            HStack(spacing: 8) {
-                                Label(exercise.exercise.equipment.rawValue, systemImage: "dumbbell")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("•")
-                                    .foregroundStyle(.secondary)
-                                Text(exercise.exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                // Current exercise info
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(exercise.exercise.name)
+                            .font(.headline)
+                        HStack(spacing: 8) {
+                            Label(exercise.exercise.equipment.rawValue, systemImage: "dumbbell")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Text(exercise.exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    } header: {
-                        Text("Current Exercise")
                     }
+                } header: {
+                    Text("Current Exercise")
+                }
 
-                    // Similarity-ranked suggestions
-                    if !similarityRankedSuggestions.isEmpty {
-                        Section {
-                            ForEach(similarityRankedSuggestions.prefix(5), id: \.0.id) { (alt, score) in
-                                Button {
-                                    onQuickReplace(alt)
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(alt.name)
-                                                .foregroundStyle(.primary)
-                                            HStack(spacing: 4) {
-                                                Text(alt.equipment.rawValue)
+                // Similarity-ranked suggestions
+                if !similarityRankedSuggestions.isEmpty {
+                    Section {
+                        ForEach(similarityRankedSuggestions.prefix(5), id: \.0.id) { (alt, score) in
+                            Button {
+                                onQuickReplace(alt)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(alt.name)
+                                            .foregroundStyle(.primary)
+                                        HStack(spacing: 4) {
+                                            Text(alt.equipment.rawValue)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            if !alt.primaryMuscleGroups.intersection(exercise.exercise.primaryMuscleGroups).isEmpty {
+                                                Text("•")
                                                     .font(.caption)
                                                     .foregroundStyle(.secondary)
-                                                if !alt.primaryMuscleGroups.intersection(exercise.exercise.primaryMuscleGroups).isEmpty {
-                                                    Text("•")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
-                                                    Text(alt.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
-                                                        .lineLimit(1)
-                                                }
+                                                Text(alt.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
                                             }
                                         }
-                                        Spacer()
-                                        // Similarity badge
-                                        Text("\(Int(score * 100))%")
-                                            .font(.caption.bold())
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(similarityColor(for: score))
-                                            .clipShape(Capsule())
                                     }
+                                    Spacer()
+                                    // Similarity badge
+                                    Text("\(Int(score * 100))%")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(similarityColor(for: score))
+                                        .clipShape(Capsule())
                                 }
-                                .disabled(isLoading)
                             }
-                        } header: {
-                            HStack {
-                                Text("Best Matches")
-                                Spacer()
-                                Text("Similarity")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } footer: {
-                            Text("Ranked by muscle groups, movement pattern, and equipment")
+                            .disabled(isLoading)
                         }
-                    }
-
-                    // Browse All section
-                    Section {
-                        NavigationLink {
-                            ExerciseBrowserView(
-                                sourceExercise: exercise.exercise,
-                                excludedExerciseNames: currentWorkoutExercises,
-                                onSelect: { selectedExercise in
-                                    onQuickReplace(selectedExercise)
-                                }
-                            )
-                        } label: {
-                            HStack {
-                                Image(systemName: "list.bullet.rectangle")
-                                    .foregroundStyle(.blue)
-                                Text("Browse All Exercises")
-                                Spacer()
-                                Text("\(ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count)")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .disabled(isLoading)
-                    }
-
-                    // AI Replacement section
-                    Section {
-                        TextField("Why do you need a replacement?", text: $notes, axis: .vertical)
-                            .lineLimit(3...6)
                     } header: {
-                        Label("AI Replacement", systemImage: "sparkles")
+                        HStack {
+                            Text("Best Matches")
+                            Spacer()
+                            Text("Similarity")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     } footer: {
-                        Text("Describe your needs and AI will find the best alternative.\nExamples: \"My shoulder hurts\", \"Machine is taken\", \"Want something harder\"")
+                        Text("Ranked by muscle groups, movement pattern, and equipment")
                     }
+                }
+
+                // Browse All section
+                Section {
+                    NavigationLink {
+                        ExerciseBrowserView(
+                            sourceExercise: exercise.exercise,
+                            excludedExerciseNames: currentWorkoutExercises,
+                            onSelect: { selectedExercise in
+                                onQuickReplace(selectedExercise)
+                            }
+                        )
+                    } label: {
+                        HStack {
+                            Image(systemName: "list.bullet.rectangle")
+                                .foregroundStyle(.blue)
+                            Text("Browse All Exercises")
+                            Spacer()
+                            Text("\(ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(isLoading)
+                }
+
+                // AI Replacement section
+                Section {
+                    TextField("Why do you need a replacement?", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                } header: {
+                    Label("AI Replacement", systemImage: "sparkles")
+                } footer: {
+                    Text("Describe your needs and AI will find the best alternative.\nExamples: \"My shoulder hurts\", \"Machine is taken\", \"Want something harder\"")
                 }
             }
             .navigationTitle("Replace Exercise")
@@ -1838,6 +1924,7 @@ struct PlateCalculatorView: View {
     let totalWeight: Double
     let equipment: Equipment
     let exerciseName: String
+    var previousWeight: Double? = nil  // Previous set weight for comparison
 
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var settings = GymSettings.shared
@@ -1884,7 +1971,7 @@ struct PlateCalculatorView: View {
         return plateWeight / 2
     }
 
-    private var currentPlates: [Double] {
+    private var currentPlates: [AvailablePlate] {
         settings.availablePlates(for: exerciseName)
     }
 
@@ -1892,11 +1979,15 @@ struct PlateCalculatorView: View {
         var remaining = weightPerSide
         var plates: [(Double, Int)] = []
 
-        for plateSize in currentPlates {
-            let count = Int(remaining / plateSize)
+        for plate in currentPlates {
+            var count = Int(remaining / plate.weight)
+            // Respect quantity limit if set
+            if plate.hasLimit {
+                count = min(count, plate.count)
+            }
             if count > 0 {
-                plates.append((plateSize, count))
-                remaining -= Double(count) * plateSize
+                plates.append((plate.weight, count))
+                remaining -= Double(count) * plate.weight
             }
         }
 
@@ -1905,9 +1996,13 @@ struct PlateCalculatorView: View {
 
     private var isValidWeight: Bool {
         var remaining = weightPerSide
-        for plateSize in currentPlates {
-            let count = Int(remaining / plateSize)
-            remaining -= Double(count) * plateSize
+        for plate in currentPlates {
+            var count = Int(remaining / plate.weight)
+            // Respect quantity limit if set
+            if plate.hasLimit {
+                count = min(count, plate.count)
+            }
+            remaining -= Double(count) * plate.weight
         }
         return remaining < 0.01
     }
@@ -1918,6 +2013,63 @@ struct PlateCalculatorView: View {
 
     private var hasCustomMachineWeight: Bool {
         settings.hasCustomMachineWeight(for: exerciseName)
+    }
+
+    /// Previous set weight per side (for comparison)
+    private var previousWeightPerSide: Double? {
+        guard let prevWeight = previousWeight, prevWeight > 0 else { return nil }
+        let prevPlateWeight = max(0, prevWeight - localMachineWeight)
+        return localIsSingleSided ? prevPlateWeight : prevPlateWeight / 2
+    }
+
+    /// Calculate plates needed for previous weight
+    private var previousPlatesNeeded: [(Double, Int)]? {
+        guard let prevPerSide = previousWeightPerSide else { return nil }
+        var remaining = prevPerSide
+        var plates: [(Double, Int)] = []
+
+        for plate in currentPlates {
+            var count = Int(remaining / plate.weight)
+            if plate.hasLimit {
+                count = min(count, plate.count)
+            }
+            if count > 0 {
+                plates.append((plate.weight, count))
+                remaining -= Double(count) * plate.weight
+            }
+        }
+
+        return plates
+    }
+
+    /// Calculate plate difference from previous set (positive = add, negative = remove)
+    private var plateDifference: [(Double, Int)]? {
+        guard let prevPlates = previousPlatesNeeded,
+              previousWeight != totalWeight else { return nil }
+
+        // Convert current and previous plates to dictionaries
+        let currentDict = Dictionary(uniqueKeysWithValues: platesNeeded)
+        var prevDict = Dictionary(uniqueKeysWithValues: prevPlates)
+
+        var diff: [(Double, Int)] = []
+
+        // Check all plate sizes
+        let allWeights = Set(currentDict.keys).union(prevDict.keys)
+        for weight in allWeights.sorted(by: >) {
+            let currentCount = currentDict[weight] ?? 0
+            let prevCount = prevDict[weight] ?? 0
+            let change = currentCount - prevCount
+            if change != 0 {
+                diff.append((weight, change))
+            }
+        }
+
+        return diff.isEmpty ? nil : diff
+    }
+
+    /// Whether we're adding or removing plates overall
+    private var isAddingPlates: Bool {
+        totalWeight > (previousWeight ?? 0)
     }
 
     var body: some View {
@@ -2052,6 +2204,35 @@ struct PlateCalculatorView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
                         .padding(.horizontal)
+
+                        // Show plate difference from previous set
+                        if let diff = plateDifference {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: isAddingPlates ? "plus.circle.fill" : "minus.circle.fill")
+                                        .foregroundStyle(isAddingPlates ? .green : .orange)
+                                    Text("From previous set:")
+                                        .font(.headline)
+                                }
+
+                                ForEach(diff, id: \.0) { plate, change in
+                                    HStack {
+                                        PlateVisual(weight: plate)
+                                        Spacer()
+                                        Text("\(formatWeight(plate)) lbs")
+                                            .fontWeight(.medium)
+                                        Text(change > 0 ? "+ \(change)" : "- \(abs(change))")
+                                            .foregroundStyle(change > 0 ? .green : .orange)
+                                            .fontWeight(.medium)
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                            .padding()
+                            .background(isAddingPlates ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                            .cornerRadius(12)
+                            .padding(.horizontal)
+                        }
                     }
 
                     if !isValidWeight && weightPerSide > 0 {
@@ -2084,7 +2265,7 @@ struct PlateCalculatorView: View {
                                                 .foregroundStyle(.blue)
                                         }
                                     }
-                                    Text(currentPlates.map { formatWeight($0) }.joined(separator: ", ") + " lbs")
+                                    Text(currentPlates.map { formatWeight($0.weight) }.joined(separator: ", ") + " lbs")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -2152,7 +2333,8 @@ struct AvailablePlatesEditor: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var settings = GymSettings.shared
     @State private var newPlateWeight: String = ""
-    @State private var localPlates: [Double] = []
+    @State private var newPlateCount: String = ""
+    @State private var localPlates: [AvailablePlate] = []
 
     private var hasCustomConfig: Bool {
         settings.hasCustomPlateConfig(for: exerciseName)
@@ -2179,13 +2361,11 @@ struct AvailablePlatesEditor: View {
                 }
 
                 Section {
-                    ForEach(localPlates, id: \.self) { plate in
-                        HStack {
-                            PlateVisual(weight: plate)
-                            Text("\(formatWeight(plate)) lbs")
-                                .fontWeight(.medium)
-                            Spacer()
-                        }
+                    ForEach(Array(localPlates.enumerated()), id: \.element.weight) { index, plate in
+                        PlateRowEditor(
+                            plate: $localPlates[index],
+                            onUpdate: saveChanges
+                        )
                     }
                     .onDelete { indexSet in
                         localPlates.remove(atOffsets: indexSet)
@@ -2194,13 +2374,27 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Available Plates")
                 } footer: {
-                    Text("Swipe left to remove a plate size")
+                    Text("Set count per side (0 = unlimited). Swipe left to remove.")
                 }
 
                 Section {
                     HStack {
-                        TextField("Weight (lbs)", text: $newPlateWeight)
+                        TextField("Weight", text: $newPlateWeight)
                             .keyboardType(.decimalPad)
+                            .frame(width: 80)
+
+                        Text("lbs")
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Text("×")
+                            .foregroundStyle(.secondary)
+
+                        TextField("Qty", text: $newPlateCount)
+                            .keyboardType(.numberPad)
+                            .frame(width: 50)
+                            .multilineTextAlignment(.center)
 
                         Button {
                             addPlate()
@@ -2214,7 +2408,7 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Add Plate")
                 } footer: {
-                    Text("Add custom plate sizes available for this exercise (e.g., 100, 35)")
+                    Text("Enter weight and quantity per side (leave qty empty for unlimited)")
                 }
 
                 Section {
@@ -2232,7 +2426,7 @@ struct AvailablePlatesEditor: View {
                     }
                     .foregroundStyle(.orange)
                 } footer: {
-                    Text("Standard: 45, 35, 25, 10, 5, 2.5 lbs")
+                    Text("Standard: 45, 35, 25, 10, 5, 2.5 lbs (unlimited)")
                 }
             }
             .navigationTitle("Available Plates")
@@ -2253,16 +2447,74 @@ struct AvailablePlatesEditor: View {
     private func addPlate() {
         guard let weight = Double(newPlateWeight), weight > 0 else { return }
 
-        if !localPlates.contains(weight) {
-            localPlates.append(weight)
-            localPlates.sort(by: >)
-            saveChanges()
+        let count = Int(newPlateCount) ?? 0
+
+        // Check if plate already exists
+        if let existingIndex = localPlates.firstIndex(where: { $0.weight == weight }) {
+            // Update existing plate's count
+            localPlates[existingIndex].count = count
+        } else {
+            // Add new plate
+            localPlates.append(AvailablePlate(weight: weight, count: count))
+            localPlates.sort { $0.weight > $1.weight }
         }
+        saveChanges()
         newPlateWeight = ""
+        newPlateCount = ""
     }
 
     private func saveChanges() {
         settings.setAvailablePlates(localPlates, for: exerciseName)
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+}
+
+/// Row editor for a single plate with quantity
+struct PlateRowEditor: View {
+    @Binding var plate: AvailablePlate
+    let onUpdate: () -> Void
+
+    @State private var countText: String = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack {
+            PlateVisual(weight: plate.weight)
+            Text("\(formatWeight(plate.weight)) lbs")
+                .fontWeight(.medium)
+
+            Spacer()
+
+            Text("×")
+                .foregroundStyle(.secondary)
+
+            TextField("∞", text: $countText)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .frame(width: 50)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(.systemGray6))
+                .cornerRadius(6)
+                .focused($isFocused)
+                .onChange(of: isFocused) { _, focused in
+                    if !focused {
+                        // Save when focus is lost
+                        plate.count = Int(countText) ?? 0
+                        onUpdate()
+                    }
+                }
+
+            Text("/side")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .onAppear {
+            countText = plate.count > 0 ? String(plate.count) : ""
+        }
     }
 
     private func formatWeight(_ w: Double) -> String {

@@ -24,7 +24,6 @@ struct WorkoutDetailView: View {
 
     // Replace exercise state
     @State private var exerciseToReplace: WorkoutExercise?
-    @State private var showReplacementSheet = false
     @State private var replacementNotes: String = ""
     @State private var isReplacingExercise = false
     @State private var replacementError: String?
@@ -107,9 +106,8 @@ struct WorkoutDetailView: View {
                             selectedExercise = exercise
                         },
                         onExerciseReplace: { exercise in
-                            exerciseToReplace = exercise
                             replacementNotes = ""
-                            showReplacementSheet = true
+                            exerciseToReplace = exercise
                         },
                         onExerciseRemove: { exercise in
                             exerciseToRemove = exercise
@@ -190,9 +188,9 @@ struct WorkoutDetailView: View {
                 addExerciseFromLibrary(exercise)
             }
         }
-        .sheet(isPresented: $showReplacementSheet) {
+        .sheet(item: $exerciseToReplace) { exercise in
             ExerciseReplacementSheet(
-                exercise: exerciseToReplace,
+                exercise: exercise,
                 currentWorkoutExercises: workout.exercises.map { $0.exercise.name },
                 notes: $replacementNotes,
                 isLoading: $isReplacingExercise,
@@ -203,7 +201,6 @@ struct WorkoutDetailView: View {
                     quickReplaceExercise(with: newExercise)
                 },
                 onCancel: {
-                    showReplacementSheet = false
                     exerciseToReplace = nil
                 }
             )
@@ -317,7 +314,6 @@ struct WorkoutDetailView: View {
                     }
                     onWorkoutUpdated?(workout)
                     isReplacingExercise = false
-                    showReplacementSheet = false
                     self.exerciseToReplace = nil
                 }
             } catch {
@@ -355,7 +351,6 @@ struct WorkoutDetailView: View {
         }
         onWorkoutUpdated?(workout)
 
-        showReplacementSheet = false
         self.exerciseToReplace = nil
     }
 

@@ -402,14 +402,10 @@ struct PreferenceButton: View {
     }
 }
 
-/// YouTube video thumbnail with link to open in YouTube app/Safari
+/// Compact YouTube button to open video demonstration
 struct YouTubeVideoView: View {
     let videoID: String
     @Environment(\.openURL) private var openURL
-
-    private var thumbnailURL: URL? {
-        URL(string: "https://img.youtube.com/vi/\(videoID)/hqdefault.jpg")
-    }
 
     private var youtubeAppURL: URL? {
         URL(string: "youtube://watch?v=\(videoID)")
@@ -420,75 +416,41 @@ struct YouTubeVideoView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Video Demonstration", systemImage: "play.circle")
-                .font(.headline)
-
-            Button {
-                openYouTube()
-            } label: {
+        Button {
+            openYouTube()
+        } label: {
+            HStack(spacing: 12) {
+                // YouTube play icon
                 ZStack {
-                    // Thumbnail image
-                    AsyncImage(url: thumbnailURL) { phase in
-                        switch phase {
-                        case .empty:
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                                .frame(height: 200)
-                                .overlay {
-                                    ProgressView()
-                                }
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(16/9, contentMode: .fill)
-                                .frame(height: 200)
-                                .clipped()
-                                .cornerRadius(12)
-                        case .failure:
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                                .frame(height: 200)
-                                .overlay {
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "video.slash")
-                                            .font(.largeTitle)
-                                        Text("Tap to open in YouTube")
-                                            .font(.caption)
-                                    }
-                                    .foregroundStyle(.secondary)
-                                }
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-
-                    // Play button overlay
-                    Circle()
-                        .fill(.black.opacity(0.7))
-                        .frame(width: 70, height: 70)
-                        .overlay {
-                            Image(systemName: "play.fill")
-                                .font(.title)
-                                .foregroundStyle(.white)
-                                .offset(x: 3) // Optical centering
-                        }
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.red)
+                        .frame(width: 36, height: 26)
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white)
                 }
-            }
-            .buttonStyle(.plain)
 
-            // Help text
-            HStack {
-                Image(systemName: "arrow.up.right.square")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Watch Video")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("Opens in YouTube")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
                     .font(.caption)
-                Text("Opens in YouTube")
-                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        .buttonStyle(.plain)
     }
 
     private func openYouTube() {

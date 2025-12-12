@@ -139,6 +139,22 @@ struct ExerciseDetailSheet: View {
                         .padding(.horizontal)
 
                         ForEach(Array(updatedExercise.sets.enumerated()), id: \.element.id) { setIndex, set in
+                            // Compute working set number (excludes warmups from count)
+                            let workingSetNumber: Int? = {
+                                guard set.setType != .warmup else { return nil }
+                                // Count non-warmup sets before this one, then add 1
+                                let previousWorkingSets = updatedExercise.sets.prefix(setIndex)
+                                    .filter { $0.setType != .warmup }
+                                    .count
+                                return previousWorkingSets + 1
+                            }()
+
+                            // Get previous set weight for plate calculator comparison
+                            let previousSetWeight: Double? = {
+                                guard setIndex > 0 else { return nil }
+                                return updatedExercise.sets[setIndex - 1].weight
+                            }()
+
                             HStack(alignment: .top, spacing: 8) {
                                 AdvancedSetRowView(
                                     set: set,
@@ -185,7 +201,9 @@ struct ExerciseDetailSheet: View {
                                         handleSupersetSetCompletion(forSetIndex: setIndex)
                                     } : nil,
                                     isLiveWorkout: isLiveWorkout,
-                                    isPendingWorkout: isPendingWorkout
+                                    isPendingWorkout: isPendingWorkout,
+                                    workingSetNumber: workingSetNumber,
+                                    previousSetWeight: previousSetWeight
                                 )
 
                                 // Delete set button (only show if more than 1 set)
@@ -310,14 +328,11 @@ struct ExerciseDetailSheet: View {
                 }
             }
             .onDisappear {
-                // Save changes when sheet is dismissed (including swipe-to-dismiss)
-                // But NOT if we're navigating to the next exercise in a superset
-                // (onUpdateWithoutDismiss handles that case)
-                if onUpdateWithoutDismiss == nil {
-                    // Not a live superset workout - safe to call onUpdate
-                    onUpdate(updatedExercise)
-                }
-                // For superset workouts, changes were already saved via onUpdateWithoutDismiss
+                // Always save changes when sheet is dismissed (including swipe-to-dismiss)
+                // This ensures state is persisted regardless of how the sheet is closed
+                // Note: onUpdateWithoutDismiss is for intermediate saves during superset navigation,
+                // but onUpdate should always be called on final dismissal to ensure no data loss
+                onUpdate(updatedExercise)
             }
         }
     }

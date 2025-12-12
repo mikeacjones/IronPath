@@ -227,6 +227,14 @@ struct WorkoutHistoryDetailView: View {
                             value: formatVolume(workout.totalVolume),
                             label: "Volume"
                         )
+
+                        if let calories = workout.estimatedCalories {
+                            HistoryStatBadge(
+                                icon: "flame",
+                                value: "\(calories)",
+                                label: "Calories"
+                            )
+                        }
                     }
                 }
                 .padding()
@@ -658,6 +666,9 @@ struct WorkoutHistoryCard: View {
                     Label("\(Int(duration / 60)) min", systemImage: "clock")
                 }
                 Label("\(Int(workout.totalVolume)) lbs", systemImage: "scalemass")
+                if let calories = workout.estimatedCalories {
+                    Label("\(calories) cal", systemImage: "flame")
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)

@@ -24,6 +24,10 @@ struct AdvancedSetRowView: View {
     let isLiveWorkout: Bool
     /// When true, this is editing a pending workout - edits update targetReps instead of actualReps
     let isPendingWorkout: Bool
+    /// Display number for working sets (excludes warmups from count) - nil for warmup sets
+    let workingSetNumber: Int?
+    /// Weight from previous set for plate calculator comparison
+    let previousSetWeight: Double?
 
     @State private var weight: String
     @State private var reps: String
@@ -46,7 +50,9 @@ struct AdvancedSetRowView: View {
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
-        isPendingWorkout: Bool = false
+        isPendingWorkout: Bool = false,
+        workingSetNumber: Int? = nil,
+        previousSetWeight: Double? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -61,6 +67,8 @@ struct AdvancedSetRowView: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.workingSetNumber = workingSetNumber
+        self.previousSetWeight = previousSetWeight
 
         let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
             for: exerciseName,
@@ -99,7 +107,9 @@ struct AdvancedSetRowView: View {
                     isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted,
                     isLiveWorkout: isLiveWorkout,
-                    isPendingWorkout: isPendingWorkout
+                    isPendingWorkout: isPendingWorkout,
+                    workingSetNumber: workingSetNumber,
+                    previousSetWeight: previousSetWeight
                 )
 
             case .warmup:
@@ -222,6 +232,10 @@ struct StandardSetRow: View {
     let onSetCompleted: (() -> Void)?
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
+    /// Display number for working sets (excludes warmups from count)
+    let workingSetNumber: Int?
+    /// Weight from previous set for plate calculator comparison
+    let previousSetWeight: Double?
 
     @State private var showPlateCalculator = false
     @ObservedObject private var restTimerManager = RestTimerManager.shared
@@ -242,7 +256,9 @@ struct StandardSetRow: View {
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
-        isPendingWorkout: Bool = false
+        isPendingWorkout: Bool = false,
+        workingSetNumber: Int? = nil,
+        previousSetWeight: Double? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -260,13 +276,20 @@ struct StandardSetRow: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.workingSetNumber = workingSetNumber
+        self.previousSetWeight = previousSetWeight
+    }
+
+    /// Computed display number - uses workingSetNumber if provided, otherwise falls back to setNumber
+    private var displayNumber: Int {
+        workingSetNumber ?? set.setNumber
     }
 
     var body: some View {
         HStack(spacing: 12) {
             // Set number with type indicator
             VStack(spacing: 2) {
-                Text("Set \(set.setNumber)")
+                Text("Set \(displayNumber)")
                     .font(.headline)
             }
             .frame(width: 50, alignment: .leading)
@@ -338,7 +361,8 @@ struct StandardSetRow: View {
                 PlateCalculatorView(
                     totalWeight: Double(weight) ?? 0,
                     equipment: equipment,
-                    exerciseName: exerciseName
+                    exerciseName: exerciseName,
+                    previousWeight: previousSetWeight
                 )
             }
         }
@@ -1232,6 +1256,8 @@ struct WeightInputView: View {
             }
 
             // Show pin location and free weight breakdown for valid cable weights
+            // For user-entered weights that don't match config, simply hide the PIN display
+            // (the calculator button is shown orange as a subtle hint)
             if let breakdown = currentWeightBreakdown {
                 HStack(spacing: 2) {
                     Image(systemName: "pin.fill")
@@ -1247,21 +1273,6 @@ struct WeightInputView: View {
                     }
                 }
                 .foregroundStyle(.blue)
-            }
-
-            // Show invalid weight warning for cables
-            if isInvalidCableWeight {
-                Button {
-                    showPlateCalculator = true
-                } label: {
-                    HStack(spacing: 2) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 8))
-                        Text("Invalid weight - tap to fix")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.orange)
-                }
             }
         }
     }

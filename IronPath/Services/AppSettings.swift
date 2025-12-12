@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import AudioToolbox
 import UserNotifications
+import AVFoundation
 
 // MARK: - Rest Notification Sound
 
@@ -95,8 +96,111 @@ enum RestNotificationSound: String, CaseIterable, Codable {
 
     /// Play this sound immediately (for preview or foreground playback)
     func playSound() {
-        guard let soundID = systemSoundID else { return }
-        AudioServicesPlaySystemSound(soundID)
+        // Use configurable volume via SoundPlayer
+        SoundPlayer.shared.playSound(self)
+    }
+}
+
+// MARK: - Sound Player
+
+/// Singleton to manage sound playback with volume control
+class SoundPlayer: NSObject {
+    static let shared = SoundPlayer()
+
+    private var audioPlayer: AVAudioPlayer?
+    private var isAudioSessionConfigured = false
+
+    private override init() {
+        super.init()
+        configureAudioSession()
+    }
+
+    /// Configure audio session to play sounds even when silent mode is on
+    private func configureAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            // Use playback category to play through silent mode, ambient to mix with others
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            isAudioSessionConfigured = true
+        } catch {
+            print("Failed to configure audio session: \(error)")
+        }
+    }
+
+    /// Play a notification sound at the configured volume
+    func playSound(_ sound: RestNotificationSound) {
+        guard sound != .none else { return }
+
+        let volume = AppSettings.shared.restNotificationVolume
+
+        // Ensure audio session is active
+        if !isAudioSessionConfigured {
+            configureAudioSession()
+        }
+
+        // Try to play custom sound file first (if bundled)
+        if let url = soundFileURL(for: sound) {
+            playFromFile(url: url, volume: Float(volume))
+            return
+        }
+
+        // Fallback to system sound (these don't support volume control, but we'll
+        // at least configure the session to play through silent mode)
+        // Play multiple times for "louder" effect based on volume setting
+        if let soundID = sound.systemSoundID {
+            // For high volume settings, trigger vibration as well for attention
+            if volume > 0.7 {
+                AudioServicesPlayAlertSound(soundID)  // Alert sound includes vibration
+            } else {
+                AudioServicesPlaySystemSound(soundID)
+            }
+        }
+    }
+
+    /// Get URL for bundled sound file (if exists)
+    private func soundFileURL(for sound: RestNotificationSound) -> URL? {
+        // Map sound names to potential bundled file names
+        let fileName: String
+        switch sound {
+        case .default: fileName = "notification_default"
+        case .tritone: fileName = "tritone"
+        case .note: fileName = "note"
+        case .aurora: fileName = "aurora"
+        case .bamboo: fileName = "bamboo"
+        case .chord: fileName = "chord"
+        case .circles: fileName = "circles"
+        case .complete: fileName = "complete"
+        case .hello: fileName = "hello"
+        case .input: fileName = "input"
+        case .keys: fileName = "keys"
+        case .popcorn: fileName = "popcorn"
+        case .pulse: fileName = "pulse"
+        case .synth: fileName = "synth"
+        case .none: return nil
+        }
+
+        // Check for bundled audio files (wav, mp3, m4a, aiff, caf)
+        for ext in ["wav", "mp3", "m4a", "aiff", "caf"] {
+            if let url = Bundle.main.url(forResource: fileName, withExtension: ext) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// Play audio from file with volume control
+    private func playFromFile(url: URL, volume: Float) {
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.volume = volume
+            audioPlayer?.prepareToPlay()
+            audioPlayer?.play()
+        } catch {
+            print("Failed to play audio file: \(error)")
+            // Fallback to system sound
+            AudioServicesPlaySystemSound(1007)
+        }
     }
 }
 
@@ -113,6 +217,8 @@ class AppSettings: ObservableObject {
         static let showYouTubeVideos = "appSettings.showYouTubeVideos"
         static let showFormTips = "appSettings.showFormTips"
         static let restNotificationSound = "appSettings.restNotificationSound"
+        static let restNotificationVolume = "appSettings.restNotificationVolume"
+        static let showAIWorkoutSummary = "appSettings.showAIWorkoutSummary"
     }
 
     // MARK: - Published Properties
@@ -138,6 +244,21 @@ class AppSettings: ObservableObject {
         }
     }
 
+    /// Volume for rest notification sound (0.0 to 1.0)
+    /// Note: Volume control works with custom bundled audio files. System sounds play at device volume.
+    @Published var restNotificationVolume: Double {
+        didSet {
+            defaults.set(restNotificationVolume, forKey: Keys.restNotificationVolume)
+        }
+    }
+
+    /// Whether to show AI-generated workout summary on completion
+    @Published var showAIWorkoutSummary: Bool {
+        didSet {
+            defaults.set(showAIWorkoutSummary, forKey: Keys.showAIWorkoutSummary)
+        }
+    }
+
     // MARK: - Initialization
 
     private init() {
@@ -148,9 +269,19 @@ class AppSettings: ObservableObject {
         if defaults.object(forKey: Keys.showFormTips) == nil {
             defaults.set(true, forKey: Keys.showFormTips)
         }
+        // Default volume to 1.0 (max) if not set
+        if defaults.object(forKey: Keys.restNotificationVolume) == nil {
+            defaults.set(1.0, forKey: Keys.restNotificationVolume)
+        }
+        // Default AI workout summary to true
+        if defaults.object(forKey: Keys.showAIWorkoutSummary) == nil {
+            defaults.set(true, forKey: Keys.showAIWorkoutSummary)
+        }
 
         self.showYouTubeVideos = defaults.bool(forKey: Keys.showYouTubeVideos)
         self.showFormTips = defaults.bool(forKey: Keys.showFormTips)
+        self.restNotificationVolume = defaults.double(forKey: Keys.restNotificationVolume)
+        self.showAIWorkoutSummary = defaults.bool(forKey: Keys.showAIWorkoutSummary)
 
         // Load rest notification sound preference
         if let soundRawValue = defaults.string(forKey: Keys.restNotificationSound),
