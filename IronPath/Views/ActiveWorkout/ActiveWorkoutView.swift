@@ -677,6 +677,7 @@ struct ExerciseCardWithGrouping: View {
 struct SupersetGroupCard: View {
     let group: ExerciseGroup
     let exercises: [WorkoutExercise]
+    var isLiveWorkout: Bool = true
     @ObservedObject var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
@@ -705,10 +706,16 @@ struct SupersetGroupCard: View {
 
                 Spacer()
 
-                // Progress indicator
-                Text("\(completedExercisesInGroup)/\(exercises.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Progress indicator (only shown during live workout)
+                if isLiveWorkout {
+                    Text("\(completedExercisesInGroup)/\(exercises.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(exercises.count) exercises")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -720,6 +727,7 @@ struct SupersetGroupCard: View {
                     ActiveExerciseCard(
                         exercise: exercise,
                         currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                        isLiveWorkout: isLiveWorkout,
                         onTap: {
                             onExerciseTap(exercise)
                         },
@@ -1191,6 +1199,7 @@ struct WorkoutTimerHeader: View {
 struct ActiveExerciseCard: View {
     let exercise: WorkoutExercise
     let currentPreference: ExerciseSuggestionPreference
+    var isLiveWorkout: Bool = true
     let onTap: () -> Void
     let onReplace: () -> Void
     let onRemove: () -> Void
@@ -1208,39 +1217,47 @@ struct ActiveExerciseCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
-                // Completion indicator with progress circle
-                ZStack {
-                    // Background circle
-                    Circle()
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                if isLiveWorkout {
+                    // Completion indicator with progress circle (live workout)
+                    ZStack {
+                        // Background circle
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                            .frame(width: 44, height: 44)
+
+                        // Progress arc (only shown when not fully completed)
+                        if !exercise.isCompleted && completedSetsCount > 0 {
+                            Circle()
+                                .trim(from: 0, to: setProgress)
+                                .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                .frame(width: 44, height: 44)
+                                .rotationEffect(.degrees(-90))
+                                .animation(.easeInOut(duration: 0.3), value: setProgress)
+                        }
+
+                        // Completed state: full green circle
+                        if exercise.isCompleted {
+                            Circle()
+                                .stroke(Color.green, lineWidth: 3)
+                                .frame(width: 44, height: 44)
+                        }
+
+                        if exercise.isCompleted {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.green)
+                                .fontWeight(.bold)
+                        } else {
+                            Text("\(completedSetsCount)/\(exercise.sets.count)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                    }
+                } else {
+                    // Simple dumbbell icon for preview mode
+                    Image(systemName: "dumbbell.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
                         .frame(width: 44, height: 44)
-
-                    // Progress arc (only shown when not fully completed)
-                    if !exercise.isCompleted && completedSetsCount > 0 {
-                        Circle()
-                            .trim(from: 0, to: setProgress)
-                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                            .frame(width: 44, height: 44)
-                            .rotationEffect(.degrees(-90))
-                            .animation(.easeInOut(duration: 0.3), value: setProgress)
-                    }
-
-                    // Completed state: full green circle
-                    if exercise.isCompleted {
-                        Circle()
-                            .stroke(Color.green, lineWidth: 3)
-                            .frame(width: 44, height: 44)
-                    }
-
-                    if exercise.isCompleted {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(.green)
-                            .fontWeight(.bold)
-                    } else {
-                        Text("\(completedSetsCount)/\(exercise.sets.count)")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
                 }
 
                 // Exercise info
@@ -1248,7 +1265,7 @@ struct ActiveExerciseCard: View {
                     HStack(spacing: 4) {
                         Text(exercise.exercise.name)
                             .font(.headline)
-                            .foregroundStyle(exercise.isCompleted ? .secondary : .primary)
+                            .foregroundStyle(isLiveWorkout && exercise.isCompleted ? .secondary : .primary)
 
                         // Preference indicator
                         if currentPreference != .normal {
@@ -1314,11 +1331,11 @@ struct ActiveExerciseCard: View {
                     .foregroundStyle(.secondary)
             }
             .padding()
-            .background(exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
+            .background(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
+                    .stroke(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
