@@ -34,9 +34,6 @@ struct ActiveWorkoutView: View {
     @State private var completedWorkoutForSummary: Workout?
     @State private var isFinishing = false
 
-    // Reorder state
-    @State private var isReordering = false
-
     init(workout: Workout, userProfile: UserProfile?, onComplete: @escaping (Workout) -> Void, onCancel: @escaping () -> Void) {
         self.workout = workout
         self.userProfile = userProfile
@@ -73,10 +70,9 @@ struct ActiveWorkoutView: View {
                 // Exercise list
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ReorderableExerciseList(
+                        DraggableExerciseList(
                             workout: $currentWorkout,
                             isLiveWorkout: true,
-                            isReordering: isReordering,
                             preferenceManager: preferenceManager,
                             onExerciseTap: { exercise in
                                 selectedExercise = exercise
@@ -101,23 +97,21 @@ struct ActiveWorkoutView: View {
                             persistWorkoutState()
                         }
 
-                        // Add Exercise button (hidden in reorder mode)
-                        if !isReordering {
-                            Button {
-                                showAddExerciseSheet = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.title2)
-                                    Text("Add Exercise")
-                                        .fontWeight(.medium)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .foregroundStyle(.blue)
-                                .cornerRadius(12)
+                        // Add Exercise button
+                        Button {
+                            showAddExerciseSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                Text("Add Exercise")
+                                    .fontWeight(.medium)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .foregroundStyle(.blue)
+                            .cornerRadius(12)
                         }
                     }
                     .padding()
@@ -165,15 +159,6 @@ struct ActiveWorkoutView: View {
                     Button("Keep Going", role: .cancel) { }
                 } message: {
                     Text("Are you sure you want to cancel this workout? Your progress will be lost.")
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    withAnimation {
-                        isReordering.toggle()
-                    }
-                } label: {
-                    Text(isReordering ? "Done" : "Reorder")
                 }
             }
         }

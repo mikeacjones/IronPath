@@ -1,12 +1,12 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-// MARK: - Reorderable Exercise List
+// MARK: - Draggable Exercise List
 
-/// A shared component that displays exercises in either normal mode (VStack with cards) or reorder mode (List with drag handles)
-struct ReorderableExerciseList: View {
+/// A component that displays exercises with long-press drag-to-reorder capability
+struct DraggableExerciseList: View {
     @Binding var workout: Workout
     let isLiveWorkout: Bool
-    let isReordering: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
 
     // Callbacks for exercise interactions
@@ -15,165 +15,167 @@ struct ReorderableExerciseList: View {
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
 
+    // Drag state
+    @State private var draggingItem: ExerciseDisplayItem?
+    @State private var draggedOverItem: ExerciseDisplayItem?
+
     // State for group reordering sheet
     @State private var groupToReorder: ExerciseGroup?
 
     var body: some View {
-        if isReordering {
-            ReorderingListView(
-                workout: $workout,
-                onGroupTap: { group in
-                    groupToReorder = group
+        VStack(spacing: 12) {
+            ForEach(workout.displayItems) { item in
+                DraggableItemView(
+                    item: item,
+                    workout: workout,
+                    isLiveWorkout: isLiveWorkout,
+                    preferenceManager: preferenceManager,
+                    draggingItem: $draggingItem,
+                    draggedOverItem: $draggedOverItem,
+                    onExerciseTap: onExerciseTap,
+                    onExerciseReplace: onExerciseReplace,
+                    onExerciseRemove: onExerciseRemove,
+                    onSetPreference: onSetPreference,
+                    onReorderWithinGroup: { group in
+                        groupToReorder = group
+                    },
+                    onDrop: { fromItem, toItem in
+                        reorderItems(from: fromItem, to: toItem)
+                    }
+                )
+            }
+        }
+        .sheet(item: $groupToReorder) { group in
+            GroupReorderSheet(group: group, workout: $workout)
+        }
+    }
+
+    private func reorderItems(from sourceItem: ExerciseDisplayItem, to destItem: ExerciseDisplayItem) {
+        let items = workout.displayItems
+        guard let sourceIndex = items.firstIndex(where: { $0.id == sourceItem.id }),
+              let destIndex = items.firstIndex(where: { $0.id == destItem.id }),
+              sourceIndex != destIndex else { return }
+
+        let direction = sourceIndex < destIndex ? 1 : 0
+        workout.reorderDisplayItems(from: IndexSet(integer: sourceIndex), to: destIndex + direction)
+    }
+}
+
+// MARK: - Draggable Item View
+
+private struct DraggableItemView: View {
+    let item: ExerciseDisplayItem
+    let workout: Workout
+    let isLiveWorkout: Bool
+    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    @Binding var draggingItem: ExerciseDisplayItem?
+    @Binding var draggedOverItem: ExerciseDisplayItem?
+    let onExerciseTap: (WorkoutExercise) -> Void
+    let onExerciseReplace: (WorkoutExercise) -> Void
+    let onExerciseRemove: (WorkoutExercise) -> Void
+    let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
+    let onReorderWithinGroup: (ExerciseGroup) -> Void
+    let onDrop: (ExerciseDisplayItem, ExerciseDisplayItem) -> Void
+
+    private var isDragging: Bool {
+        draggingItem?.id == item.id
+    }
+
+    private var isDropTarget: Bool {
+        draggedOverItem?.id == item.id && draggingItem?.id != item.id
+    }
+
+    var body: some View {
+        itemContent
+            .opacity(isDragging ? 0.5 : 1.0)
+            .overlay(
+                // Drop indicator
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.blue, lineWidth: 2)
+                    .opacity(isDropTarget ? 1 : 0)
+            )
+            .onDrag {
+                self.draggingItem = item
+                return NSItemProvider(object: item.id as NSString)
+            }
+            .onDrop(of: [.text], delegate: ExerciseDropDelegate(
+                item: item,
+                draggingItem: $draggingItem,
+                draggedOverItem: $draggedOverItem,
+                onDrop: onDrop
+            ))
+    }
+
+    @ViewBuilder
+    private var itemContent: some View {
+        switch item {
+        case .standalone(let exercise):
+            ActiveExerciseCard(
+                exercise: exercise,
+                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                isLiveWorkout: isLiveWorkout,
+                onTap: {
+                    onExerciseTap(exercise)
+                },
+                onReplace: {
+                    onExerciseReplace(exercise)
+                },
+                onRemove: {
+                    onExerciseRemove(exercise)
+                },
+                onSetPreference: { preference in
+                    onSetPreference(exercise, preference)
                 }
             )
-            .sheet(item: $groupToReorder) { group in
-                GroupReorderSheet(group: group, workout: $workout)
-            }
-        } else {
-            NormalDisplayView(
-                workout: workout,
+
+        case .group(let group, let exercises):
+            SupersetGroupCard(
+                group: group,
+                exercises: exercises,
                 isLiveWorkout: isLiveWorkout,
                 preferenceManager: preferenceManager,
                 onExerciseTap: onExerciseTap,
                 onExerciseReplace: onExerciseReplace,
-                onExerciseRemove: onExerciseRemove,
-                onSetPreference: onSetPreference
+                onExerciseRemove: onExerciseRemove
             )
-        }
-    }
-}
-
-// MARK: - Reordering List View
-
-/// List-based view with drag handles for reordering
-private struct ReorderingListView: View {
-    @Binding var workout: Workout
-    let onGroupTap: (ExerciseGroup) -> Void
-
-    var body: some View {
-        List {
-            ForEach(workout.displayItems) { item in
-                ReorderRow(item: item, onGroupTap: onGroupTap)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowSeparator(.hidden)
-            }
-            .onMove { source, destination in
-                workout.reorderDisplayItems(from: source, to: destination)
-            }
-        }
-        .listStyle(.plain)
-        .environment(\.editMode, .constant(.active))
-    }
-}
-
-// MARK: - Reorder Row
-
-/// A row in the reordering list - shows simplified info for standalone or group
-private struct ReorderRow: View {
-    let item: ExerciseDisplayItem
-    let onGroupTap: (ExerciseGroup) -> Void
-
-    var body: some View {
-        switch item {
-        case .standalone(let exercise):
-            StandaloneReorderRow(exercise: exercise)
-        case .group(let group, let exercises):
-            GroupReorderRow(group: group, exercises: exercises, onTap: {
-                onGroupTap(group)
-            })
-        }
-    }
-}
-
-/// Row for a standalone exercise in reorder mode
-private struct StandaloneReorderRow: View {
-    let exercise: WorkoutExercise
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "dumbbell.fill")
-                .font(.title3)
-                .foregroundStyle(.blue)
-                .frame(width: 32)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(exercise.exercise.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-
-                Text("\(exercise.sets.count) sets")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-/// Row for a group (superset/circuit) in reorder mode
-private struct GroupReorderRow: View {
-    let group: ExerciseGroup
-    let exercises: [WorkoutExercise]
-    let onTap: () -> Void
-
-    private var groupColor: Color {
-        group.groupType.swiftUIColor
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                Image(systemName: group.groupType.iconName)
-                    .font(.title3)
-                    .foregroundStyle(groupColor)
-                    .frame(width: 32)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(group.displayName)
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .foregroundStyle(groupColor)
-
-                        Text("•")
-                            .foregroundStyle(.secondary)
-
-                        Text("\(exercises.count) exercises")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Show exercise names
-                    Text(exercises.map { $0.exercise.name }.joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            .contextMenu {
+                Button {
+                    onReorderWithinGroup(group)
+                } label: {
+                    Label("Reorder Exercises in \(group.groupType.displayName)", systemImage: "arrow.up.arrow.down")
                 }
-
-                Spacer()
-
-                // Hint to tap for internal reordering
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(Color(.systemBackground))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(groupColor.opacity(0.5), lineWidth: 1.5)
-            )
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         }
-        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Exercise Drop Delegate
+
+private struct ExerciseDropDelegate: DropDelegate {
+    let item: ExerciseDisplayItem
+    @Binding var draggingItem: ExerciseDisplayItem?
+    @Binding var draggedOverItem: ExerciseDisplayItem?
+    let onDrop: (ExerciseDisplayItem, ExerciseDisplayItem) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging = draggingItem, dragging.id != item.id else { return }
+        draggedOverItem = item
+    }
+
+    func dropExited(info: DropInfo) {
+        draggedOverItem = nil
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let dragging = draggingItem else { return false }
+        onDrop(dragging, item)
+        draggingItem = nil
+        draggedOverItem = nil
+        return true
     }
 }
 
@@ -228,7 +230,7 @@ struct GroupReorderSheet: View {
                     HStack(spacing: 8) {
                         Image(systemName: group.groupType.iconName)
                             .foregroundStyle(groupColor)
-                        Text("Drag to reorder exercises within this \(group.groupType.displayName.lowercased())")
+                        Text("Drag to reorder exercises")
                     }
                     .font(.subheadline)
                 }
@@ -246,56 +248,5 @@ struct GroupReorderSheet: View {
             }
         }
         .presentationDetents([.medium])
-    }
-}
-
-// MARK: - Normal Display View
-
-/// Normal VStack display with exercise cards (non-reordering mode)
-private struct NormalDisplayView: View {
-    let workout: Workout
-    let isLiveWorkout: Bool
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
-    let onExerciseTap: (WorkoutExercise) -> Void
-    let onExerciseReplace: (WorkoutExercise) -> Void
-    let onExerciseRemove: (WorkoutExercise) -> Void
-    let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ForEach(workout.displayItems) { item in
-                switch item {
-                case .standalone(let exercise):
-                    ActiveExerciseCard(
-                        exercise: exercise,
-                        currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
-                        isLiveWorkout: isLiveWorkout,
-                        onTap: {
-                            onExerciseTap(exercise)
-                        },
-                        onReplace: {
-                            onExerciseReplace(exercise)
-                        },
-                        onRemove: {
-                            onExerciseRemove(exercise)
-                        },
-                        onSetPreference: { preference in
-                            onSetPreference(exercise, preference)
-                        }
-                    )
-
-                case .group(let group, let exercises):
-                    SupersetGroupCard(
-                        group: group,
-                        exercises: exercises,
-                        isLiveWorkout: isLiveWorkout,
-                        preferenceManager: preferenceManager,
-                        onExerciseTap: onExerciseTap,
-                        onExerciseReplace: onExerciseReplace,
-                        onExerciseRemove: onExerciseRemove
-                    )
-                }
-            }
-        }
     }
 }

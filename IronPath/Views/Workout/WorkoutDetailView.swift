@@ -30,9 +30,6 @@ struct WorkoutDetailView: View {
     @State private var replacementError: String?
     @State private var showReplacementError = false
 
-    // Reorder state
-    @State private var isReordering = false
-
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
         self._workout = State(initialValue: workout)
         self.onStartWorkout = { _ in onStartWorkout() }
@@ -95,24 +92,16 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                if isReordering {
-                    Text("Drag exercises to reorder. Tap a superset to reorder exercises within it.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                } else {
-                    Text("Tap an exercise to edit sets, reps, or weight. Use the menu to add, remove, or replace exercises.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                }
+                Text("Tap an exercise to edit. Long press and drag to reorder.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
 
-                // Exercise list - supports both normal and reorder modes
+                // Exercise list with drag-to-reorder
                 VStack(spacing: 12) {
-                    ReorderableExerciseList(
+                    DraggableExerciseList(
                         workout: $workout,
                         isLiveWorkout: false,
-                        isReordering: isReordering,
                         preferenceManager: preferenceManager,
                         onExerciseTap: { exercise in
                             selectedExercise = exercise
@@ -137,61 +126,45 @@ struct WorkoutDetailView: View {
                         onWorkoutUpdated?(newWorkout)
                     }
 
-                    // Add Exercise button (hidden in reorder mode)
-                    if !isReordering {
-                        Button {
-                            showAddExerciseSheet = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                Text("Add Exercise")
-                                    .fontWeight(.medium)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .foregroundStyle(.blue)
-                            .cornerRadius(12)
+                    // Add Exercise button
+                    Button {
+                        showAddExerciseSheet = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                            Text("Add Exercise")
+                                .fontWeight(.medium)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .foregroundStyle(.blue)
+                        .cornerRadius(12)
                     }
                 }
                 .padding(.horizontal)
 
-                // Action buttons (hidden in reorder mode)
-                if !isReordering {
-                    VStack(spacing: 12) {
-                        Button {
-                            onStartWorkout(workout)
-                        } label: {
-                            Text("Start Workout")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                VStack(spacing: 12) {
+                    Button {
+                        onStartWorkout(workout)
+                    } label: {
+                        Text("Start Workout")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
 
-                        Button {
-                            onRegenerate()
-                        } label: {
-                            Text("Generate Different Workout")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                    Button {
+                        onRegenerate()
+                    } label: {
+                        Text("Generate Different Workout")
+                            .frame(maxWidth: .infinity)
                     }
-                    .padding()
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    withAnimation {
-                        isReordering.toggle()
-                    }
-                } label: {
-                    Text(isReordering ? "Done" : "Reorder")
-                }
+                .padding()
             }
         }
         .sheet(item: $selectedExercise) { exercise in
