@@ -1130,6 +1130,9 @@ struct ActiveExerciseCard: View {
     let exercise: WorkoutExercise
     let currentPreference: ExerciseSuggestionPreference
     var isLiveWorkout: Bool = true
+    var showDragHandle: Bool = false
+    var onDragGesture: ((DragGesture.Value) -> Void)?
+    var onDragEnd: (() -> Void)?
     let onTap: () -> Void
     let onReplace: () -> Void
     let onRemove: () -> Void
@@ -1145,9 +1148,28 @@ struct ActiveExerciseCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                if isLiveWorkout {
+        HStack(spacing: 0) {
+            // Drag handle (shown when reordering is enabled)
+            if showDragHandle {
+                Image(systemName: "line.3.horizontal")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                onDragGesture?(value)
+                            }
+                            .onEnded { _ in
+                                onDragEnd?()
+                            }
+                    )
+            }
+
+            Button(action: onTap) {
+                HStack(spacing: 16) {
+                    if isLiveWorkout {
                     // Completion indicator with progress circle (live workout)
                     ZStack {
                         // Background circle
@@ -1257,18 +1279,19 @@ struct ActiveExerciseCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
             }
-            .padding()
-            .background(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .background(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.1) : Color(.systemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isLiveWorkout && exercise.isCompleted ? Color.green.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var preferenceColor: Color {
