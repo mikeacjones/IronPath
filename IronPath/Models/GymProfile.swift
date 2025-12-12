@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 
+// Standard plate sizes - defined here to avoid circular dependencies during initialization
+private let kStandardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
+
 // MARK: - Gym Profile
 
 /// Represents a gym location with specific equipment and settings
@@ -24,10 +27,54 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var availableDumbbells: Set<Double>? = nil  // nil = use range mode, Set = use specific dumbbells
 
     // Plate settings
-    var defaultAvailablePlates: [Double] = GymSettings.standardPlates
+    var defaultAvailablePlates: [Double] = kStandardPlates
     var exercisePlateConfigs: [String: [Double]] = [:]
     var selectedBarWeight: Double = 45.0
     var customBarWeight: Double = 0.0  // Used when selectedBarWeight is set to custom (-1)
+
+    // Per-exercise machine/sled weight (for leg press, smith machine, etc.)
+    var exerciseMachineWeights: [String: Double] = [:]
+    // Per-exercise single-sided flag (for T-bar row, landmine exercises, etc.)
+    var exerciseSingleSided: [String: Bool] = [:]
+
+    // Explicit memberwise initializer (required since we have custom Decodable init)
+    init(
+        id: UUID = UUID(),
+        name: String,
+        icon: String = "dumbbell.fill",
+        availableEquipment: Set<Equipment>,
+        availableMachines: Set<SpecificMachine> = [],
+        defaultCableConfig: CableMachineConfig,
+        cableMachineConfigs: [String: CableMachineConfig] = [:],
+        dumbbellIncrement: Double = 5.0,
+        dumbbellMinWeight: Double = 5.0,
+        dumbbellMaxWeight: Double = 120.0,
+        availableDumbbells: Set<Double>? = nil,
+        defaultAvailablePlates: [Double] = kStandardPlates,
+        exercisePlateConfigs: [String: [Double]] = [:],
+        selectedBarWeight: Double = 45.0,
+        customBarWeight: Double = 0.0,
+        exerciseMachineWeights: [String: Double] = [:],
+        exerciseSingleSided: [String: Bool] = [:]
+    ) {
+        self.id = id
+        self.name = name
+        self.icon = icon
+        self.availableEquipment = availableEquipment
+        self.availableMachines = availableMachines
+        self.defaultCableConfig = defaultCableConfig
+        self.cableMachineConfigs = cableMachineConfigs
+        self.dumbbellIncrement = dumbbellIncrement
+        self.dumbbellMinWeight = dumbbellMinWeight
+        self.dumbbellMaxWeight = dumbbellMaxWeight
+        self.availableDumbbells = availableDumbbells
+        self.defaultAvailablePlates = defaultAvailablePlates
+        self.exercisePlateConfigs = exercisePlateConfigs
+        self.selectedBarWeight = selectedBarWeight
+        self.customBarWeight = customBarWeight
+        self.exerciseMachineWeights = exerciseMachineWeights
+        self.exerciseSingleSided = exerciseSingleSided
+    }
 
     static var defaultProfile: GymProfile {
         GymProfile(
@@ -52,6 +99,29 @@ struct GymProfile: Codable, Identifiable, Equatable {
 
     static func == (lhs: GymProfile, rhs: GymProfile) -> Bool {
         lhs.id == rhs.id
+    }
+
+    // Custom decoder to handle migration from older saved data without new properties
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "dumbbell.fill"
+        availableEquipment = try container.decode(Set<Equipment>.self, forKey: .availableEquipment)
+        availableMachines = try container.decodeIfPresent(Set<SpecificMachine>.self, forKey: .availableMachines) ?? []
+        defaultCableConfig = try container.decode(CableMachineConfig.self, forKey: .defaultCableConfig)
+        cableMachineConfigs = try container.decodeIfPresent([String: CableMachineConfig].self, forKey: .cableMachineConfigs) ?? [:]
+        dumbbellIncrement = try container.decodeIfPresent(Double.self, forKey: .dumbbellIncrement) ?? 5.0
+        dumbbellMinWeight = try container.decodeIfPresent(Double.self, forKey: .dumbbellMinWeight) ?? 5.0
+        dumbbellMaxWeight = try container.decodeIfPresent(Double.self, forKey: .dumbbellMaxWeight) ?? 120.0
+        availableDumbbells = try container.decodeIfPresent(Set<Double>.self, forKey: .availableDumbbells)
+        defaultAvailablePlates = try container.decodeIfPresent([Double].self, forKey: .defaultAvailablePlates) ?? kStandardPlates
+        exercisePlateConfigs = try container.decodeIfPresent([String: [Double]].self, forKey: .exercisePlateConfigs) ?? [:]
+        selectedBarWeight = try container.decodeIfPresent(Double.self, forKey: .selectedBarWeight) ?? 45.0
+        customBarWeight = try container.decodeIfPresent(Double.self, forKey: .customBarWeight) ?? 0.0
+        exerciseMachineWeights = try container.decodeIfPresent([String: Double].self, forKey: .exerciseMachineWeights) ?? [:]
+        exerciseSingleSided = try container.decodeIfPresent([String: Bool].self, forKey: .exerciseSingleSided) ?? [:]
     }
 }
 
@@ -191,6 +261,8 @@ class GymProfileManager: ObservableObject {
         profile.exercisePlateConfigs = settings.exercisePlateConfigs
         profile.selectedBarWeight = settings.selectedBarWeight
         profile.customBarWeight = settings.customBarWeight
+        profile.exerciseMachineWeights = settings.exerciseMachineWeights
+        profile.exerciseSingleSided = settings.exerciseSingleSided
 
         updateProfile(profile)
     }
@@ -240,11 +312,20 @@ class GymSettings: ObservableObject {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
+    // Per-exercise machine/sled weight
+    @Published var exerciseMachineWeights: [String: Double] = [:] {
+        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
+    }
+    // Per-exercise single-sided flag
+    @Published var exerciseSingleSided: [String: Bool] = [:] {
+        didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
+    }
+
     /// Constant to indicate custom bar weight is selected
     static let customBarWeightTag: Double = -1.0
 
     /// Standard plate sizes (without 100lb - not common in most areas)
-    static let standardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
+    static let standardPlates: [Double] = kStandardPlates
 
     /// Standard dumbbell sizes commonly found in gyms (in lbs)
     static let standardDumbbells: [Double] = [
@@ -260,20 +341,25 @@ class GymSettings: ObservableObject {
         5, 10, 15, 20, 25, 30, 35, 40, 45, 50
     ]
 
-    private var isLoading = false  // Prevent save during load
+    private var isLoading = true  // Start true to prevent didSet triggers during init
 
     private init() {
-        // Set defaults first
+        // Set defaults first (isLoading is true, so didSet won't trigger saves)
         self.dumbbellIncrement = 5.0
         self.dumbbellMinWeight = 5.0
         self.dumbbellMaxWeight = 120.0
         self.availableDumbbells = nil  // nil means use range mode
         self.defaultCableConfig = .defaultConfig
         self.cableMachineConfigs = [:]
-        self.defaultAvailablePlates = GymSettings.standardPlates
+        self.defaultAvailablePlates = kStandardPlates
         self.exercisePlateConfigs = [:]
         self.selectedBarWeight = 45.0
         self.customBarWeight = 0.0
+        self.exerciseMachineWeights = [:]
+        self.exerciseSingleSided = [:]
+
+        // Now safe to allow saves
+        self.isLoading = false
     }
 
     /// Load settings from the active gym profile
@@ -291,6 +377,8 @@ class GymSettings: ObservableObject {
             self.exercisePlateConfigs = profile.exercisePlateConfigs
             self.selectedBarWeight = profile.selectedBarWeight
             self.customBarWeight = profile.customBarWeight
+            self.exerciseMachineWeights = profile.exerciseMachineWeights
+            self.exerciseSingleSided = profile.exerciseSingleSided
         }
 
         isLoading = false
@@ -314,6 +402,54 @@ class GymSettings: ObservableObject {
     /// Reset exercise to use default plates
     func resetPlateConfig(for exerciseName: String) {
         exercisePlateConfigs.removeValue(forKey: exerciseName)
+    }
+
+    /// Get machine/sled weight for a specific exercise and equipment type
+    func machineWeight(for exerciseName: String, equipment: Equipment) -> Double {
+        // Return exercise-specific weight if set
+        if let weight = exerciseMachineWeights[exerciseName] {
+            return weight
+        }
+        // Otherwise return default based on equipment type
+        switch equipment {
+        case .barbell, .squat, .trapBar:
+            return selectedBarWeight == GymSettings.customBarWeightTag ? customBarWeight : selectedBarWeight
+        case .legPress:
+            return 0  // Default to 0 for leg press, user can set sled weight
+        case .smithMachine:
+            return 20  // Smith machine bars typically 15-25 lbs
+        default:
+            return 0
+        }
+    }
+
+    /// Set machine/sled weight for a specific exercise
+    func setMachineWeight(_ weight: Double, for exerciseName: String) {
+        exerciseMachineWeights[exerciseName] = weight
+    }
+
+    /// Check if exercise has custom machine weight
+    func hasCustomMachineWeight(for exerciseName: String) -> Bool {
+        exerciseMachineWeights[exerciseName] != nil
+    }
+
+    /// Reset exercise to use default machine weight
+    func resetMachineWeight(for exerciseName: String) {
+        exerciseMachineWeights.removeValue(forKey: exerciseName)
+    }
+
+    /// Check if exercise is single-sided (plates on one side only)
+    func isSingleSided(for exerciseName: String) -> Bool {
+        exerciseSingleSided[exerciseName] ?? false
+    }
+
+    /// Set single-sided flag for a specific exercise
+    func setSingleSided(_ value: Bool, for exerciseName: String) {
+        if value {
+            exerciseSingleSided[exerciseName] = true
+        } else {
+            exerciseSingleSided.removeValue(forKey: exerciseName)
+        }
     }
 
     /// Get cable config for specific exercise, or default if none set
