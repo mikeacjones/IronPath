@@ -214,6 +214,25 @@ class AnthropicProvider: AIProvider {
         return AIProviderHelpers.parseCalorieEstimation(response)
     }
 
+    func generateWorkoutSummary(
+        workout: Workout,
+        recentWorkouts: [Workout],
+        personalRecords: [WorkoutPR]
+    ) async throws -> String {
+        let prompt = AIProviderHelpers.buildWorkoutSummaryPrompt(
+            workout: workout,
+            recentWorkouts: recentWorkouts,
+            personalRecords: personalRecords
+        )
+
+        let response = try await sendMessage(
+            systemPrompt: "You are a supportive fitness coach. Be encouraging but realistic. Keep responses brief (2-3 sentences).",
+            userPrompt: prompt
+        )
+
+        return response.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Agentic Workout Generation
 
     func generateWorkoutAgentic(

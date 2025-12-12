@@ -247,10 +247,14 @@ struct ProfileView: View {
                     Toggle(isOn: $appSettings.showFormTips) {
                         Label("Show Form Tips", systemImage: "lightbulb")
                     }
+
+                    Toggle(isOn: $appSettings.showAIWorkoutSummary) {
+                        Label("AI Workout Summary", systemImage: "text.bubble")
+                    }
                 } header: {
                     Text("App Settings")
                 } footer: {
-                    Text("Control what's displayed in the exercise detail view during workouts.")
+                    Text("Control what's displayed in the exercise detail view and workout completion screen.")
                 }
 
                 Section {
@@ -262,6 +266,17 @@ struct ProfileView: View {
                         Label("Rest Timer Sound", systemImage: "speaker.wave.2")
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label("Volume", systemImage: appSettings.restNotificationVolume > 0.7 ? "speaker.wave.3" : (appSettings.restNotificationVolume > 0.3 ? "speaker.wave.2" : "speaker.wave.1"))
+                            Spacer()
+                            Text("\(Int(appSettings.restNotificationVolume * 100))%")
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $appSettings.restNotificationVolume, in: 0.1...1.0, step: 0.1)
+                    }
+                    .disabled(appSettings.restNotificationSound == .none)
+
                     Button {
                         appSettings.restNotificationSound.playSound()
                     } label: {
@@ -271,7 +286,7 @@ struct ProfileView: View {
                 } header: {
                     Text("Notifications")
                 } footer: {
-                    Text("Choose the sound that plays when your rest timer completes. The sound will play whether the app is in the foreground or background.")
+                    Text("Choose the sound that plays when your rest timer completes. Higher volume settings include vibration. The sound will play whether the app is in the foreground or background.")
                 }
 
                 Section {
@@ -990,19 +1005,7 @@ struct CableMachineConfigEditor: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
 
-                                HStack {
-                                    TextField("Count", value: $tier.plateCount, format: .number)
-                                        .keyboardType(.numberPad)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 60)
-                                    Text("×")
-                                    TextField("Weight", value: $tier.plateWeight, format: .number)
-                                        .keyboardType(.decimalPad)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 70)
-                                    Text("lbs")
-                                        .foregroundStyle(.secondary)
-                                }
+                                TierInputRow(tier: $tier)
                             }
 
                             Spacer()
@@ -1081,6 +1084,90 @@ struct CableMachineConfigEditor: View {
                     }
                 }
             }
+        }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+}
+
+/// Helper view for tier input that allows clearing fields
+/// Uses string-based editing and converts to numbers on blur/submit
+struct TierInputRow: View {
+    @Binding var tier: CableMachineConfig.PlateTier
+    @State private var countText: String = ""
+    @State private var weightText: String = ""
+    @FocusState private var countFocused: Bool
+    @FocusState private var weightFocused: Bool
+
+    var body: some View {
+        HStack {
+            TextField("Count", text: $countText)
+                .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 60)
+                .focused($countFocused)
+                .onChange(of: countFocused) { _, focused in
+                    if !focused {
+                        commitCount()
+                    }
+                }
+                .onSubmit { commitCount() }
+            Text("×")
+            TextField("Weight", text: $weightText)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .focused($weightFocused)
+                .onChange(of: weightFocused) { _, focused in
+                    if !focused {
+                        commitWeight()
+                    }
+                }
+                .onSubmit { commitWeight() }
+            Text("lbs")
+                .foregroundStyle(.secondary)
+        }
+        .onAppear {
+            countText = String(tier.plateCount)
+            weightText = formatWeight(tier.plateWeight)
+        }
+        .onChange(of: tier.plateCount) { _, newValue in
+            if !countFocused {
+                countText = String(newValue)
+            }
+        }
+        .onChange(of: tier.plateWeight) { _, newValue in
+            if !weightFocused {
+                weightText = formatWeight(newValue)
+            }
+        }
+    }
+
+    private func commitCount() {
+        if let value = Int(countText), value > 0 {
+            tier.plateCount = value
+        } else if countText.isEmpty {
+            // Keep minimum of 1 if cleared
+            tier.plateCount = 1
+            countText = "1"
+        } else {
+            // Reset to current value if invalid
+            countText = String(tier.plateCount)
+        }
+    }
+
+    private func commitWeight() {
+        if let value = Double(weightText), value > 0 {
+            tier.plateWeight = value
+        } else if weightText.isEmpty {
+            // Keep minimum of 1 if cleared
+            tier.plateWeight = 1.0
+            weightText = "1"
+        } else {
+            // Reset to current value if invalid
+            weightText = formatWeight(tier.plateWeight)
         }
     }
 

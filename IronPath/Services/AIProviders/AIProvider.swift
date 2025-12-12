@@ -75,6 +75,13 @@ protocol AIProvider {
         builder: AgentWorkoutBuilder,
         progressCallback: ((AgentProgress) -> Void)?
     ) async throws -> Workout
+
+    /// Generate a brief AI summary of a completed workout (2-3 sentences)
+    func generateWorkoutSummary(
+        workout: Workout,
+        recentWorkouts: [Workout],
+        personalRecords: [WorkoutPR]
+    ) async throws -> String
 }
 
 // MARK: - AI Model

@@ -1,8 +1,28 @@
 import Foundation
 import Combine
 
+// MARK: - Available Plate with Quantity
+
+/// Represents a plate with its weight and available quantity (per side)
+struct AvailablePlate: Codable, Hashable, Identifiable {
+    var id: Double { weight }
+    var weight: Double
+    var count: Int  // Number available per side (nil/0 means unlimited)
+
+    init(weight: Double, count: Int = 0) {
+        self.weight = weight
+        self.count = count
+    }
+
+    /// Check if this plate has a quantity limit
+    var hasLimit: Bool {
+        count > 0
+    }
+}
+
 // Standard plate sizes - defined here to avoid circular dependencies during initialization
 private let kStandardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
+private let kStandardAvailablePlates: [AvailablePlate] = kStandardPlates.map { AvailablePlate(weight: $0, count: 0) }
 
 // MARK: - Gym Profile
 
@@ -27,8 +47,8 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var availableDumbbells: Set<Double>? = nil  // nil = use range mode, Set = use specific dumbbells
 
     // Plate settings
-    var defaultAvailablePlates: [Double] = kStandardPlates
-    var exercisePlateConfigs: [String: [Double]] = [:]
+    var defaultAvailablePlates: [AvailablePlate] = kStandardAvailablePlates
+    var exercisePlateConfigs: [String: [AvailablePlate]] = [:]
     var selectedBarWeight: Double = 45.0
     var customBarWeight: Double = 0.0  // Used when selectedBarWeight is set to custom (-1)
 
@@ -50,8 +70,8 @@ struct GymProfile: Codable, Identifiable, Equatable {
         dumbbellMinWeight: Double = 5.0,
         dumbbellMaxWeight: Double = 120.0,
         availableDumbbells: Set<Double>? = nil,
-        defaultAvailablePlates: [Double] = kStandardPlates,
-        exercisePlateConfigs: [String: [Double]] = [:],
+        defaultAvailablePlates: [AvailablePlate] = kStandardAvailablePlates,
+        exercisePlateConfigs: [String: [AvailablePlate]] = [:],
         selectedBarWeight: Double = 45.0,
         customBarWeight: Double = 0.0,
         exerciseMachineWeights: [String: Double] = [:],
@@ -116,8 +136,41 @@ struct GymProfile: Codable, Identifiable, Equatable {
         dumbbellMinWeight = try container.decodeIfPresent(Double.self, forKey: .dumbbellMinWeight) ?? 5.0
         dumbbellMaxWeight = try container.decodeIfPresent(Double.self, forKey: .dumbbellMaxWeight) ?? 120.0
         availableDumbbells = try container.decodeIfPresent(Set<Double>.self, forKey: .availableDumbbells)
-        defaultAvailablePlates = try container.decodeIfPresent([Double].self, forKey: .defaultAvailablePlates) ?? kStandardPlates
-        exercisePlateConfigs = try container.decodeIfPresent([String: [Double]].self, forKey: .exercisePlateConfigs) ?? [:]
+
+        // Migration: Try new format first, fall back to old format [Double]
+        do {
+            if let newPlates = try container.decodeIfPresent([AvailablePlate].self, forKey: .defaultAvailablePlates) {
+                defaultAvailablePlates = newPlates
+            } else {
+                defaultAvailablePlates = kStandardAvailablePlates
+            }
+        } catch {
+            // Failed to decode as new format, try old format
+            if let oldPlates = try? container.decodeIfPresent([Double].self, forKey: .defaultAvailablePlates) {
+                defaultAvailablePlates = (oldPlates ?? kStandardPlates).map { AvailablePlate(weight: $0, count: 0) }
+            } else {
+                defaultAvailablePlates = kStandardAvailablePlates
+            }
+        }
+
+        // Migration: Try new format first, fall back to old format [String: [Double]]
+        do {
+            if let newConfigs = try container.decodeIfPresent([String: [AvailablePlate]].self, forKey: .exercisePlateConfigs) {
+                exercisePlateConfigs = newConfigs
+            } else {
+                exercisePlateConfigs = [:]
+            }
+        } catch {
+            // Failed to decode as new format, try old format
+            if let oldConfigs = try? container.decodeIfPresent([String: [Double]].self, forKey: .exercisePlateConfigs) {
+                exercisePlateConfigs = (oldConfigs ?? [:]).mapValues { plates in
+                    plates.map { AvailablePlate(weight: $0, count: 0) }
+                }
+            } else {
+                exercisePlateConfigs = [:]
+            }
+        }
+
         selectedBarWeight = try container.decodeIfPresent(Double.self, forKey: .selectedBarWeight) ?? 45.0
         customBarWeight = try container.decodeIfPresent(Double.self, forKey: .customBarWeight) ?? 0.0
         exerciseMachineWeights = try container.decodeIfPresent([String: Double].self, forKey: .exerciseMachineWeights) ?? [:]
@@ -299,10 +352,10 @@ class GymSettings: ObservableObject {
     }
 
     // Plate settings - per exercise
-    @Published var exercisePlateConfigs: [String: [Double]] = [:] {
+    @Published var exercisePlateConfigs: [String: [AvailablePlate]] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var defaultAvailablePlates: [Double] {
+    @Published var defaultAvailablePlates: [AvailablePlate] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
     @Published var selectedBarWeight: Double {
@@ -325,7 +378,7 @@ class GymSettings: ObservableObject {
     static let customBarWeightTag: Double = -1.0
 
     /// Standard plate sizes (without 100lb - not common in most areas)
-    static let standardPlates: [Double] = kStandardPlates
+    static let standardPlates: [AvailablePlate] = kStandardAvailablePlates
 
     /// Standard dumbbell sizes commonly found in gyms (in lbs)
     static let standardDumbbells: [Double] = [
@@ -351,7 +404,7 @@ class GymSettings: ObservableObject {
         self.availableDumbbells = nil  // nil means use range mode
         self.defaultCableConfig = .defaultConfig
         self.cableMachineConfigs = [:]
-        self.defaultAvailablePlates = kStandardPlates
+        self.defaultAvailablePlates = kStandardAvailablePlates
         self.exercisePlateConfigs = [:]
         self.selectedBarWeight = 45.0
         self.customBarWeight = 0.0
@@ -385,12 +438,12 @@ class GymSettings: ObservableObject {
     }
 
     /// Get available plates for a specific exercise
-    func availablePlates(for exerciseName: String) -> [Double] {
+    func availablePlates(for exerciseName: String) -> [AvailablePlate] {
         exercisePlateConfigs[exerciseName] ?? defaultAvailablePlates
     }
 
     /// Set available plates for a specific exercise
-    func setAvailablePlates(_ plates: [Double], for exerciseName: String) {
+    func setAvailablePlates(_ plates: [AvailablePlate], for exerciseName: String) {
         exercisePlateConfigs[exerciseName] = plates
     }
 

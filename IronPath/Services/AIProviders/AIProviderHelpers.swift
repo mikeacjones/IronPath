@@ -869,4 +869,73 @@ enum AIProviderHelpers {
         No explanation, no text, just the number.
         """
     }
+
+    /// Build prompt for AI workout summary generation
+    static func buildWorkoutSummaryPrompt(
+        workout: Workout,
+        recentWorkouts: [Workout],
+        personalRecords: [WorkoutPR]
+    ) -> String {
+        var prompt = "Generate a brief, encouraging summary (2-3 sentences) for this completed workout:\n\n"
+
+        // Current workout details
+        prompt += "WORKOUT: \(workout.name)\n"
+        if let duration = workout.duration {
+            let minutes = Int(duration / 60)
+            prompt += "Duration: \(minutes) minutes\n"
+        }
+
+        prompt += "\nEXERCISES COMPLETED:\n"
+        for exercise in workout.exercises {
+            let completedSets = exercise.sets.filter { $0.completedAt != nil }
+            guard !completedSets.isEmpty else { continue }
+
+            prompt += "- \(exercise.exercise.name): "
+            let setDescriptions = completedSets.map { set -> String in
+                let weight = set.weight.map { "\(Int($0))lbs" } ?? "bodyweight"
+                let reps = set.actualReps ?? set.targetReps
+                return "\(weight) x \(reps)"
+            }
+            prompt += setDescriptions.joined(separator: ", ")
+            prompt += "\n"
+        }
+
+        // Include any PRs hit
+        if !personalRecords.isEmpty {
+            prompt += "\nPERSONAL RECORDS SET:\n"
+            for pr in personalRecords {
+                let valueStr: String
+                switch pr.type {
+                case .weight:
+                    valueStr = "\(Int(pr.newValue))lbs"
+                case .volume:
+                    valueStr = "\(Int(pr.newValue))lbs total volume"
+                case .reps:
+                    valueStr = "\(Int(pr.newValue)) reps"
+                }
+                prompt += "- \(pr.exerciseName): \(valueStr) (\(pr.type.displayName))\n"
+            }
+        }
+
+        // Recent context
+        if !recentWorkouts.isEmpty {
+            prompt += "\nRECENT TRAINING (for context):\n"
+            for recentWorkout in recentWorkouts.prefix(3) {
+                let dateStr = recentWorkout.completedAt?.formatted(date: .abbreviated, time: .omitted) ?? "recent"
+                prompt += "- \(dateStr): \(recentWorkout.name)\n"
+            }
+        }
+
+        prompt += """
+
+        GUIDELINES:
+        - Be supportive and encouraging but not over-the-top
+        - Highlight any notable achievements (PRs, heavy lifts, good volume)
+        - Keep it natural and conversational
+        - Do NOT use emojis
+        - Maximum 2-3 sentences
+        """
+
+        return prompt
+    }
 }
