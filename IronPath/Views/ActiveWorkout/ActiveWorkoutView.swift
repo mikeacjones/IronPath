@@ -1387,83 +1387,53 @@ struct ExerciseReplacementSheet: View {
     let onQuickReplace: (Exercise) -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) var dismiss
+    @State private var showBrowseAll = false
 
-    /// Get suggested alternative exercises that target the same muscles
-    private var suggestedAlternatives: [Exercise] {
+    /// Get similarity-ranked replacement suggestions
+    private var similarityRankedSuggestions: [(Exercise, Double)] {
         guard let exercise = exercise else { return [] }
-
-        let targetMuscles = exercise.exercise.primaryMuscleGroups
-        let currentEquipment = exercise.exercise.equipment
 
         // Get available equipment from gym profile
         let availableEquipment = GymProfileManager.shared.activeProfile?.availableEquipment ?? Set(Equipment.allCases)
         let availableMachines = GymProfileManager.shared.activeProfile?.availableMachines ?? Set(SpecificMachine.allCases)
 
-        // Find exercises that:
-        // 1. Target at least one of the same primary muscle groups
-        // 2. Are available with user's equipment
-        // 3. Are not the current exercise
-        // 4. Are not already in the workout
-        let alternatives = ExerciseDatabase.shared.exercises.filter { alt in
-            // Must target at least one same muscle group
-            let targetsSameMuscle = !targetMuscles.isDisjoint(with: alt.primaryMuscleGroups)
-
-            // Must be available with user's equipment
-            let isAvailable: Bool
-            if let requiredMachine = alt.specificMachine {
-                isAvailable = availableMachines.contains(requiredMachine)
-            } else {
-                isAvailable = availableEquipment.contains(alt.equipment)
-            }
-
-            // Must not be the current exercise
-            let isNotCurrent = alt.name != exercise.exercise.name
-
-            // Must not already be in the workout
-            let isNotInWorkout = !currentWorkoutExercises.contains(alt.name)
-
-            return targetsSameMuscle && isAvailable && isNotCurrent && isNotInWorkout
-        }
-
-        // Sort: prefer different equipment first (variety), then by difficulty match
-        let currentDifficulty = exercise.exercise.difficulty
-        return alternatives.sorted { a, b in
-            // Prioritize different equipment for variety
-            let aDiffEquip = a.equipment != currentEquipment
-            let bDiffEquip = b.equipment != currentEquipment
-            if aDiffEquip != bDiffEquip {
-                return aDiffEquip
-            }
-
-            // Then sort by difficulty (prefer same difficulty)
-            let aDiffMatch = a.difficulty == currentDifficulty
-            let bDiffMatch = b.difficulty == currentDifficulty
-            if aDiffMatch != bDiffMatch {
-                return aDiffMatch
-            }
-
-            return a.name < b.name
-        }
+        return ExerciseSimilarityService.shared.getReplacementSuggestions(
+            for: exercise.exercise,
+            excludingWorkoutExercises: currentWorkoutExercises,
+            availableEquipment: availableEquipment,
+            availableMachines: availableMachines,
+            limit: 8
+        )
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 if let exercise = exercise {
+                    // Current exercise info
                     Section {
-                        HStack {
-                            Text("Current Exercise")
-                                .foregroundStyle(.secondary)
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(exercise.exercise.name)
-                                .fontWeight(.medium)
+                                .font(.headline)
+                            HStack(spacing: 8) {
+                                Label(exercise.exercise.equipment.rawValue, systemImage: "dumbbell")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("•")
+                                    .foregroundStyle(.secondary)
+                                Text(exercise.exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                    } header: {
+                        Text("Current Exercise")
                     }
 
-                    // Suggested alternatives section
-                    if !suggestedAlternatives.isEmpty {
+                    // Similarity-ranked suggestions
+                    if !similarityRankedSuggestions.isEmpty {
                         Section {
-                            ForEach(suggestedAlternatives.prefix(5)) { alt in
+                            ForEach(similarityRankedSuggestions.prefix(5), id: \.0.id) { (alt, score) in
                                 Button {
                                     onQuickReplace(alt)
                                 } label: {
@@ -1471,32 +1441,79 @@ struct ExerciseReplacementSheet: View {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(alt.name)
                                                 .foregroundStyle(.primary)
-                                            Text(alt.equipment.rawValue)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
+                                            HStack(spacing: 4) {
+                                                Text(alt.equipment.rawValue)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                if !alt.primaryMuscleGroups.intersection(exercise.exercise.primaryMuscleGroups).isEmpty {
+                                                    Text("•")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                    Text(alt.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
                                         }
                                         Spacer()
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .foregroundStyle(.blue)
+                                        // Similarity badge
+                                        Text("\(Int(score * 100))%")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(similarityColor(for: score))
+                                            .clipShape(Capsule())
                                     }
                                 }
                                 .disabled(isLoading)
                             }
                         } header: {
-                            Text("Quick Swap")
+                            HStack {
+                                Text("Best Matches")
+                                Spacer()
+                                Text("Similarity")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         } footer: {
-                            Text("Tap to instantly replace with a similar exercise")
+                            Text("Ranked by muscle groups, movement pattern, and equipment")
                         }
                     }
-                }
 
-                Section {
-                    TextField("Why do you need a replacement?", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                } header: {
-                    Text("AI Replacement")
-                } footer: {
-                    Text("Describe your needs and AI will find the best alternative.\nExamples: \"My shoulder hurts\", \"Machine is taken\", \"Want something harder\"")
+                    // Browse All section
+                    Section {
+                        NavigationLink {
+                            ExerciseBrowserView(
+                                sourceExercise: exercise.exercise,
+                                excludedExerciseNames: currentWorkoutExercises,
+                                onSelect: { selectedExercise in
+                                    onQuickReplace(selectedExercise)
+                                }
+                            )
+                        } label: {
+                            HStack {
+                                Image(systemName: "list.bullet.rectangle")
+                                    .foregroundStyle(.blue)
+                                Text("Browse All Exercises")
+                                Spacer()
+                                Text("\(ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(isLoading)
+                    }
+
+                    // AI Replacement section
+                    Section {
+                        TextField("Why do you need a replacement?", text: $notes, axis: .vertical)
+                            .lineLimit(3...6)
+                    } header: {
+                        Label("AI Replacement", systemImage: "sparkles")
+                    } footer: {
+                        Text("Describe your needs and AI will find the best alternative.\nExamples: \"My shoulder hurts\", \"Machine is taken\", \"Want something harder\"")
+                    }
                 }
             }
             .navigationTitle("Replace Exercise")
@@ -1520,6 +1537,16 @@ struct ExerciseReplacementSheet: View {
                     .disabled(isLoading)
                 }
             }
+        }
+    }
+
+    /// Get color based on similarity score
+    private func similarityColor(for score: Double) -> Color {
+        switch score {
+        case 0.8...: return .green
+        case 0.6..<0.8: return .blue
+        case 0.4..<0.6: return .orange
+        default: return .gray
         }
     }
 }

@@ -24,7 +24,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie on a flat bench, grip the bar slightly wider than shoulder width. Lower to chest, press up.",
             formTips: "Keep your feet flat, back slightly arched, and squeeze your shoulder blades together.",
-            videoURL: "https://www.youtube.com/watch?v=rT7DgCr-3pg"
+            videoURL: "https://www.youtube.com/watch?v=rT7DgCr-3pg",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Dumbbell Bench Press",
@@ -35,7 +36,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie on a flat bench with dumbbells at chest level. Press up and together.",
             formTips: "Don't let the dumbbells drift too far apart at the bottom. Control the descent.",
-            videoURL: "https://www.youtube.com/watch?v=VmB1G1K7v94"
+            videoURL: "https://www.youtube.com/watch?v=VmB1G1K7v94",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Incline Dumbbell Press",
@@ -46,7 +48,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Set bench to 30-45 degrees. Press dumbbells up from shoulder level.",
             formTips: "Focus on the upper chest. Don't set the incline too high or shoulders take over.",
-            videoURL: "https://www.youtube.com/watch?v=8iPEnn-ltC8"
+            videoURL: "https://www.youtube.com/watch?v=8iPEnn-ltC8",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Cable Flyes",
@@ -57,7 +60,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand between cable towers, bring handles together in front of chest with slight elbow bend.",
             formTips: "Keep a slight bend in your elbows throughout. Squeeze at the peak contraction.",
-            videoURL: "https://www.youtube.com/watch?v=Iwe6AmxVf7o"
+            videoURL: "https://www.youtube.com/watch?v=Iwe6AmxVf7o",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Push-Ups",
@@ -68,7 +72,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hands shoulder-width apart, lower chest to ground, push back up.",
             formTips: "Keep your body in a straight line. Don't let hips sag or pike up.",
-            videoURL: "https://www.youtube.com/watch?v=IODxDxX7oi4"
+            videoURL: "https://www.youtube.com/watch?v=IODxDxX7oi4",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Dumbbell Flyes",
@@ -79,7 +84,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie on bench, extend arms above chest, lower out to sides with slight elbow bend.",
             formTips: "Don't go too deep - stop when you feel a stretch. Keep the motion controlled.",
-            videoURL: "https://www.youtube.com/watch?v=eozdVDA78K0"
+            videoURL: "https://www.youtube.com/watch?v=eozdVDA78K0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Decline Bench Press",
@@ -90,7 +96,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie on decline bench, lower bar to lower chest, press up.",
             formTips: "Targets lower chest. Use a spotter or safety bars.",
-            videoURL: "https://www.youtube.com/watch?v=LfyQBUKR8SE"
+            videoURL: "https://www.youtube.com/watch?v=LfyQBUKR8SE",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Incline Barbell Bench Press",
@@ -101,7 +108,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Set bench to 30-45 degrees, lower bar to upper chest, press up.",
             formTips: "Grip slightly wider than shoulder width. Focus on upper chest contraction.",
-            videoURL: "https://www.youtube.com/watch?v=SrqOu55lrYU"
+            videoURL: "https://www.youtube.com/watch?v=SrqOu55lrYU",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Pec Deck",
@@ -113,7 +121,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at machine with arms on pads, bring arms together in front of chest.",
             formTips: "Keep slight bend in elbows. Squeeze at the peak contraction.",
-            videoURL: "https://www.youtube.com/watch?v=Z57CtFmRMxA"
+            videoURL: "https://www.youtube.com/watch?v=Z57CtFmRMxA",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Low Cable Crossover",
@@ -124,7 +133,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Set cables low, bring handles up and together at chest level.",
             formTips: "Targets upper chest. Keep slight bend in elbows throughout.",
-            videoURL: "https://www.youtube.com/watch?v=taI4XduLpTk"
+            videoURL: "https://www.youtube.com/watch?v=taI4XduLpTk",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Machine Chest Press",
@@ -136,7 +146,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at machine, press handles forward until arms are extended.",
             formTips: "Good for beginners or burnout sets. Keep back against pad.",
-            videoURL: "https://www.youtube.com/watch?v=xUm0BiZCWlQ"
+            videoURL: "https://www.youtube.com/watch?v=xUm0BiZCWlQ",
+            movementPattern: .horizontalPush
         )
     ]
 
@@ -152,7 +163,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Hang from bar with overhand grip, pull up until chin clears bar.",
             formTips: "Initiate the pull with your back, not your arms. Avoid swinging.",
-            videoURL: "https://www.youtube.com/watch?v=eGo4IYlbE5g"
+            videoURL: "https://www.youtube.com/watch?v=eGo4IYlbE5g",
+            movementPattern: .verticalPull
         ),
         Exercise(
             name: "Lat Pulldown",
@@ -163,7 +175,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at lat pulldown machine, pull bar to upper chest.",
             formTips: "Lean back slightly, pull with your elbows, squeeze shoulder blades together.",
-            videoURL: "https://www.youtube.com/watch?v=CAwf7n6Luuc"
+            videoURL: "https://www.youtube.com/watch?v=CAwf7n6Luuc",
+            movementPattern: .verticalPull
         ),
         Exercise(
             name: "Barbell Row",
@@ -174,7 +187,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Bend at hips, back flat, pull barbell to lower chest/upper abs.",
             formTips: "Keep your back flat and core tight. Don't use momentum.",
-            videoURL: "https://www.youtube.com/watch?v=FWJR5Ve8bnQ"
+            videoURL: "https://www.youtube.com/watch?v=FWJR5Ve8bnQ",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Dumbbell Row",
@@ -185,7 +199,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "One hand and knee on bench, row dumbbell to hip with other arm.",
             formTips: "Keep your back flat. Pull to your hip, not your shoulder.",
-            videoURL: "https://www.youtube.com/watch?v=pYcpY20QaE8"
+            videoURL: "https://www.youtube.com/watch?v=pYcpY20QaE8",
+            movementPattern: .horizontalPull,
+            isUnilateral: true
         ),
         Exercise(
             name: "Seated Cable Row",
@@ -196,7 +212,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at cable row, pull handle to stomach while keeping back straight.",
             formTips: "Don't lean too far back. Squeeze your shoulder blades at the end.",
-            videoURL: "https://www.youtube.com/watch?v=GZbfZ033f74"
+            videoURL: "https://www.youtube.com/watch?v=GZbfZ033f74",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Deadlift",
@@ -207,7 +224,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Stand with feet hip-width, grip bar, drive through heels to stand up.",
             formTips: "Keep the bar close to your body. Back flat, chest up. Push the floor away.",
-            videoURL: "https://www.youtube.com/watch?v=op9kVnSso6Q"
+            videoURL: "https://www.youtube.com/watch?v=op9kVnSso6Q",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Face Pulls",
@@ -218,7 +236,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Pull rope attachment to face level, separating hands at the end.",
             formTips: "Great for posture and shoulder health. Pull to your forehead, not chest.",
-            videoURL: "https://www.youtube.com/watch?v=rep-qVOkqgk"
+            videoURL: "https://www.youtube.com/watch?v=rep-qVOkqgk",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Chin-Ups",
@@ -229,7 +248,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Hang from bar with underhand grip, pull up until chin clears bar.",
             formTips: "Underhand grip emphasizes biceps more than pull-ups. Full range of motion.",
-            videoURL: "https://www.youtube.com/watch?v=brhRXlOhsAM"
+            videoURL: "https://www.youtube.com/watch?v=brhRXlOhsAM",
+            movementPattern: .verticalPull
         ),
         Exercise(
             name: "T-Bar Row",
@@ -239,7 +259,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Straddle bar or use landmine, pull weight to chest.",
             formTips: "Keep back flat, chest up. Classic old-school back builder.",
-            videoURL: "https://www.youtube.com/watch?v=j3Igk5nyZE4"
+            videoURL: "https://www.youtube.com/watch?v=j3Igk5nyZE4",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Pendlay Row",
@@ -249,7 +270,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Row from floor with back parallel to ground, return bar to floor each rep.",
             formTips: "Explosive pull, controlled lower. Back stays flat throughout.",
-            videoURL: "https://www.youtube.com/watch?v=ZlRrIsoDpKg"
+            videoURL: "https://www.youtube.com/watch?v=ZlRrIsoDpKg",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Chest Supported Row",
@@ -259,7 +281,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie face down on incline bench, row dumbbells up to sides.",
             formTips: "Eliminates lower back strain. Focus on squeezing shoulder blades.",
-            videoURL: "https://www.youtube.com/watch?v=H75im9fAUMc"
+            videoURL: "https://www.youtube.com/watch?v=H75im9fAUMc",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Straight Arm Pulldown",
@@ -269,7 +292,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand at cable machine, push bar down in arc with straight arms.",
             formTips: "Keep arms straight throughout. Great for lat isolation.",
-            videoURL: "https://www.youtube.com/watch?v=AjCCGN2Bc80"
+            videoURL: "https://www.youtube.com/watch?v=AjCCGN2Bc80",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Back Extension",
@@ -279,7 +303,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "On hyperextension bench, lower torso down then raise back up.",
             formTips: "Don't hyperextend at the top. Can hold weight for added resistance.",
-            videoURL: "https://www.youtube.com/watch?v=ph3pddpKzzw"
+            videoURL: "https://www.youtube.com/watch?v=ph3pddpKzzw",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Barbell Shrugs",
@@ -289,7 +314,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold barbell at thighs, shrug shoulders straight up toward ears.",
             formTips: "Don't roll shoulders. Straight up and down. Pause at top.",
-            videoURL: "https://www.youtube.com/watch?v=cJRVVxmytaM"
+            videoURL: "https://www.youtube.com/watch?v=cJRVVxmytaM",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dumbbell Shrugs",
@@ -299,7 +325,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold dumbbells at sides, shrug shoulders up toward ears.",
             formTips: "Allows more natural arm position than barbell. Hold at top.",
-            videoURL: "https://www.youtube.com/watch?v=cJRVVxmytaM"
+            videoURL: "https://www.youtube.com/watch?v=cJRVVxmytaM",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Rack Pulls",
@@ -309,7 +336,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Deadlift from pins set at knee height or above.",
             formTips: "Great for upper back and lockout strength. Go heavy.",
-            videoURL: "https://www.youtube.com/watch?v=PfP8A6UFDgI"
+            videoURL: "https://www.youtube.com/watch?v=PfP8A6UFDgI",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Meadows Row",
@@ -319,7 +347,9 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Stand perpendicular to landmine, row with overhand grip.",
             formTips: "Created by John Meadows. Great for lat stretch and contraction.",
-            videoURL: "https://www.youtube.com/watch?v=xQhni67uBqs"
+            videoURL: "https://www.youtube.com/watch?v=xQhni67uBqs",
+            movementPattern: .horizontalPull,
+            isUnilateral: true
         )
     ]
 
@@ -335,7 +365,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Press barbell from shoulder level to overhead.",
             formTips: "Keep core tight, don't lean back excessively. Full lockout at top.",
-            videoURL: "https://www.youtube.com/watch?v=2yjwXTZQDDI"
+            videoURL: "https://www.youtube.com/watch?v=2yjwXTZQDDI",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Dumbbell Shoulder Press",
@@ -346,7 +377,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Press dumbbells from shoulder level to overhead.",
             formTips: "Can be done seated or standing. Don't clang the dumbbells at the top.",
-            videoURL: "https://www.youtube.com/watch?v=qEwKCR5JCog"
+            videoURL: "https://www.youtube.com/watch?v=qEwKCR5JCog",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Lateral Raises",
@@ -357,7 +389,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Raise dumbbells out to sides until arms are parallel to ground.",
             formTips: "Use lighter weight, control the movement. Slight bend in elbows.",
-            videoURL: "https://www.youtube.com/watch?v=3VcKaXpzqRo"
+            videoURL: "https://www.youtube.com/watch?v=3VcKaXpzqRo",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Front Raises",
@@ -368,7 +401,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Raise dumbbells in front of you to shoulder height.",
             formTips: "Don't swing. Alternate arms or do both together.",
-            videoURL: "https://www.youtube.com/watch?v=-t7fuZ0KhDA"
+            videoURL: "https://www.youtube.com/watch?v=-t7fuZ0KhDA",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Rear Delt Flyes",
@@ -379,7 +413,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Bend over, raise dumbbells out to sides targeting rear delts.",
             formTips: "Keep your back flat. Light weight, high reps work well.",
-            videoURL: "https://www.youtube.com/watch?v=EA7u4Q_8HQ0"
+            videoURL: "https://www.youtube.com/watch?v=EA7u4Q_8HQ0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Arnold Press",
@@ -390,7 +425,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Start with palms facing you, rotate as you press overhead.",
             formTips: "The rotation targets all three heads of the deltoid.",
-            videoURL: "https://www.youtube.com/watch?v=6Z15_WdXmVw"
+            videoURL: "https://www.youtube.com/watch?v=6Z15_WdXmVw",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Seated Military Press",
@@ -400,7 +436,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Sit on bench with back support, press barbell from shoulders to overhead.",
             formTips: "Keep core tight and back against pad. Strict form, no leg drive.",
-            videoURL: "https://www.youtube.com/watch?v=2yjwXTZQDDI"
+            videoURL: "https://www.youtube.com/watch?v=2yjwXTZQDDI",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Upright Row",
@@ -410,7 +447,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Pull barbell straight up along body to chin level, elbows high.",
             formTips: "Wide grip is easier on shoulders. Don't go too heavy.",
-            videoURL: "https://www.youtube.com/watch?v=amCU-ziHITM"
+            videoURL: "https://www.youtube.com/watch?v=amCU-ziHITM",
+            movementPattern: .verticalPull
         ),
         Exercise(
             name: "Cable Lateral Raise",
@@ -420,7 +458,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand beside low cable, raise arm out to side until parallel.",
             formTips: "Constant tension throughout. Great for side delt isolation.",
-            videoURL: "https://www.youtube.com/watch?v=PPrzBWGaWf8"
+            videoURL: "https://www.youtube.com/watch?v=PPrzBWGaWf8",
+            movementPattern: .isolation,
+            isUnilateral: true
         ),
         Exercise(
             name: "Machine Shoulder Press",
@@ -431,7 +471,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at shoulder press machine, press handles overhead.",
             formTips: "Good for beginners. Keeps you in a fixed path.",
-            videoURL: "https://www.youtube.com/watch?v=Wqq43dKW1TU"
+            videoURL: "https://www.youtube.com/watch?v=Wqq43dKW1TU",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Reverse Pec Deck",
@@ -442,7 +483,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Face pec deck machine, pull handles back squeezing rear delts.",
             formTips: "Targets rear delts. Keep arms parallel to floor.",
-            videoURL: "https://www.youtube.com/watch?v=5YK4bgzXDp0"
+            videoURL: "https://www.youtube.com/watch?v=5YK4bgzXDp0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Lu Raises",
@@ -452,7 +494,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Raise dumbbells in front to overhead in Y pattern with thumbs up.",
             formTips: "Named after Lu Xiaojun. Light weight, full range of motion.",
-            videoURL: "https://www.youtube.com/watch?v=HuIPmb_SGes"
+            videoURL: "https://www.youtube.com/watch?v=HuIPmb_SGes",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Behind the Neck Press",
@@ -462,7 +505,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Press barbell from behind neck to overhead.",
             formTips: "Requires good shoulder mobility. Not for everyone. Go light.",
-            videoURL: "https://www.youtube.com/watch?v=WvePgOFmkJM"
+            videoURL: "https://www.youtube.com/watch?v=WvePgOFmkJM",
+            movementPattern: .verticalPush
         )
     ]
 
@@ -477,7 +521,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Curl barbell from thighs to shoulders, keeping elbows at sides.",
             formTips: "Don't swing or use momentum. Keep elbows pinned to your sides.",
-            videoURL: "https://www.youtube.com/watch?v=kwG2ipFRgfo"
+            videoURL: "https://www.youtube.com/watch?v=kwG2ipFRgfo",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dumbbell Curl",
@@ -488,7 +533,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Curl dumbbells alternating or together, elbows at sides.",
             formTips: "Supinate (rotate palm up) as you curl for full bicep activation.",
-            videoURL: "https://www.youtube.com/watch?v=ykJmrZ5v0Oo"
+            videoURL: "https://www.youtube.com/watch?v=ykJmrZ5v0Oo",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Hammer Curls",
@@ -499,7 +545,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Curl dumbbells with palms facing each other throughout.",
             formTips: "Targets the brachialis and forearms. Keep wrists neutral.",
-            videoURL: "https://www.youtube.com/watch?v=zC3nLlEvin4"
+            videoURL: "https://www.youtube.com/watch?v=zC3nLlEvin4",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Preacher Curls",
@@ -510,7 +557,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Rest arms on preacher bench, curl weight up.",
             formTips: "Don't fully extend at the bottom to keep tension on the biceps.",
-            videoURL: "https://www.youtube.com/watch?v=fIWP-FRFNU0"
+            videoURL: "https://www.youtube.com/watch?v=fIWP-FRFNU0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Cable Curls",
@@ -521,7 +569,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand at low cable, curl handle to shoulders.",
             formTips: "Constant tension throughout the movement. Great for pump.",
-            videoURL: "https://www.youtube.com/watch?v=NFzTWp2qpiE"
+            videoURL: "https://www.youtube.com/watch?v=NFzTWp2qpiE",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Incline Dumbbell Curl",
@@ -531,7 +580,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Sit on incline bench, let arms hang, curl dumbbells up.",
             formTips: "The stretch at the bottom increases bicep activation.",
-            videoURL: "https://www.youtube.com/watch?v=soxrZlIl35U"
+            videoURL: "https://www.youtube.com/watch?v=soxrZlIl35U",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "EZ Bar Curl",
@@ -541,7 +591,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Curl EZ bar from thighs to shoulders using angled grip.",
             formTips: "Easier on wrists than straight bar. Keep elbows pinned.",
-            videoURL: "https://www.youtube.com/watch?v=zG2xJ0Q5QtI"
+            videoURL: "https://www.youtube.com/watch?v=zG2xJ0Q5QtI",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Concentration Curl",
@@ -551,7 +602,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit with elbow braced on inner thigh, curl dumbbell up.",
             formTips: "Isolates the bicep. Squeeze at the top of each rep.",
-            videoURL: "https://www.youtube.com/watch?v=Jvj2wV0vOYU"
+            videoURL: "https://www.youtube.com/watch?v=Jvj2wV0vOYU",
+            movementPattern: .isolation,
+            isUnilateral: true
         ),
         Exercise(
             name: "Spider Curl",
@@ -561,7 +614,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie chest-down on incline bench, curl dumbbells up.",
             formTips: "Arms hang straight down. Great peak contraction.",
-            videoURL: "https://www.youtube.com/watch?v=ke3JGzLiME4"
+            videoURL: "https://www.youtube.com/watch?v=ke3JGzLiME4",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Reverse Curl",
@@ -571,7 +625,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Curl barbell with overhand (pronated) grip.",
             formTips: "Targets brachioradialis and forearms. Go lighter than regular curls.",
-            videoURL: "https://www.youtube.com/watch?v=nRgxYX2Ve9w"
+            videoURL: "https://www.youtube.com/watch?v=nRgxYX2Ve9w",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "21s",
@@ -581,7 +636,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "7 reps bottom half, 7 reps top half, 7 full reps.",
             formTips: "Classic bicep finisher. Use lighter weight than normal.",
-            videoURL: "https://www.youtube.com/watch?v=_d8U0H5hLQA"
+            videoURL: "https://www.youtube.com/watch?v=_d8U0H5hLQA",
+            movementPattern: .isolation
         )
     ]
 
@@ -597,7 +653,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Push cable attachment down until arms are straight.",
             formTips: "Keep elbows at your sides. Squeeze at the bottom.",
-            videoURL: "https://www.youtube.com/watch?v=2-LAMcpzODU"
+            videoURL: "https://www.youtube.com/watch?v=2-LAMcpzODU",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Skull Crushers",
@@ -608,7 +665,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie on bench, lower bar to forehead, extend back up.",
             formTips: "Keep upper arms vertical. Control the descent.",
-            videoURL: "https://www.youtube.com/watch?v=d_KZxkY_0cM"
+            videoURL: "https://www.youtube.com/watch?v=d_KZxkY_0cM",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Overhead Tricep Extension",
@@ -619,7 +677,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold dumbbell overhead, lower behind head, extend back up.",
             formTips: "Keep elbows pointed forward and close to your head.",
-            videoURL: "https://www.youtube.com/watch?v=YbX7Wd8jQ-Q"
+            videoURL: "https://www.youtube.com/watch?v=YbX7Wd8jQ-Q",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dips",
@@ -630,7 +689,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lower body between parallel bars, push back up.",
             formTips: "Lean forward slightly for chest focus, stay upright for triceps.",
-            videoURL: "https://www.youtube.com/watch?v=2z8JmcrW-As"
+            videoURL: "https://www.youtube.com/watch?v=2z8JmcrW-As",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Close Grip Bench Press",
@@ -641,7 +701,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Bench press with hands shoulder-width or closer.",
             formTips: "Don't go too narrow - shoulder width is fine. Elbows tucked.",
-            videoURL: "https://www.youtube.com/watch?v=nEF0bv2FW94"
+            videoURL: "https://www.youtube.com/watch?v=nEF0bv2FW94",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Tricep Kickbacks",
@@ -652,7 +713,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Bend over, extend arm back until straight.",
             formTips: "Keep upper arm parallel to the ground. Light weight, full extension.",
-            videoURL: "https://www.youtube.com/watch?v=ZO81bExngMI"
+            videoURL: "https://www.youtube.com/watch?v=ZO81bExngMI",
+            movementPattern: .isolation,
+            isUnilateral: true
         ),
         Exercise(
             name: "Rope Pushdown",
@@ -663,7 +726,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Push rope attachment down, spreading ends apart at bottom.",
             formTips: "Spread the rope at the bottom for extra contraction.",
-            videoURL: "https://www.youtube.com/watch?v=vB5OHsJ3EME"
+            videoURL: "https://www.youtube.com/watch?v=vB5OHsJ3EME",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Overhead Cable Extension",
@@ -674,7 +738,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Face away from cable, extend rope overhead.",
             formTips: "Great stretch on the long head. Keep elbows pointed forward.",
-            videoURL: "https://www.youtube.com/watch?v=mLUEBTv880w"
+            videoURL: "https://www.youtube.com/watch?v=mLUEBTv880w",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dip Machine",
@@ -686,7 +751,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at dip machine, press handles down.",
             formTips: "Good alternative if bodyweight dips are too hard.",
-            videoURL: "https://www.youtube.com/watch?v=6MlzgfGWOyE"
+            videoURL: "https://www.youtube.com/watch?v=6MlzgfGWOyE",
+            movementPattern: .verticalPush
         ),
         Exercise(
             name: "Diamond Push-Ups",
@@ -697,7 +763,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Push-up with hands together forming a diamond shape.",
             formTips: "Hands close together under chest. Elbows tucked.",
-            videoURL: "https://www.youtube.com/watch?v=J0DnG1_S92I"
+            videoURL: "https://www.youtube.com/watch?v=J0DnG1_S92I",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "JM Press",
@@ -707,7 +774,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Hybrid between close grip bench and skull crusher.",
             formTips: "Bar comes to chin/neck area. Advanced movement.",
-            videoURL: "https://www.youtube.com/watch?v=dTKMDl9VlJU"
+            videoURL: "https://www.youtube.com/watch?v=dTKMDl9VlJU",
+            movementPattern: .horizontalPush
         )
     ]
 
@@ -723,7 +791,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Bar on upper back, squat down until thighs are parallel, stand up.",
             formTips: "Knees track over toes, chest up, core tight. Don't let knees cave in.",
-            videoURL: "https://www.youtube.com/watch?v=ultWZbUMPL8"
+            videoURL: "https://www.youtube.com/watch?v=ultWZbUMPL8",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Leg Press",
@@ -734,7 +803,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit in leg press machine, lower weight, press back up.",
             formTips: "Don't lock out knees completely. Keep lower back pressed into seat.",
-            videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ"
+            videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Cable Leg Press",
@@ -745,7 +815,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at cable/selectorized leg press machine, press platform away.",
             formTips: "Great for beginners. Controlled path of motion. Don't lock knees.",
-            videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ"
+            videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Romanian Deadlift",
@@ -756,7 +827,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Hinge at hips, lower bar down legs, return to standing.",
             formTips: "Keep bar close to legs. Feel the stretch in hamstrings. Soft knee bend.",
-            videoURL: "https://www.youtube.com/watch?v=7j-2w4-P14I"
+            videoURL: "https://www.youtube.com/watch?v=7j-2w4-P14I",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Lunges",
@@ -767,7 +839,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Step forward, lower back knee toward ground, push back up.",
             formTips: "Keep torso upright. Front knee doesn't go past toes.",
-            videoURL: "https://www.youtube.com/watch?v=QOVaHwm-Q6U"
+            videoURL: "https://www.youtube.com/watch?v=QOVaHwm-Q6U",
+            movementPattern: .lunge,
+            isUnilateral: true
         ),
         Exercise(
             name: "Lying Leg Curl",
@@ -778,7 +852,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie face down on machine, curl weight up toward glutes.",
             formTips: "Don't lift hips off the pad. Control the negative.",
-            videoURL: "https://www.youtube.com/watch?v=1Tq3QdYUuHs"
+            videoURL: "https://www.youtube.com/watch?v=1Tq3QdYUuHs",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Seated Leg Curl",
@@ -789,7 +864,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at machine with legs extended, curl heels toward glutes.",
             formTips: "Keep back against pad. Control both phases of movement.",
-            videoURL: "https://www.youtube.com/watch?v=Orxowest56U"
+            videoURL: "https://www.youtube.com/watch?v=Orxowest56U",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Leg Extensions",
@@ -800,7 +876,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit on machine, extend legs until straight.",
             formTips: "Don't use heavy weight - hard on the knees. Focus on the squeeze.",
-            videoURL: "https://www.youtube.com/watch?v=YyvSfVjQeL0"
+            videoURL: "https://www.youtube.com/watch?v=YyvSfVjQeL0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Calf Raises",
@@ -811,7 +888,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Rise up on toes, lower back down.",
             formTips: "Full range of motion. Pause at the top. Can add weight.",
-            videoURL: "https://www.youtube.com/watch?v=gwLzBJYoWlI"
+            videoURL: "https://www.youtube.com/watch?v=gwLzBJYoWlI",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Bulgarian Split Squat",
@@ -822,7 +900,9 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Rear foot elevated on bench, squat down on front leg.",
             formTips: "Torso upright. Great for leg development and balance.",
-            videoURL: "https://www.youtube.com/watch?v=2C-uNgKwPLE"
+            videoURL: "https://www.youtube.com/watch?v=2C-uNgKwPLE",
+            movementPattern: .lunge,
+            isUnilateral: true
         ),
         Exercise(
             name: "Hip Thrust",
@@ -833,7 +913,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Upper back on bench, thrust hips up with barbell across hips.",
             formTips: "Squeeze glutes hard at the top. Chin tucked, don't hyperextend.",
-            videoURL: "https://www.youtube.com/watch?v=SEdqd1n0cvg"
+            videoURL: "https://www.youtube.com/watch?v=SEdqd1n0cvg",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Front Squat",
@@ -844,7 +925,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Bar rests on front delts, squat down keeping torso upright.",
             formTips: "Elbows high, core tight. More quad dominant than back squat.",
-            videoURL: "https://www.youtube.com/watch?v=m4ytaCJZpl0"
+            videoURL: "https://www.youtube.com/watch?v=m4ytaCJZpl0",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Hack Squat",
@@ -856,7 +938,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Stand on hack squat machine, lower body then press up.",
             formTips: "Foot position changes emphasis. Lower is more quads, higher is more glutes.",
-            videoURL: "https://www.youtube.com/watch?v=0tn5K9NlCfo"
+            videoURL: "https://www.youtube.com/watch?v=0tn5K9NlCfo",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Goblet Squat",
@@ -867,7 +950,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold dumbbell at chest, squat down between legs.",
             formTips: "Great for learning squat form. Elbows track inside knees.",
-            videoURL: "https://www.youtube.com/watch?v=MeIiIdhvXT4"
+            videoURL: "https://www.youtube.com/watch?v=MeIiIdhvXT4",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Pendulum Squat",
@@ -879,7 +963,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Stand on pendulum squat machine, lower body using the arc motion.",
             formTips: "Arc motion keeps constant tension on quads. Excellent for knee-friendly squatting.",
-            videoURL: "https://www.youtube.com/watch?v=NqFuU2fYrS8"
+            videoURL: "https://www.youtube.com/watch?v=NqFuU2fYrS8",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Smith Machine Squat",
@@ -890,7 +975,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Position bar on upper back, unrack and squat down.",
             formTips: "Fixed path allows different foot positions. Good for beginners or isolation.",
-            videoURL: "https://www.youtube.com/watch?v=b0r1LWtAqiU"
+            videoURL: "https://www.youtube.com/watch?v=b0r1LWtAqiU",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Seated Calf Raise",
@@ -901,7 +987,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at calf raise machine, raise heels up.",
             formTips: "Targets the soleus muscle. Full stretch at bottom.",
-            videoURL: "https://www.youtube.com/watch?v=JbyjNymZOt0"
+            videoURL: "https://www.youtube.com/watch?v=JbyjNymZOt0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Standing Calf Raise Machine",
@@ -912,7 +999,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand on calf raise machine, raise heels up.",
             formTips: "Targets the gastrocnemius. Pause at top and bottom.",
-            videoURL: "https://www.youtube.com/watch?v=RLnJ_6Dqkns"
+            videoURL: "https://www.youtube.com/watch?v=RLnJ_6Dqkns",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Glute Kickback Machine",
@@ -923,7 +1011,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand at machine, kick leg back against resistance.",
             formTips: "Squeeze glute at the top. Don't use momentum.",
-            videoURL: "https://www.youtube.com/watch?v=CPUN9v5IYGQ"
+            videoURL: "https://www.youtube.com/watch?v=CPUN9v5IYGQ",
+            movementPattern: .isolation,
+            isUnilateral: true
         ),
         Exercise(
             name: "Hip Adduction Machine",
@@ -934,7 +1024,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at machine, squeeze legs together.",
             formTips: "Targets inner thighs. Control the movement both ways.",
-            videoURL: "https://www.youtube.com/watch?v=O_DNcaEYJac"
+            videoURL: "https://www.youtube.com/watch?v=O_DNcaEYJac",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Hip Abduction Machine",
@@ -945,7 +1036,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit at machine, push legs apart.",
             formTips: "Targets outer glutes. Keep back against pad.",
-            videoURL: "https://www.youtube.com/watch?v=FNJErCOeFQM"
+            videoURL: "https://www.youtube.com/watch?v=FNJErCOeFQM",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Good Mornings",
@@ -955,7 +1047,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Bar on back, hinge at hips keeping legs nearly straight.",
             formTips: "Keep back flat. Feel stretch in hamstrings. Go light at first.",
-            videoURL: "https://www.youtube.com/watch?v=YA-h3n9L4YU"
+            videoURL: "https://www.youtube.com/watch?v=YA-h3n9L4YU",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Sumo Deadlift",
@@ -965,7 +1058,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Wide stance, grip inside legs, drive through heels to stand.",
             formTips: "Push knees out, chest up. More glute/adductor emphasis.",
-            videoURL: "https://www.youtube.com/watch?v=lDt8HwxVST0"
+            videoURL: "https://www.youtube.com/watch?v=lDt8HwxVST0",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Walking Lunges",
@@ -975,7 +1069,9 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lunge forward, alternate legs as you walk.",
             formTips: "Take big steps. Keep torso upright. Great for conditioning.",
-            videoURL: "https://www.youtube.com/watch?v=L8fvypPrzzs"
+            videoURL: "https://www.youtube.com/watch?v=L8fvypPrzzs",
+            movementPattern: .lunge,
+            isUnilateral: true
         ),
         Exercise(
             name: "Step-Ups",
@@ -985,7 +1081,9 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Step up onto bench, drive through front heel.",
             formTips: "Don't push off back foot. All the work from front leg.",
-            videoURL: "https://www.youtube.com/watch?v=WCFCdxzFBa4"
+            videoURL: "https://www.youtube.com/watch?v=WCFCdxzFBa4",
+            movementPattern: .lunge,
+            isUnilateral: true
         ),
         Exercise(
             name: "Sissy Squat",
@@ -995,7 +1093,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Lean back, bend knees, lower body while staying on toes.",
             formTips: "Extreme quad isolation. Hold onto something for balance.",
-            videoURL: "https://www.youtube.com/watch?v=ouqyvk0z3Ks"
+            videoURL: "https://www.youtube.com/watch?v=ouqyvk0z3Ks",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Nordic Hamstring Curl",
@@ -1005,7 +1104,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Kneel with feet anchored, lower body forward under control.",
             formTips: "Excellent for hamstring strength and injury prevention.",
-            videoURL: "https://www.youtube.com/watch?v=2s0f1Kjwpw4"
+            videoURL: "https://www.youtube.com/watch?v=2s0f1Kjwpw4",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dumbbell Romanian Deadlift",
@@ -1015,7 +1115,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hinge at hips with dumbbells, lower along legs.",
             formTips: "Same as barbell RDL but allows more freedom of movement.",
-            videoURL: "https://www.youtube.com/watch?v=hQgFixeXdZo"
+            videoURL: "https://www.youtube.com/watch?v=hQgFixeXdZo",
+            movementPattern: .hipHinge
         )
     ]
 
@@ -1030,7 +1131,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold push-up position on forearms, body straight.",
             formTips: "Don't let hips sag or pike up. Squeeze glutes and core.",
-            videoURL: "https://www.youtube.com/watch?v=ASdvN_XEl_c"
+            videoURL: "https://www.youtube.com/watch?v=ASdvN_XEl_c",
+            movementPattern: .isometric
         ),
         Exercise(
             name: "Crunches",
@@ -1040,7 +1142,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie on back, curl shoulders off ground toward knees.",
             formTips: "Don't pull on your neck. Focus on the contraction, not range of motion.",
-            videoURL: "https://www.youtube.com/watch?v=Xyd_fa5zoEU"
+            videoURL: "https://www.youtube.com/watch?v=Xyd_fa5zoEU",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Hanging Leg Raises",
@@ -1050,7 +1153,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Hang from bar, raise legs until parallel to ground.",
             formTips: "Control the movement, don't swing. Bent knees for easier version.",
-            videoURL: "https://www.youtube.com/watch?v=hdng3Nm1x_E"
+            videoURL: "https://www.youtube.com/watch?v=hdng3Nm1x_E",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Russian Twists",
@@ -1060,7 +1164,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Sit with knees bent, lean back, rotate torso side to side.",
             formTips: "Keep feet off ground for added difficulty. Can hold weight.",
-            videoURL: "https://www.youtube.com/watch?v=wkD8rjkodUI"
+            videoURL: "https://www.youtube.com/watch?v=wkD8rjkodUI",
+            movementPattern: .rotational
         ),
         Exercise(
             name: "Cable Woodchop",
@@ -1070,7 +1175,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Pull cable diagonally across body from high to low or vice versa.",
             formTips: "Rotate through your core, not just your arms. Control the return.",
-            videoURL: "https://www.youtube.com/watch?v=pAplQXk3dkU"
+            videoURL: "https://www.youtube.com/watch?v=pAplQXk3dkU",
+            movementPattern: .rotational
         ),
         Exercise(
             name: "Dead Bug",
@@ -1080,7 +1186,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie on back, extend opposite arm and leg while keeping back flat.",
             formTips: "Keep lower back pressed into floor. Great for core stability.",
-            videoURL: "https://www.youtube.com/watch?v=I5xbsA71v1A"
+            videoURL: "https://www.youtube.com/watch?v=I5xbsA71v1A",
+            movementPattern: .isometric
         ),
         Exercise(
             name: "Ab Wheel Rollout",
@@ -1090,7 +1197,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Kneel with ab wheel, roll out as far as possible, roll back.",
             formTips: "Keep core tight throughout. Don't let lower back sag.",
-            videoURL: "https://www.youtube.com/watch?v=rqiTPdK1c_I"
+            videoURL: "https://www.youtube.com/watch?v=rqiTPdK1c_I",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Decline Sit-Ups",
@@ -1100,7 +1208,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie on decline bench, feet hooked, sit up to knees.",
             formTips: "Don't pull on neck. Can hold weight for added resistance.",
-            videoURL: "https://www.youtube.com/watch?v=XbaoIL9hHOQ"
+            videoURL: "https://www.youtube.com/watch?v=XbaoIL9hHOQ",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Cable Crunch",
@@ -1110,7 +1219,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Kneel at cable machine, crunch down bringing elbows to knees.",
             formTips: "Focus on flexing the spine, not just hinging at hips.",
-            videoURL: "https://www.youtube.com/watch?v=ToJeyhydUxU"
+            videoURL: "https://www.youtube.com/watch?v=ToJeyhydUxU",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Side Plank",
@@ -1120,7 +1230,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Support body on forearm and feet, hips off ground.",
             formTips: "Keep body in straight line. Don't let hips sag.",
-            videoURL: "https://www.youtube.com/watch?v=K2VljzCC16g"
+            videoURL: "https://www.youtube.com/watch?v=K2VljzCC16g",
+            movementPattern: .isometric
         ),
         Exercise(
             name: "Mountain Climbers",
@@ -1130,7 +1241,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "In push-up position, alternate driving knees to chest.",
             formTips: "Keep hips down. Great for cardio and core.",
-            videoURL: "https://www.youtube.com/watch?v=nmwgirgXLYM"
+            videoURL: "https://www.youtube.com/watch?v=nmwgirgXLYM",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Bicycle Crunches",
@@ -1140,7 +1252,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie on back, alternate elbow to opposite knee.",
             formTips: "Don't pull on neck. Fully extend the straight leg.",
-            videoURL: "https://www.youtube.com/watch?v=1we3bh9uhqY"
+            videoURL: "https://www.youtube.com/watch?v=1we3bh9uhqY",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "V-Ups",
@@ -1150,7 +1263,8 @@ class ExerciseDatabase {
             difficulty: .intermediate,
             instructions: "Lie flat, raise legs and torso simultaneously, touch toes.",
             formTips: "Keep legs straight. Controlled movement up and down.",
-            videoURL: "https://www.youtube.com/watch?v=iP2fjvG0g3w"
+            videoURL: "https://www.youtube.com/watch?v=iP2fjvG0g3w",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Pallof Press",
@@ -1160,7 +1274,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Stand perpendicular to cable, press handle straight out.",
             formTips: "Anti-rotation exercise. Resist the pull of the cable.",
-            videoURL: "https://www.youtube.com/watch?v=AH_QZLm_0-s"
+            videoURL: "https://www.youtube.com/watch?v=AH_QZLm_0-s",
+            movementPattern: .isometric
         ),
         Exercise(
             name: "Reverse Crunch",
@@ -1170,7 +1285,8 @@ class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Lie on back, curl hips off floor bringing knees to chest.",
             formTips: "Focus on lower abs. Don't use momentum.",
-            videoURL: "https://www.youtube.com/watch?v=hyv14e2QDq0"
+            videoURL: "https://www.youtube.com/watch?v=hyv14e2QDq0",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Dragon Flag",
@@ -1180,7 +1296,8 @@ class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Lie on bench, grip behind head, raise body keeping it straight.",
             formTips: "Made famous by Bruce Lee. Very advanced exercise.",
-            videoURL: "https://www.youtube.com/watch?v=moyFIvRrS0s"
+            videoURL: "https://www.youtube.com/watch?v=moyFIvRrS0s",
+            movementPattern: .isolation
         )
     ]
 
@@ -1195,7 +1312,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .intermediate,
             instructions: "Stand inside the trap bar with feet hip-width apart. Grip the handles, brace your core, and drive through your heels to stand up straight. Lower with control.",
-            formTips: "Keep your back flat and chest up throughout. The neutral grip is easier on the lower back than conventional deadlifts. Push the floor away rather than pulling the bar up."
+            formTips: "Keep your back flat and chest up throughout. The neutral grip is easier on the lower back than conventional deadlifts. Push the floor away rather than pulling the bar up.",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Trap Bar Shrugs",
@@ -1205,7 +1323,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .beginner,
             instructions: "Stand inside the trap bar holding the handles. Keeping arms straight, shrug your shoulders up toward your ears. Hold briefly at the top, then lower with control.",
-            formTips: "The neutral grip is easier on your shoulders than barbell shrugs. Don't roll your shoulders - straight up and down only. Hold at the top for maximum contraction."
+            formTips: "The neutral grip is easier on your shoulders than barbell shrugs. Don't roll your shoulders - straight up and down only. Hold at the top for maximum contraction.",
+            movementPattern: .isolation
         ),
         Exercise(
             name: "Trap Bar Romanian Deadlift",
@@ -1215,7 +1334,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .intermediate,
             instructions: "Stand inside the trap bar, lift it to standing position. Push your hips back while keeping a slight bend in your knees, lowering the bar along your legs. Return by driving hips forward.",
-            formTips: "Keep a slight knee bend throughout - this is not a stiff-leg deadlift. Feel the stretch in your hamstrings. Keep your back flat and core braced."
+            formTips: "Keep a slight knee bend throughout - this is not a stiff-leg deadlift. Feel the stretch in your hamstrings. Keep your back flat and core braced.",
+            movementPattern: .hipHinge
         ),
         Exercise(
             name: "Trap Bar Farmer's Walk",
@@ -1225,7 +1345,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .beginner,
             instructions: "Stand inside the trap bar and deadlift it up. Walk forward with controlled steps for the prescribed distance or time. Keep your core tight and shoulders back.",
-            formTips: "Walk in a controlled manner - don't rush. Keep your core tight and maintain good posture. The trap bar allows heavier loads than dumbbells for carries."
+            formTips: "Walk in a controlled manner - don't rush. Keep your core tight and maintain good posture. The trap bar allows heavier loads than dumbbells for carries.",
+            movementPattern: .carry
         ),
         Exercise(
             name: "Trap Bar Jump Squats",
@@ -1235,7 +1356,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .advanced,
             instructions: "Stand inside the trap bar with light weight. Lower into a quarter squat, then explosively jump upward. Land softly and absorb the impact through your legs before the next rep.",
-            formTips: "Use lighter weight than your deadlift - this is for power, not strength. Land softly with bent knees. Great for developing explosive power for sports."
+            formTips: "Use lighter weight than your deadlift - this is for power, not strength. Land softly with bent knees. Great for developing explosive power for sports.",
+            movementPattern: .squat
         ),
         Exercise(
             name: "Trap Bar Bent Over Row",
@@ -1245,7 +1367,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .intermediate,
             instructions: "Stand inside the trap bar and lift it. Hinge at your hips until your torso is nearly parallel to the ground. Row the bar up to your torso, squeezing your shoulder blades together.",
-            formTips: "Keep your back flat throughout the movement. The neutral grip reduces bicep involvement and is easier on the shoulders. Pull with your elbows, not your hands."
+            formTips: "Keep your back flat throughout the movement. The neutral grip reduces bicep involvement and is easier on the shoulders. Pull with your elbows, not your hands.",
+            movementPattern: .horizontalPull
         ),
         Exercise(
             name: "Trap Bar Floor Press",
@@ -1255,7 +1378,8 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .intermediate,
             instructions: "Lie on the floor inside the trap bar. Grip the handles and press the bar straight up. Lower until your triceps touch the floor, pause briefly, then press back up.",
-            formTips: "The neutral grip is easier on your shoulders than a barbell. The floor limits range of motion which can help those with shoulder issues. Control the descent."
+            formTips: "The neutral grip is easier on your shoulders than a barbell. The floor limits range of motion which can help those with shoulder issues. Control the descent.",
+            movementPattern: .horizontalPush
         ),
         Exercise(
             name: "Trap Bar Split Squat",
@@ -1265,7 +1389,9 @@ class ExerciseDatabase {
             equipment: .trapBar,
             difficulty: .intermediate,
             instructions: "Stand inside the trap bar in a split stance. Lower your back knee toward the ground while keeping your front knee over your ankle. Drive through your front foot to return to standing.",
-            formTips: "The trap bar keeps weight centered making balance easier than with dumbbells. Keep your torso upright. Don't let your front knee cave inward."
+            formTips: "The trap bar keeps weight centered making balance easier than with dumbbells. Keep your torso upright. Don't let your front knee cave inward.",
+            movementPattern: .lunge,
+            isUnilateral: true
         )
     ]
 
