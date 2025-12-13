@@ -1,7 +1,8 @@
 import Foundation
 
 /// Static exercise database with common exercises
-class ExerciseDatabase {
+@MainActor
+final class ExerciseDatabase {
     static let shared = ExerciseDatabase()
 
     private init() {}

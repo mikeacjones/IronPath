@@ -46,6 +46,15 @@ final class DependencyContainer {
     /// Equipment manager
     let equipmentManager: EquipmentManaging
 
+    /// Custom equipment storage
+    let customEquipmentStore: CustomEquipmentStoring
+
+    /// Custom exercise storage
+    let customExerciseStore: CustomExerciseStoring
+
+    /// Exercise database
+    let exerciseDatabase: ExerciseDatabaseProviding
+
     // MARK: - Initialization
 
     /// Create container with production dependencies (default)
@@ -61,6 +70,9 @@ final class DependencyContainer {
         self.appSettings = AppSettings.shared
         self.gymSettings = GymSettings.shared
         self.equipmentManager = EquipmentManager.shared
+        self.customEquipmentStore = CustomEquipmentStore.shared
+        self.customExerciseStore = CustomExerciseStore.shared
+        self.exerciseDatabase = ExerciseDatabase.shared
     }
 
     /// Create container with custom dependencies (for testing)
@@ -75,7 +87,10 @@ final class DependencyContainer {
         exercisePreferenceManager: ExercisePreferenceManaging,
         appSettings: AppSettingsProviding,
         gymSettings: GymSettingsProviding,
-        equipmentManager: EquipmentManaging
+        equipmentManager: EquipmentManaging,
+        customEquipmentStore: CustomEquipmentStoring,
+        customExerciseStore: CustomExerciseStoring,
+        exerciseDatabase: ExerciseDatabaseProviding
     ) {
         self.workoutDataManager = workoutDataManager
         self.activeWorkoutManager = activeWorkoutManager
@@ -88,6 +103,9 @@ final class DependencyContainer {
         self.appSettings = appSettings
         self.gymSettings = gymSettings
         self.equipmentManager = equipmentManager
+        self.customEquipmentStore = customEquipmentStore
+        self.customExerciseStore = customExerciseStore
+        self.exerciseDatabase = exerciseDatabase
     }
 
     // MARK: - ViewModel Factory Methods

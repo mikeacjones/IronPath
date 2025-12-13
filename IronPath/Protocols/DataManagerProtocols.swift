@@ -281,6 +281,63 @@ protocol GymSettingsProviding: AnyObject, Sendable {
     func isSingleSided(for exerciseName: String) -> Bool
 }
 
+// MARK: - Custom Equipment Storing
+
+/// Protocol for managing custom equipment created by users
+@MainActor
+protocol CustomEquipmentStoring: AnyObject, Sendable {
+    /// All custom equipment
+    var customEquipment: [CustomEquipment] { get }
+
+    /// Add new custom equipment
+    func addEquipment(_ equipment: CustomEquipment) throws
+
+    /// Update existing custom equipment
+    func updateEquipment(_ equipment: CustomEquipment) throws
+
+    /// Delete custom equipment by ID
+    func deleteEquipment(id: UUID)
+
+    /// Get custom equipment by ID
+    func getEquipment(id: UUID) -> CustomEquipment?
+
+    /// Get all equipment of a specific type
+    func getEquipment(ofType type: CustomEquipment.CustomEquipmentType) -> [CustomEquipment]
+
+    /// Check if equipment with the given name already exists
+    func exists(name: String) -> Bool
+}
+
+// MARK: - Custom Exercise Storing
+
+/// Protocol for managing custom exercises created by users
+@MainActor
+protocol CustomExerciseStoring: AnyObject, Sendable {
+    /// All custom exercises
+    var exercises: [Exercise] { get }
+
+    /// Check if an exercise with the given name already exists
+    func exerciseExists(name: String) -> Bool
+
+    /// Add a single exercise with duplicate checking
+    func addExercise(_ exercise: Exercise) throws
+
+    /// Delete an exercise by ID
+    func deleteExercise(id: UUID)
+
+    /// Update an existing exercise
+    func updateExercise(_ exercise: Exercise)
+}
+
+// MARK: - Exercise Database Providing
+
+/// Protocol for accessing the exercise database
+@MainActor
+protocol ExerciseDatabaseProviding: AnyObject, Sendable {
+    /// All available exercises (built-in)
+    var exercises: [Exercise] { get }
+}
+
 // MARK: - Equipment Managing
 
 /// Protocol for managing equipment options (standard and custom)
@@ -323,3 +380,6 @@ extension AppSettings: AppSettingsProviding {}
 extension ExercisePreferenceManager: ExercisePreferenceManaging {}
 extension GymSettings: GymSettingsProviding {}
 extension EquipmentManager: EquipmentManaging {}
+extension CustomEquipmentStore: CustomEquipmentStoring {}
+extension CustomExerciseStore: CustomExerciseStoring {}
+extension ExerciseDatabase: ExerciseDatabaseProviding {}
