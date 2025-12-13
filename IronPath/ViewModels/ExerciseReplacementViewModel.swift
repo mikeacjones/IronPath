@@ -1,40 +1,40 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Exercise Replacement ViewModel
 
 /// ViewModel for managing exercise replacement flow
 /// Handles similarity-based suggestions, AI replacement, and quick replacement
+@Observable
 @MainActor
-class ExerciseReplacementViewModel: ObservableObject {
+final class ExerciseReplacementViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
     /// The exercise being replaced
-    @Published var exerciseToReplace: WorkoutExercise?
+    var exerciseToReplace: WorkoutExercise?
 
     /// Notes describing why replacement is needed (for AI)
-    @Published var replacementNotes: String = ""
+    var replacementNotes: String = ""
 
     /// Whether an AI replacement request is in progress
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
 
     /// Error message if replacement fails
-    @Published var error: String?
+    var error: String?
 
     /// Whether to show the error alert
-    @Published var showError: Bool = false
+    var showError: Bool = false
 
     /// Cached similarity suggestions
-    @Published private(set) var similaritySuggestions: [(Exercise, Double)] = []
+    private(set) var similaritySuggestions: [(Exercise, Double)] = []
 
     // MARK: - Dependencies
 
     private let aiProviderManager: AIProviderManaging
     private let similarityService: ExerciseSimilarityServicing
     private let gymProfileManager: GymProfileManaging
-    private let exerciseCountProvider: () -> Int
+    private let exerciseCountProvider: @MainActor () -> Int
     private var userProfile: UserProfile?
 
     // MARK: - Context
@@ -53,17 +53,17 @@ class ExerciseReplacementViewModel: ObservableObject {
     // MARK: - Initialization
 
     init(
-        aiProviderManager: AIProviderManaging = AIProviderManager.shared,
-        similarityService: ExerciseSimilarityServicing = ExerciseSimilarityService.shared,
-        gymProfileManager: GymProfileManaging = GymProfileManager.shared,
-        exerciseCountProvider: @escaping () -> Int = {
+        aiProviderManager: AIProviderManaging? = nil,
+        similarityService: ExerciseSimilarityServicing? = nil,
+        gymProfileManager: GymProfileManaging? = nil,
+        exerciseCountProvider: (@MainActor () -> Int)? = nil
+    ) {
+        self.aiProviderManager = aiProviderManager ?? AIProviderManager.shared
+        self.similarityService = similarityService ?? ExerciseSimilarityService.shared
+        self.gymProfileManager = gymProfileManager ?? GymProfileManager.shared
+        self.exerciseCountProvider = exerciseCountProvider ?? {
             ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count
         }
-    ) {
-        self.aiProviderManager = aiProviderManager
-        self.similarityService = similarityService
-        self.gymProfileManager = gymProfileManager
-        self.exerciseCountProvider = exerciseCountProvider
     }
 
     // MARK: - Configuration

@@ -90,7 +90,7 @@ struct SupersetGroupCard: View {
     let group: ExerciseGroup
     let exercises: [WorkoutExercise]
     var isLiveWorkout: Bool = true
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void

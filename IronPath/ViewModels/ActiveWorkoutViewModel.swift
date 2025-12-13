@@ -1,39 +1,44 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Active Workout ViewModel
 
 /// ViewModel for managing an active workout session
 /// Handles workout lifecycle, timing, completion, and superset navigation
+@Observable
 @MainActor
-class ActiveWorkoutViewModel: ObservableObject {
+final class ActiveWorkoutViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
     /// The current workout being performed (synced with editorViewModel)
-    @Published var workout: Workout
+    var workout: Workout
 
     /// Start time of the workout session
-    @Published var workoutStartTime: Date
+    var workoutStartTime: Date
 
     /// Currently selected exercise for detail sheet
-    @Published var selectedExercise: WorkoutExercise?
+    var selectedExercise: WorkoutExercise?
 
     /// Whether the cancel confirmation dialog is showing
-    @Published var showCancelConfirmation: Bool = false
+    var showCancelConfirmation: Bool = false
 
     /// Whether the completion summary sheet is showing
-    @Published var showCompletionSummary: Bool = false
+    var showCompletionSummary: Bool = false
 
     /// The completed workout to display in summary
-    @Published var completedWorkoutForSummary: Workout?
+    var completedWorkoutForSummary: Workout?
 
     /// Whether we're in the process of finishing (prevents double-tap)
-    @Published var isFinishing: Bool = false
+    var isFinishing: Bool = false
 
     /// Flag to prevent onDisappear from dismissing during superset navigation
-    @Published var isNavigatingBetweenExercises: Bool = false
+    var isNavigatingBetweenExercises: Bool = false
+
+    // MARK: - Task Management
+
+    /// Task handle for navigation delay (for cancellation)
+    private var navigationTask: Task<Void, Never>?
 
     // MARK: - Computed Properties
 
@@ -72,18 +77,18 @@ class ActiveWorkoutViewModel: ObservableObject {
     init(
         workout: Workout,
         userProfile: UserProfile?,
-        activeWorkoutManager: ActiveWorkoutManaging = ActiveWorkoutManager.shared,
-        workoutDataManager: WorkoutDataManaging = WorkoutDataManager.shared,
-        restTimerManager: RestTimerManaging = RestTimerManager.shared
+        activeWorkoutManager: ActiveWorkoutManaging? = nil,
+        workoutDataManager: WorkoutDataManaging? = nil,
+        restTimerManager: RestTimerManaging? = nil
     ) {
         self.workout = workout
         self.userProfile = userProfile
-        self.activeWorkoutManager = activeWorkoutManager
-        self.workoutDataManager = workoutDataManager
-        self.restTimerManager = restTimerManager
+        self.activeWorkoutManager = activeWorkoutManager ?? ActiveWorkoutManager.shared
+        self.workoutDataManager = workoutDataManager ?? WorkoutDataManager.shared
+        self.restTimerManager = restTimerManager ?? RestTimerManager.shared
 
         // Use persisted start time from manager, falling back to workout's startedAt or current time
-        self.workoutStartTime = activeWorkoutManager.workoutStartTime ?? workout.startedAt ?? Date()
+        self.workoutStartTime = self.activeWorkoutManager.workoutStartTime ?? workout.startedAt ?? Date()
     }
 
     // MARK: - Workout State Persistence
@@ -269,13 +274,25 @@ class ActiveWorkoutViewModel: ObservableObject {
         let nextExerciseId = nextInfo.exercise.id
         selectedExercise = nil
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            guard let self = self else { return }
+        // Cancel any existing navigation task
+        navigationTask?.cancel()
+
+        navigationTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, let self else { return }
             // Get fresh exercise from workout at navigation time
             self.selectedExercise = self.workout.exercises.first { $0.id == nextExerciseId }
             // Reset flag after navigation is complete
             self.isNavigatingBetweenExercises = false
         }
+    }
+
+    // MARK: - Cleanup
+
+    /// Cancel any pending tasks when the ViewModel is no longer needed
+    func cleanup() {
+        navigationTask?.cancel()
+        navigationTask = nil
     }
 
     // MARK: - Exercise Selection Helpers

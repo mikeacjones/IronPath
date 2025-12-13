@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 // MARK: - Workout Completion Summary View
 
@@ -8,7 +9,7 @@ struct WorkoutCompletionSummaryView: View {
     let userProfile: UserProfile?
     let onDismiss: () -> Void
 
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @Environment(DependencyContainer.self) private var dependencies
 
     @State private var estimatedCalories: Int?
     @State private var isEstimatingCalories = false
@@ -330,7 +331,7 @@ struct WorkoutCompletionSummaryView: View {
                 isGeneratingAISummary = false
             }
         } catch {
-            print("Failed to generate AI summary: \(error)")
+            AppLogger.ai.error("Failed to generate AI summary", error: error)
             await MainActor.run {
                 isGeneratingAISummary = false
             }

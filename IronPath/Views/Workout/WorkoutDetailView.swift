@@ -3,10 +3,10 @@ import SwiftUI
 // MARK: - Workout Detail View
 
 struct WorkoutDetailView: View {
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var dependencies: DependencyContainer
-    @StateObject private var editorViewModel: WorkoutEditorViewModel
-    @StateObject private var replacementViewModel = ExerciseReplacementViewModel()
+    @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
+    @State private var editorViewModel: WorkoutEditorViewModel
+    @State private var replacementViewModel = ExerciseReplacementViewModel()
 
     let onStartWorkout: (Workout) -> Void
     let onRegenerate: () -> Void
@@ -23,7 +23,7 @@ struct WorkoutDetailView: View {
     @State private var showCreateGroupSheet = false
 
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
-        _editorViewModel = StateObject(wrappedValue: WorkoutEditorViewModel(workout: workout))
+        _editorViewModel = State(initialValue: WorkoutEditorViewModel(workout: workout))
         self.onStartWorkout = { _ in onStartWorkout() }
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = nil
@@ -31,7 +31,7 @@ struct WorkoutDetailView: View {
     }
 
     init(workout: Workout, onStartWorkout: @escaping (Workout) -> Void, onRegenerate: @escaping () -> Void, onConvertToNormal: ((Workout) -> Void)? = nil, onWorkoutUpdated: ((Workout) -> Void)? = nil) {
-        _editorViewModel = StateObject(wrappedValue: WorkoutEditorViewModel(workout: workout))
+        _editorViewModel = State(initialValue: WorkoutEditorViewModel(workout: workout))
         self.onStartWorkout = onStartWorkout
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = onConvertToNormal

@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 /// Available Claude models for the app
 enum ClaudeModel: String, CaseIterable, Codable {
@@ -33,12 +32,14 @@ enum ClaudeModel: String, CaseIterable, Codable {
 }
 
 /// Manages the user's selected Claude model
-class ModelConfigManager: ObservableObject {
+@Observable
+@MainActor
+final class ModelConfigManager {
     static let shared = ModelConfigManager()
 
     private let modelKey = "selected_claude_model"
 
-    @Published var selectedModel: ClaudeModel {
+    var selectedModel: ClaudeModel {
         didSet {
             UserDefaults.standard.set(selectedModel.rawValue, forKey: modelKey)
         }

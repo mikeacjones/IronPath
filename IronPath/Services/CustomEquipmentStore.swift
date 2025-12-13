@@ -1,11 +1,12 @@
 import Foundation
-import Combine
 
 /// Manages custom equipment created by the user
-class CustomEquipmentStore: ObservableObject {
+@Observable
+@MainActor
+final class CustomEquipmentStore {
     static let shared = CustomEquipmentStore()
 
-    @Published var customEquipment: [CustomEquipment] = [] {
+    var customEquipment: [CustomEquipment] = [] {
         didSet { save() }
     }
 

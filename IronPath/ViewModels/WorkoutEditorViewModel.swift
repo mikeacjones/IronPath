@@ -1,24 +1,24 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Workout Editor ViewModel
 
 /// Shared ViewModel for editing workouts - used by both ActiveWorkoutView and WorkoutDetailView
 /// Consolidates duplicated exercise management logic into a single source of truth
+@Observable
 @MainActor
-class WorkoutEditorViewModel: ObservableObject {
+final class WorkoutEditorViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
-    @Published var workout: Workout
+    var workout: Workout
 
     // Exercise removal state
-    @Published var exerciseToRemove: WorkoutExercise?
-    @Published var showRemoveConfirmation: Bool = false
+    var exerciseToRemove: WorkoutExercise?
+    var showRemoveConfirmation: Bool = false
 
     // Add exercise to group state
-    @Published var groupToAddExerciseTo: ExerciseGroup?
+    var groupToAddExerciseTo: ExerciseGroup?
 
     // MARK: - Configuration
 

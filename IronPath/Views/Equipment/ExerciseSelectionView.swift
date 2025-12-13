@@ -3,8 +3,8 @@ import SwiftUI
 /// View for selecting and editing AI-generated exercises before saving
 struct ExerciseSelectionView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var customExerciseStore = CustomExerciseStore.shared
-    @StateObject private var customEquipmentStore = CustomEquipmentStore.shared
+    @State private var customExerciseStore = CustomExerciseStore.shared
+    @State private var customEquipmentStore = CustomEquipmentStore.shared
 
     @State private var draft: CustomEquipmentDraft
     @State private var editingExercise: ExerciseDraft?
@@ -418,7 +418,7 @@ struct MuscleGroupSelectionView: View {
                 ]
             )
         ) {
-            print("Complete")
+            // Preview completion handler
         }
     }
 }

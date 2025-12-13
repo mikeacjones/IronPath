@@ -1,18 +1,16 @@
 import Foundation
-import Combine
 
 /// Centralized manager for all equipment (standard + custom)
 /// Provides a single source of truth for equipment access across the app
-class EquipmentManager: ObservableObject {
+@Observable
+@MainActor
+final class EquipmentManager {
     static let shared = EquipmentManager()
 
-    @Published private(set) var allEquipmentOptions: [EquipmentOption] = []
-    @Published private(set) var allMachineOptions: [MachineOption] = []
-
-    private var cancellables = Set<AnyCancellable>()
+    private(set) var allEquipmentOptions: [EquipmentOption] = []
+    private(set) var allMachineOptions: [MachineOption] = []
 
     private init() {
-        setupBindings()
         refreshAllOptions()
     }
 
@@ -226,15 +224,7 @@ class EquipmentManager: ObservableObject {
 
     // MARK: - Private
 
-    private func setupBindings() {
-        CustomEquipmentStore.shared.$customEquipment
-            .sink { [weak self] _ in
-                self?.refreshAllOptions()
-            }
-            .store(in: &cancellables)
-    }
-
-    private func refreshAllOptions() {
+    func refreshAllOptions() {
         allEquipmentOptions = getEquipmentOptions()
         allMachineOptions = getMachineOptions()
     }

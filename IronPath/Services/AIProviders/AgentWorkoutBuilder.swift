@@ -1,26 +1,26 @@
 import Foundation
-import Combine
 
 /// Maintains state across multiple LLM tool calls during agentic workout generation
+@Observable
 @MainActor
-class AgentWorkoutBuilder: ObservableObject {
+final class AgentWorkoutBuilder {
 
     // MARK: - Workout State
 
     /// The name of the workout being built
-    @Published private(set) var workoutName: String = "New Workout"
+    private(set) var workoutName: String = "New Workout"
 
     /// Whether this is a deload workout
-    @Published private(set) var isDeload: Bool = false
+    private(set) var isDeload: Bool = false
 
     /// Exercises added to the workout
-    @Published private(set) var exercises: [WorkoutExercise] = []
+    private(set) var exercises: [WorkoutExercise] = []
 
     /// Exercise groups (supersets, circuits)
-    @Published private(set) var exerciseGroups: [ExerciseGroup] = []
+    private(set) var exerciseGroups: [ExerciseGroup] = []
 
     /// Generation summary from LLM
-    @Published private(set) var summary: String?
+    private(set) var summary: String?
 
     // MARK: - Generation Context
 
@@ -47,23 +47,24 @@ class AgentWorkoutBuilder: ObservableObject {
     // MARK: - Progress Tracking
 
     /// Current agent state
-    @Published private(set) var state: AgentState = .idle
+    private(set) var state: AgentState = .idle
 
     /// Whether the workout has been finalized
-    @Published private(set) var isFinalized: Bool = false
+    private(set) var isFinalized: Bool = false
 
     /// Current iteration count
-    @Published private(set) var iterationCount: Int = 0
+    private(set) var iterationCount: Int = 0
 
     /// Maximum allowed iterations (expect 2 rounds: gather context + build workout)
     let maxIterations: Int = 5
 
     /// Last tool that was called
-    @Published private(set) var lastToolCall: String?
+    private(set) var lastToolCall: String?
 
     // MARK: - Tool Executor
 
     /// Executor for handling tool calls
+    @ObservationIgnored
     private lazy var toolExecutor = AgentToolExecutor(builder: self)
 
     // MARK: - Initialization

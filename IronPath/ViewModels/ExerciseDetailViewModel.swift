@@ -1,27 +1,27 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Exercise Detail ViewModel
 
 /// ViewModel for managing exercise detail sheet state and business logic
 /// Handles exercise history, set manipulation, and settings access
+@Observable
 @MainActor
-class ExerciseDetailViewModel: ObservableObject {
+final class ExerciseDetailViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
     /// The exercise being edited (mutable copy)
-    @Published var exercise: WorkoutExercise
+    var exercise: WorkoutExercise
 
     /// Notes for the exercise
-    @Published var notes: String
+    var notes: String
 
     /// Whether to show add set type picker
-    @Published var showAddSetTypePicker: Bool = false
+    var showAddSetTypePicker: Bool = false
 
     /// Whether to show exercise history section expanded
-    @Published var showHistory: Bool = false
+    var showHistory: Bool = false
 
     // MARK: - Configuration
 

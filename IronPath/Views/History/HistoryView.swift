@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - History View
 
 struct HistoryView: View {
-    @StateObject private var viewModel = HistoryViewModel()
+    @State private var viewModel = HistoryViewModel()
 
     var body: some View {
         NavigationStack {
@@ -127,11 +127,11 @@ struct HistoryView: View {
 // MARK: - Workout History Detail View
 
 struct WorkoutHistoryDetailView: View {
-    @StateObject private var viewModel: HistoryDetailViewModel
+    @State private var viewModel: HistoryDetailViewModel
     @Environment(\.dismiss) var dismiss
 
     init(workout: Workout, onDelete: (() -> Void)? = nil, onUpdate: ((Workout) -> Void)? = nil) {
-        _viewModel = StateObject(wrappedValue: HistoryDetailViewModel(
+        _viewModel = State(initialValue: HistoryDetailViewModel(
             workout: workout,
             onDelete: onDelete,
             onUpdate: onUpdate

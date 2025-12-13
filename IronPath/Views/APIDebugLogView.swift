@@ -2,7 +2,7 @@ import SwiftUI
 
 /// View for displaying API debug logs
 struct APIDebugLogView: View {
-    @StateObject private var debugManager = APIDebugManager.shared
+    @State private var debugManager = APIDebugManager.shared
     @Environment(\.dismiss) var dismiss
     @State private var selectedEntry: APILogEntry?
     @State private var showingExportSheet = false

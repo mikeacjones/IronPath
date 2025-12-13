@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Main Equipment Manager view - hub for managing all equipment
 struct EquipmentManagerView: View {
-    @StateObject private var equipmentManager = EquipmentManager.shared
-    @StateObject private var customEquipmentStore = CustomEquipmentStore.shared
+    @State private var equipmentManager = EquipmentManager.shared
+    @State private var customEquipmentStore = CustomEquipmentStore.shared
 
     @State private var showingAddEquipment = false
     @State private var editingEquipment: CustomEquipment?
@@ -171,7 +171,7 @@ struct CustomEquipmentRow: View {
 
 struct EditCustomEquipmentView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var customEquipmentStore = CustomEquipmentStore.shared
+    @State private var customEquipmentStore = CustomEquipmentStore.shared
 
     let equipment: CustomEquipment
 

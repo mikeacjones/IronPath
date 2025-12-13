@@ -4,8 +4,8 @@ import SwiftUI
 
 /// Shared view for editing exercise sets - used by both active workouts and historical workout entry
 struct ExerciseDetailSheet: View {
-    @StateObject private var viewModel: ExerciseDetailViewModel
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @State private var viewModel: ExerciseDetailViewModel
+    @Environment(DependencyContainer.self) private var dependencies
     @Environment(\.dismiss) var dismiss
 
     /// Tracks whether changes have been saved to prevent double-save
@@ -35,7 +35,7 @@ struct ExerciseDetailSheet: View {
         vm.onUpdate = onUpdate
         vm.onUpdateWithoutDismiss = onUpdateWithoutDismiss
         vm.onNavigateToNextInGroup = onNavigateToNextInGroup
-        _viewModel = StateObject(wrappedValue: vm)
+        _viewModel = State(initialValue: vm)
     }
 
     var body: some View {

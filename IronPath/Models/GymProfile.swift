@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 // MARK: - Available Plate with Quantity
 
@@ -181,18 +180,20 @@ struct GymProfile: Codable, Identifiable, Equatable {
 // MARK: - Gym Profile Manager
 
 /// Manages multiple gym profiles
-class GymProfileManager: ObservableObject {
+@Observable
+@MainActor
+final class GymProfileManager {
     static let shared = GymProfileManager()
 
     private var isInitializing = true  // Prevent circular dependency during init
 
-    @Published var profiles: [GymProfile] = [] {
+    var profiles: [GymProfile] = [] {
         didSet {
             if !isInitializing { saveProfiles() }
         }
     }
 
-    @Published var activeProfileId: UUID? {
+    var activeProfileId: UUID? {
         didSet {
             guard !isInitializing else { return }
             // Save to both local and cloud
@@ -229,12 +230,14 @@ class GymProfileManager: ObservableObject {
         )
     }
 
-    @objc private func handleCloudSync() {
-        // Reload profiles from cloud/local storage
-        isInitializing = true
-        loadProfiles()
-        isInitializing = false
-        GymSettings.shared.loadFromActiveProfile()
+    @objc nonisolated private func handleCloudSync() {
+        Task { @MainActor in
+            // Reload profiles from cloud/local storage
+            isInitializing = true
+            loadProfiles()
+            isInitializing = false
+            GymSettings.shared.loadFromActiveProfile()
+        }
     }
 
     private func loadProfiles() {
@@ -324,53 +327,55 @@ class GymProfileManager: ObservableObject {
 // MARK: - Gym Settings
 
 /// Current gym settings loaded from the active profile
-class GymSettings: ObservableObject {
+@Observable
+@MainActor
+final class GymSettings {
     static let shared = GymSettings()
 
     // Cable machine configurations per exercise
-    @Published var cableMachineConfigs: [String: CableMachineConfig] = [:] {
+    var cableMachineConfigs: [String: CableMachineConfig] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
     // Default cable config for exercises without specific config
-    @Published var defaultCableConfig: CableMachineConfig {
+    var defaultCableConfig: CableMachineConfig {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
     // Dumbbell settings
-    @Published var dumbbellIncrement: Double {
+    var dumbbellIncrement: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var dumbbellMinWeight: Double {
+    var dumbbellMinWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var dumbbellMaxWeight: Double {
+    var dumbbellMaxWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var availableDumbbells: Set<Double>? {
+    var availableDumbbells: Set<Double>? {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
     // Plate settings - per exercise
-    @Published var exercisePlateConfigs: [String: [AvailablePlate]] = [:] {
+    var exercisePlateConfigs: [String: [AvailablePlate]] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var defaultAvailablePlates: [AvailablePlate] {
+    var defaultAvailablePlates: [AvailablePlate] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var selectedBarWeight: Double {
+    var selectedBarWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
-    @Published var customBarWeight: Double {
+    var customBarWeight: Double {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 
     // Per-exercise machine/sled weight
-    @Published var exerciseMachineWeights: [String: Double] = [:] {
+    var exerciseMachineWeights: [String: Double] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
     // Per-exercise single-sided flag
-    @Published var exerciseSingleSided: [String: Bool] = [:] {
+    var exerciseSingleSided: [String: Bool] = [:] {
         didSet { if !isLoading { GymProfileManager.shared.saveCurrentSettingsToActiveProfile() } }
     }
 

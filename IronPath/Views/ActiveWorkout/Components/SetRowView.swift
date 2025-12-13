@@ -33,9 +33,9 @@ struct SetRowView: View {
         onUpdate: @escaping (ExerciseSet) -> Void,
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
-        workoutDataManager: WorkoutDataManaging = WorkoutDataManager.shared,
-        restTimerManager: RestTimerManaging = RestTimerManager.shared,
-        gymSettings: GymSettingsProviding = GymSettings.shared
+        workoutDataManager: WorkoutDataManaging? = nil,
+        restTimerManager: RestTimerManaging? = nil,
+        gymSettings: GymSettingsProviding? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -44,12 +44,12 @@ struct SetRowView: View {
         self.onUpdate = onUpdate
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
-        self.workoutDataManager = workoutDataManager
-        self.restTimerManager = restTimerManager
-        self.gymSettings = gymSettings
+        self.workoutDataManager = workoutDataManager ?? WorkoutDataManager.shared
+        self.restTimerManager = restTimerManager ?? RestTimerManager.shared
+        self.gymSettings = gymSettings ?? GymSettings.shared
 
         // Get suggested weight from history if available
-        let suggested = workoutDataManager.getSuggestedWeight(
+        let suggested = self.workoutDataManager.getSuggestedWeight(
             for: exerciseName,
             targetReps: set.targetReps
         )

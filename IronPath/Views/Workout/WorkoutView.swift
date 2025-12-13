@@ -3,8 +3,8 @@ import SwiftUI
 // MARK: - Workout View
 
 struct WorkoutView: View {
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var isGeneratingWorkout = false
     @State private var showError = false
     @State private var errorMessage = ""
@@ -122,7 +122,7 @@ struct WorkoutView: View {
                         generateWorkout(workoutType: workoutType, notes: notes, isDeload: isDeload, options: options)
                     }
                 )
-                .environmentObject(appState)
+                .environment(appState)
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK", role: .cancel) { }

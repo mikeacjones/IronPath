@@ -1,16 +1,17 @@
 import Foundation
-import Combine
 
 /// Manages a generated workout that hasn't been started yet
 /// Persists across app launches so users don't lose their generated workout
-class PendingWorkoutManager: ObservableObject {
+@Observable
+@MainActor
+final class PendingWorkoutManager {
     static let shared = PendingWorkoutManager()
 
     private let storageKey = "pending_generated_workout"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    @Published var pendingWorkout: Workout? {
+    var pendingWorkout: Workout? {
         didSet {
             savePendingWorkout()
         }

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - AI Provider Helpers
 
@@ -532,9 +533,7 @@ enum AIProviderHelpers {
                 if let weight = set.weight {
                     let snappedWeight = snapWeight(weight, for: equipment, exerciseName: exerciseName)
                     if abs(weight - snappedWeight) > 0.01 {
-                        #if DEBUG
-                        print("Weight adjusted: \(weight) -> \(snappedWeight) lbs for \(exerciseName) (\(equipment.rawValue), \(set.setType.rawValue))")
-                        #endif
+                        AppLogger.ai.debug("Weight adjusted: \(weight) -> \(snappedWeight) lbs for \(exerciseName) (\(equipment.rawValue), \(set.setType.rawValue))")
                         set.weight = snappedWeight
                     }
                 }
@@ -545,9 +544,7 @@ enum AIProviderHelpers {
                         if let targetWeight = dropConfig.drops[dropIndex].targetWeight {
                             let snappedWeight = snapWeight(targetWeight, for: equipment, exerciseName: exerciseName)
                             if abs(targetWeight - snappedWeight) > 0.01 {
-                                #if DEBUG
-                                print("Drop weight adjusted: \(targetWeight) -> \(snappedWeight) lbs for \(exerciseName) drop #\(dropIndex)")
-                                #endif
+                                AppLogger.ai.debug("Drop weight adjusted: \(targetWeight) -> \(snappedWeight) lbs for \(exerciseName) drop #\(dropIndex)")
                                 dropConfig.drops[dropIndex].targetWeight = snappedWeight
                             }
                         }
@@ -609,8 +606,8 @@ enum AIProviderHelpers {
         do {
             workoutJSON = try decoder.decode(WorkoutJSON.self, from: jsonData)
         } catch {
-            print("DEBUG: JSON decode error: \(error)")
-            print("DEBUG: JSON string was: \(jsonString.prefix(1000))")
+            AppLogger.ai.error("JSON decode error: \(error)")
+            AppLogger.ai.debug("JSON string was: \(jsonString.prefix(1000))")
             throw AIProviderError.parseError(detail: "JSON decode failed: \(error.localizedDescription)")
         }
 

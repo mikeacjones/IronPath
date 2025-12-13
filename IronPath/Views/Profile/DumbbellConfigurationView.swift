@@ -1,0 +1,198 @@
+import SwiftUI
+
+// MARK: - Dumbbell Configuration View
+
+struct DumbbellConfigurationView: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var settings = GymSettings.shared
+
+    @State private var useSpecificDumbbells: Bool
+    @State private var selectedDumbbells: Set<Double>
+
+    init() {
+        let settings = GymSettings.shared
+        let hasSpecific = settings.availableDumbbells != nil
+        _useSpecificDumbbells = State(initialValue: hasSpecific)
+        _selectedDumbbells = State(initialValue: settings.availableDumbbells ?? Set(GymSettings.standardDumbbells.filter { $0 <= settings.dumbbellMaxWeight }))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Select Specific Dumbbells", isOn: $useSpecificDumbbells)
+                } footer: {
+                    Text(useSpecificDumbbells
+                         ? "Choose exactly which dumbbell weights are available at your gym."
+                         : "Use a weight range with fixed increments.")
+                }
+
+                if useSpecificDumbbells {
+                    // Specific dumbbell selection
+                    Section {
+                        dumbbellSelectionGrid
+                    } header: {
+                        HStack {
+                            Text("Available Dumbbells")
+                            Spacer()
+                            Text("\(selectedDumbbells.count) selected")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Section {
+                        Button("Select All Standard Sizes") {
+                            selectedDumbbells = Set(GymSettings.standardDumbbells)
+                        }
+
+                        Button("Select Common Sizes (5 lb increments)") {
+                            selectedDumbbells = Set(GymSettings.standardDumbbells.filter { $0.truncatingRemainder(dividingBy: 5) == 0 })
+                        }
+
+                        Button("Select Hotel Gym Sizes") {
+                            selectedDumbbells = Set(GymSettings.limitedDumbbells)
+                        }
+
+                        Button("Clear All", role: .destructive) {
+                            selectedDumbbells.removeAll()
+                        }
+                    } header: {
+                        Text("Quick Selection")
+                    }
+                } else {
+                    // Range-based settings
+                    Section {
+                        Stepper("Increment: \(formatWeight(settings.dumbbellIncrement)) lbs",
+                                value: $settings.dumbbellIncrement,
+                                in: 2.5...10,
+                                step: 2.5)
+
+                        Stepper("Min Weight: \(formatWeight(settings.dumbbellMinWeight)) lbs",
+                                value: $settings.dumbbellMinWeight,
+                                in: 0...20,
+                                step: 5)
+
+                        Stepper("Max Weight: \(formatWeight(settings.dumbbellMaxWeight)) lbs",
+                                value: $settings.dumbbellMaxWeight,
+                                in: 50...200,
+                                step: 10)
+                    } header: {
+                        Text("Weight Range")
+                    } footer: {
+                        let weights = stride(from: settings.dumbbellMinWeight, through: settings.dumbbellMaxWeight, by: settings.dumbbellIncrement)
+                        Text("Available: \(weights.map { formatWeight($0) }.joined(separator: ", ")) lbs")
+                            .font(.caption)
+                    }
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Preview")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        let weights = previewWeights
+                        if weights.isEmpty {
+                            Text("No dumbbells selected")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(weights.prefix(20).map { formatWeight($0) }.joined(separator: ", ") + (weights.count > 20 ? "..." : "") + " lbs")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text("\(weights.count) weights available")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Dumbbell Configuration")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveConfiguration()
+                        dismiss()
+                    }
+                    .disabled(useSpecificDumbbells && selectedDumbbells.isEmpty)
+                }
+            }
+        }
+    }
+
+    private var previewWeights: [Double] {
+        if useSpecificDumbbells {
+            return selectedDumbbells.sorted()
+        } else {
+            return stride(from: settings.dumbbellMinWeight, through: settings.dumbbellMaxWeight, by: settings.dumbbellIncrement).map { $0 }
+        }
+    }
+
+    private var dumbbellSelectionGrid: some View {
+        LazyVGrid(columns: [
+            GridItem(.adaptive(minimum: 70), spacing: 8)
+        ], spacing: 8) {
+            ForEach(GymSettings.standardDumbbells, id: \.self) { weight in
+                DumbbellChip(
+                    weight: weight,
+                    isSelected: selectedDumbbells.contains(weight),
+                    onToggle: {
+                        if selectedDumbbells.contains(weight) {
+                            selectedDumbbells.remove(weight)
+                        } else {
+                            selectedDumbbells.insert(weight)
+                        }
+                    }
+                )
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func saveConfiguration() {
+        if useSpecificDumbbells {
+            settings.availableDumbbells = selectedDumbbells
+        } else {
+            settings.availableDumbbells = nil
+        }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+}
+
+// MARK: - Dumbbell Chip
+
+struct DumbbellChip: View {
+    let weight: Double
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            Text(formatWeight(weight))
+                .font(.subheadline)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .frame(minWidth: 50)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.blue : Color(.systemGray5))
+                .foregroundStyle(isSelected ? .white : .primary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+    }
+}

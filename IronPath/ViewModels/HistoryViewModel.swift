@@ -1,35 +1,35 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - History ViewModel
 
 /// ViewModel for managing workout history display and operations
+@Observable
 @MainActor
-class HistoryViewModel: ObservableObject {
+final class HistoryViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
     /// All workout history
-    @Published var workouts: [Workout] = []
+    var workouts: [Workout] = []
 
     /// Currently selected date for calendar filtering
-    @Published var selectedDate: Date = Date()
+    var selectedDate: Date = Date()
 
     /// Whether calendar view is shown
-    @Published var showCalendar: Bool = true
+    var showCalendar: Bool = true
 
     /// Selected workout for detail view
-    @Published var selectedWorkout: Workout?
+    var selectedWorkout: Workout?
 
     /// Whether add workout sheet is showing
-    @Published var showingAddWorkout: Bool = false
+    var showingAddWorkout: Bool = false
 
     /// Workout pending deletion confirmation
-    @Published var workoutToDelete: Workout?
+    var workoutToDelete: Workout?
 
     /// Whether delete confirmation is showing
-    @Published var showingDeleteConfirmation: Bool = false
+    var showingDeleteConfirmation: Bool = false
 
     // MARK: - Dependencies
 
@@ -132,19 +132,20 @@ class HistoryViewModel: ObservableObject {
 // MARK: - History Detail ViewModel
 
 /// ViewModel for managing workout history detail view
+@Observable
 @MainActor
-class HistoryDetailViewModel: ObservableObject {
+final class HistoryDetailViewModel {
 
-    // MARK: - Published State
+    // MARK: - State
 
     /// The workout being viewed/edited
-    @Published var workout: Workout
+    var workout: Workout
 
     /// Whether delete confirmation is showing
-    @Published var showingDeleteConfirmation: Bool = false
+    var showingDeleteConfirmation: Bool = false
 
     /// Whether edit sheet is showing
-    @Published var showingEditSheet: Bool = false
+    var showingEditSheet: Bool = false
 
     // MARK: - Dependencies
 

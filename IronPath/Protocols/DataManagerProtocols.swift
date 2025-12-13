@@ -4,11 +4,17 @@ import Foundation
 
 /// These protocols enable dependency injection and make components testable.
 /// Views can depend on protocols instead of concrete singleton implementations.
+///
+/// Note on actor isolation:
+/// - Protocols with `AnyObject` are marked `@MainActor` because their implementations
+///   are `@Observable @MainActor` classes that manage UI state.
+/// - Value-type focused protocols are marked `Sendable` for safe cross-actor use.
 
 // MARK: - Workout Data Managing
 
 /// Protocol for managing workout history and data persistence
-protocol WorkoutDataManaging {
+@MainActor
+protocol WorkoutDataManaging: AnyObject, Sendable {
     /// Save a completed workout to history
     func saveWorkout(_ workout: Workout)
 
@@ -55,7 +61,8 @@ protocol WorkoutDataManaging {
 // MARK: - Active Workout Managing
 
 /// Protocol for managing the currently active workout session
-protocol ActiveWorkoutManaging: AnyObject {
+@MainActor
+protocol ActiveWorkoutManaging: AnyObject, Sendable {
     /// The currently active workout, if any
     var activeWorkout: Workout? { get }
 
@@ -81,7 +88,8 @@ protocol ActiveWorkoutManaging: AnyObject {
 // MARK: - Pending Workout Managing
 
 /// Protocol for managing generated workouts that haven't been started yet
-protocol PendingWorkoutManaging: AnyObject {
+@MainActor
+protocol PendingWorkoutManaging: AnyObject, Sendable {
     /// The pending generated workout
     var pendingWorkout: Workout? { get set }
 
@@ -95,7 +103,7 @@ protocol PendingWorkoutManaging: AnyObject {
 // MARK: - API Key Managing
 
 /// Protocol for managing API key storage
-protocol APIKeyManaging {
+protocol APIKeyManaging: Sendable {
     /// Check if an API key is stored
     var hasAPIKey: Bool { get }
 
@@ -112,7 +120,8 @@ protocol APIKeyManaging {
 // MARK: - Gym Profile Managing
 
 /// Protocol for managing gym profiles
-protocol GymProfileManaging: AnyObject {
+@MainActor
+protocol GymProfileManaging: AnyObject, Sendable {
     /// All stored gym profiles
     var profiles: [GymProfile] { get }
 
@@ -138,7 +147,8 @@ protocol GymProfileManaging: AnyObject {
 // MARK: - Rest Timer Managing
 
 /// Protocol for managing the rest timer
-protocol RestTimerManaging: AnyObject {
+@MainActor
+protocol RestTimerManaging: AnyObject, Sendable {
     /// Whether the timer is currently active
     var isActive: Bool { get }
 
@@ -187,7 +197,8 @@ protocol RestTimerManaging: AnyObject {
 // MARK: - AI Provider Managing
 
 /// Protocol for managing AI provider access
-protocol AIProviderManaging: AnyObject {
+@MainActor
+protocol AIProviderManaging: AnyObject, Sendable {
     /// Get the currently selected provider
     var currentProvider: AIProvider { get }
 
@@ -198,7 +209,8 @@ protocol AIProviderManaging: AnyObject {
 // MARK: - Exercise Similarity Servicing
 
 /// Protocol for exercise similarity calculations
-protocol ExerciseSimilarityServicing {
+@MainActor
+protocol ExerciseSimilarityServicing: AnyObject, Sendable {
     /// Get replacement suggestions for an exercise
     func getReplacementSuggestions(
         for exercise: Exercise,
@@ -215,7 +227,8 @@ protocol ExerciseSimilarityServicing {
 // MARK: - App Settings Providing
 
 /// Protocol for accessing app-wide settings
-protocol AppSettingsProviding: AnyObject {
+@MainActor
+protocol AppSettingsProviding: AnyObject, Sendable {
     /// Whether to show YouTube video demonstrations
     var showYouTubeVideos: Bool { get }
 
@@ -229,7 +242,8 @@ protocol AppSettingsProviding: AnyObject {
 // MARK: - Exercise Preference Managing
 
 /// Protocol for managing user exercise preferences
-protocol ExercisePreferenceManaging: AnyObject {
+@MainActor
+protocol ExercisePreferenceManaging: AnyObject, Sendable {
     /// Get the preference for a specific exercise
     func getPreference(for exerciseName: String) -> ExerciseSuggestionPreference
 
@@ -249,7 +263,8 @@ protocol ExercisePreferenceManaging: AnyObject {
 // MARK: - Gym Settings Providing
 
 /// Protocol for accessing gym settings
-protocol GymSettingsProviding: AnyObject {
+@MainActor
+protocol GymSettingsProviding: AnyObject, Sendable {
     /// Get cable config for specific exercise
     func cableConfig(for exerciseName: String) -> CableMachineConfig
 

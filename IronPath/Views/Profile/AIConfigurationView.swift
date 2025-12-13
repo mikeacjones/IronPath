@@ -4,8 +4,8 @@ import SwiftUI
 
 /// Main view for configuring AI providers and models
 struct AIConfigurationView: View {
-    @StateObject private var providerManager = AIProviderManager.shared
-    @StateObject private var debugManager = APIDebugManager.shared
+    @State private var providerManager = AIProviderManager.shared
+    @State private var debugManager = APIDebugManager.shared
     @State private var showingDebugLog = false
 
     var body: some View {
@@ -173,7 +173,7 @@ struct AIProviderRow: View {
 
 struct AIProviderDetailView: View {
     let providerType: AIProviderType
-    @StateObject private var providerManager = AIProviderManager.shared
+    @State private var providerManager = AIProviderManager.shared
     @State private var apiKey = ""
     @State private var showingAPIKey = false
     @Environment(\.dismiss) var dismiss

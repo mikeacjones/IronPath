@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct ActiveWorkoutView: View {
     let workout: Workout
@@ -7,10 +6,10 @@ struct ActiveWorkoutView: View {
     let onComplete: (Workout) -> Void
     let onCancel: () -> Void
 
-    @EnvironmentObject private var dependencies: DependencyContainer
-    @StateObject private var viewModel: ActiveWorkoutViewModel
-    @StateObject private var editorViewModel: WorkoutEditorViewModel
-    @StateObject private var replacementViewModel = ExerciseReplacementViewModel()
+    @Environment(DependencyContainer.self) private var dependencies
+    @State private var viewModel: ActiveWorkoutViewModel
+    @State private var editorViewModel: WorkoutEditorViewModel
+    @State private var replacementViewModel = ExerciseReplacementViewModel()
 
     // Add exercise state (UI-only, stays in View)
     @State private var showAddExerciseSheet = false
@@ -31,12 +30,12 @@ struct ActiveWorkoutView: View {
         let activeVM = ActiveWorkoutViewModel(workout: workout, userProfile: userProfile)
         activeVM.onComplete = onComplete
         activeVM.onCancel = onCancel
-        _viewModel = StateObject(wrappedValue: activeVM)
+        _viewModel = State(initialValue: activeVM)
 
         // Initialize the editor ViewModel (for add/remove/replace operations)
         let editorVM = WorkoutEditorViewModel(workout: workout, userProfile: userProfile)
         editorVM.preventRemovingLastExercise = true
-        _editorViewModel = StateObject(wrappedValue: editorVM)
+        _editorViewModel = State(initialValue: editorVM)
     }
 
     var body: some View {
@@ -262,6 +261,9 @@ struct ActiveWorkoutView: View {
             // Keep replacement ViewModel context up to date
             replacementViewModel.currentWorkout = newWorkout
             replacementViewModel.currentWorkoutExercises = newWorkout.exercises.map { $0.exercise.name }
+        }
+        .onDisappear {
+            viewModel.cleanup()
         }
     }
 

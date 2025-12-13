@@ -1,11 +1,10 @@
 import SwiftUI
-import Combine
 
 @main
 struct IronPathApp: App {
-    @StateObject private var appState = AppState()
-    @StateObject private var dependencyContainer = DependencyContainer.shared
-    @StateObject private var cloudSync = CloudSyncManager.shared
+    @State private var appState = AppState()
+    @State private var dependencyContainer = DependencyContainer.shared
+    @State private var cloudSync = CloudSyncManager.shared
 
     var body: some Scene {
         WindowGroup {
@@ -14,8 +13,8 @@ struct IronPathApp: App {
                 CloudSyncLoadingView()
             } else {
                 ContentView()
-                    .environmentObject(appState)
-                    .environmentObject(dependencyContainer)
+                    .environment(appState)
+                    .environment(dependencyContainer)
                     .environment(\.dependencyContainer, dependencyContainer)
                     .overlay(alignment: .top) {
                         // Show restoration banner if data was restored
@@ -31,7 +30,7 @@ struct IronPathApp: App {
 // MARK: - Cloud Sync Loading View
 
 struct CloudSyncLoadingView: View {
-    @StateObject private var cloudSync = CloudSyncManager.shared
+    @State private var cloudSync = CloudSyncManager.shared
     @State private var showingManualContinue = false
 
     var body: some View {
@@ -116,7 +115,8 @@ struct DataRestorationBanner: View {
             .transition(.move(edge: .top).combined(with: .opacity))
             .onAppear {
                 // Auto-dismiss after 5 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(5))
                     withAnimation {
                         isVisible = false
                     }
@@ -127,9 +127,11 @@ struct DataRestorationBanner: View {
 }
 
 /// Global app state management
-class AppState: ObservableObject {
-    @Published var isOnboarded: Bool = false
-    @Published var userProfile: UserProfile? {
+@Observable
+@MainActor
+final class AppState {
+    var isOnboarded: Bool = false
+    var userProfile: UserProfile? {
         didSet {
             saveProfile()
         }
@@ -149,15 +151,14 @@ class AppState: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleCloudSync()
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                self?.handleCloudSync()
+            }
         }
     }
 
-    deinit {
-        if let observer = cloudSyncObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
+    // Note: AppState is owned by @State in App and lives for app lifetime, no deinit needed
 
     func completeOnboarding(profile: UserProfile) {
         self.userProfile = profile

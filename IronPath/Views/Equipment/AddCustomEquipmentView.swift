@@ -3,8 +3,8 @@ import SwiftUI
 /// View for adding new custom equipment with AI-powered exercise generation
 struct AddCustomEquipmentView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var equipmentManager = EquipmentManager.shared
-    @StateObject private var aiProviderManager = AIProviderManager.shared
+    @State private var equipmentManager = EquipmentManager.shared
+    @State private var aiProviderManager = AIProviderManager.shared
 
     @State private var equipmentName = ""
     @State private var selectedType: CustomEquipment.CustomEquipmentType = .equipmentCategory

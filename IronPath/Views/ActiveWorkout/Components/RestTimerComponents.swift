@@ -122,7 +122,7 @@ struct RestTimerView: View {
     let onSkip: () -> Void
     var onRestTimeChanged: ((TimeInterval) -> Void)?
 
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
     @State private var showingRestTimeEditor = false
 
     init(duration: TimeInterval, remainingTime: TimeInterval, onComplete: @escaping () -> Void, onSkip: @escaping () -> Void, onRestTimeChanged: ((TimeInterval) -> Void)? = nil) {
@@ -234,7 +234,7 @@ struct RestTimerView: View {
 
 /// Rest timer displayed in exercise detail sheet for superset/circuit rest periods
 struct GroupRestTimerView: View {
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
     @State private var showingRestTimeEditor = false
 
     var body: some View {
@@ -343,7 +343,7 @@ struct GroupRestTimerView: View {
 /// Container that isolates rest timer observation from parent view
 /// This prevents timer updates from re-rendering the exercise list and closing menus
 struct RestTimerBarContainer: View {
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
 
     var body: some View {
         if timerManager.isActive {
@@ -354,7 +354,7 @@ struct RestTimerBarContainer: View {
 
 /// Container that isolates rest completion banner observation from parent view
 struct RestCompleteBannerContainer: View {
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
 
     var body: some View {
         if timerManager.showCompletionBanner {
@@ -367,7 +367,7 @@ struct RestCompleteBannerContainer: View {
 
 /// Compact rest timer bar shown at the top of the workout overview
 struct GlobalRestTimerBar: View {
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
     @State private var showingRestTimeEditor = false
 
     var body: some View {
@@ -464,7 +464,7 @@ struct GlobalRestTimerBar: View {
 
 /// In-app notification banner when rest timer completes
 struct RestCompleteBanner: View {
-    @StateObject private var timerManager = RestTimerManager.shared
+    @State private var timerManager = RestTimerManager.shared
 
     var body: some View {
         VStack {

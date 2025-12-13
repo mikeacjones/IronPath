@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Sheet for replacing an exercise with similarity-based suggestions or AI-powered replacement
 struct ExerciseReplacementSheet: View {
-    @ObservedObject var viewModel: ExerciseReplacementViewModel
+    @Bindable var viewModel: ExerciseReplacementViewModel
     let exercise: WorkoutExercise
     @Environment(\.dismiss) var dismiss
 

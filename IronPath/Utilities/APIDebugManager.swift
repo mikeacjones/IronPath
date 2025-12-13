@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 /// Represents a single API request/response log entry
 struct APILogEntry: Identifiable, Codable {
@@ -52,12 +51,14 @@ struct APILogEntry: Identifiable, Codable {
 }
 
 /// Manages debug mode state and API log collection
-class APIDebugManager: ObservableObject {
+@Observable
+@MainActor
+final class APIDebugManager {
     static let shared = APIDebugManager()
 
     private let debugModeKey = "api_debug_mode_enabled"
 
-    @Published var isDebugEnabled: Bool {
+    var isDebugEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isDebugEnabled, forKey: debugModeKey)
             if !isDebugEnabled {
@@ -66,7 +67,7 @@ class APIDebugManager: ObservableObject {
         }
     }
 
-    @Published private(set) var logs: [APILogEntry] = []
+    private(set) var logs: [APILogEntry] = []
 
     private init() {
         self.isDebugEnabled = UserDefaults.standard.bool(forKey: debugModeKey)
@@ -75,20 +76,16 @@ class APIDebugManager: ObservableObject {
     /// Add a log entry (only if debug mode is enabled)
     func log(_ entry: APILogEntry) {
         guard isDebugEnabled else { return }
-        DispatchQueue.main.async {
-            self.logs.insert(entry, at: 0) // Most recent first
-            // Keep only last 100 entries to prevent memory issues
-            if self.logs.count > 100 {
-                self.logs = Array(self.logs.prefix(100))
-            }
+        logs.insert(entry, at: 0) // Most recent first
+        // Keep only last 100 entries to prevent memory issues
+        if logs.count > 100 {
+            logs = Array(logs.prefix(100))
         }
     }
 
     /// Clear all logs
     func clearLogs() {
-        DispatchQueue.main.async {
-            self.logs.removeAll()
-        }
+        logs.removeAll()
     }
 
     /// Export logs as formatted text
