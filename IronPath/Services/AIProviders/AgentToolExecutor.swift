@@ -76,8 +76,7 @@ class AgentToolExecutor {
             "preferredDuration": profile.workoutPreferences.preferredWorkoutDuration,
             "preferredRestTime": profile.workoutPreferences.preferredRestTime,
             "workoutSplit": profile.workoutPreferences.workoutSplit.rawValue,
-            "workoutsPerWeek": profile.workoutPreferences.workoutsPerWeek,
-            "avoidInjuries": profile.workoutPreferences.avoidInjuries
+            "workoutsPerWeek": profile.workoutPreferences.workoutsPerWeek
         ]
 
         return .success(toolCallId: call.id, content: content)
@@ -240,9 +239,6 @@ class AgentToolExecutor {
         let workoutHistory = WorkoutDataManager.shared.getWorkoutHistory()
 
         var recentSessions: [[String: Any]] = []
-        var maxWeight: Double = 0
-        var totalReps: Int = 0
-        var totalSets: Int = 0
 
         for workout in workoutHistory.prefix(10) {
             for exercise in workout.exercises {
@@ -261,38 +257,15 @@ class AgentToolExecutor {
                             "date": workout.completedAt?.ISO8601Format() ?? "unknown",
                             "sets": setData
                         ])
-
-                        // Track stats
-                        for set in completedSets {
-                            if let weight = set.weight, weight > maxWeight {
-                                maxWeight = weight
-                            }
-                            totalReps += set.actualReps ?? set.targetReps
-                            totalSets += 1
-                        }
                     }
                 }
             }
         }
 
-        // Calculate suggested weight (last used + small increment for progressive overload)
-        var suggestedWeight: Double? = nil
-        if let lastSession = recentSessions.first,
-           let lastSets = lastSession["sets"] as? [[String: Any]],
-           let lastSet = lastSets.last,
-           let lastWeight = lastSet["weight"] as? Double {
-            // Suggest 2.5-5% increase for progressive overload
-            let increment = max(2.5, lastWeight * 0.025)
-            suggestedWeight = lastWeight + increment
-        }
-
         let content: [String: Any] = [
             "exerciseName": exerciseName,
             "hasHistory": !recentSessions.isEmpty,
-            "recentSessions": Array(recentSessions.prefix(5)),
-            "maxWeight": maxWeight,
-            "averageReps": totalSets > 0 ? Double(totalReps) / Double(totalSets) : 0,
-            "suggestedWeight": suggestedWeight ?? 0
+            "sessions": Array(recentSessions.prefix(5))
         ]
 
         return .success(toolCallId: call.id, content: content)

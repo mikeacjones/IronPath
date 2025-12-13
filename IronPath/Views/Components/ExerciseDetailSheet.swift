@@ -27,6 +27,7 @@ struct ExerciseDetailSheet: View {
     @State private var updatedExercise: WorkoutExercise
     @State private var showAddSetTypePicker = false
     @State private var exerciseNotes: String
+    @State private var showHistory = false
     @ObservedObject private var restTimerManager = RestTimerManager.shared
     @ObservedObject private var appSettings = AppSettings.shared
 
@@ -43,6 +44,28 @@ struct ExerciseDetailSheet: View {
     /// Whether to show form tips - uses override if set, otherwise app settings
     private var shouldShowFormTips: Bool {
         showFormTipsOverride ?? appSettings.showFormTips
+    }
+
+    /// Historical sessions for this exercise (most recent first, up to 5)
+    private var exerciseHistory: [(date: Date, sets: [ExerciseSet])] {
+        let history = WorkoutDataManager.shared.getWorkoutHistory()
+        var sessions: [(date: Date, sets: [ExerciseSet])] = []
+
+        for workout in history.reversed() {
+            // Skip deload workouts for clearer progression view
+            if workout.isDeload { continue }
+
+            if let matchingExercise = workout.exercises.first(where: { $0.exercise.name == exercise.exercise.name }) {
+                let completedSets = matchingExercise.sets.filter { $0.isCompleted }
+                if !completedSets.isEmpty, let date = workout.completedAt {
+                    sessions.append((date: date, sets: completedSets))
+                }
+            }
+
+            if sessions.count >= 5 { break }
+        }
+
+        return sessions
     }
 
     init(
@@ -123,6 +146,15 @@ struct ExerciseDetailSheet: View {
                         .padding()
                         .background(Color.yellow.opacity(0.1))
                         .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+
+                    // Exercise history section
+                    if !exerciseHistory.isEmpty {
+                        ExerciseHistorySection(
+                            history: exerciseHistory,
+                            isExpanded: $showHistory
+                        )
                         .padding(.horizontal)
                     }
 
@@ -526,5 +558,142 @@ struct SetTypePickerView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Exercise History Section
+
+struct ExerciseHistorySection: View {
+    let history: [(date: Date, sets: [ExerciseSet])]
+    @Binding var isExpanded: Bool
+
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header button to toggle expansion
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Text("\(history.count) session\(history.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(isExpanded ? 12 : 12, corners: isExpanded ? [.topLeft, .topRight] : .allCorners)
+            }
+            .buttonStyle(.plain)
+
+            // Expandable content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(history.enumerated()), id: \.offset) { index, session in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(dateFormatter.string(from: session.date))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            // Show sets summary
+                            HStack(spacing: 16) {
+                                // Max weight
+                                if let maxWeight = session.sets.compactMap({ $0.weight }).max() {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Max")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text("\(Int(maxWeight)) lbs")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+
+                                // Sets breakdown
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Sets")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text(setsBreakdown(session.sets))
+                                        .font(.subheadline)
+                                }
+
+                                Spacer()
+                            }
+                        }
+                        .padding(.vertical, 8)
+
+                        if index < history.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12, corners: [.bottomLeft, .bottomRight])
+            }
+        }
+    }
+
+    /// Format sets as "3×10 @ 135 lbs" style
+    private func setsBreakdown(_ sets: [ExerciseSet]) -> String {
+        // Group by weight and show reps
+        var breakdown: [String] = []
+
+        for set in sets {
+            let reps = set.actualReps ?? set.targetReps
+            if let weight = set.weight {
+                breakdown.append("\(reps)×\(Int(weight))")
+            } else {
+                breakdown.append("\(reps) reps")
+            }
+        }
+
+        // If all the same, combine (e.g., "3×10 @ 135")
+        let uniqueBreakdowns = Set(breakdown)
+        if uniqueBreakdowns.count == 1, let first = breakdown.first, sets.count > 1 {
+            return "\(sets.count)×\(first.components(separatedBy: "×").last ?? first)"
+        }
+
+        return breakdown.joined(separator: ", ")
+    }
+}
+
+// MARK: - Corner Radius Extension
+
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
     }
 }

@@ -13,6 +13,7 @@ struct DraggableExerciseList: View {
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
+    var onAddExerciseToGroup: ((ExerciseGroup) -> Void)? = nil
 
     // Drag state
     @State private var longPressIndex: Int? // Which item has active long press (before drag)
@@ -40,7 +41,7 @@ struct DraggableExerciseList: View {
 
                 ExerciseCardWrapper(
                     item: item,
-                    workout: workout,
+                    workout: $workout,
                     isLiveWorkout: isLiveWorkout,
                     preferenceManager: preferenceManager,
                     isDragging: isDragging,
@@ -51,6 +52,15 @@ struct DraggableExerciseList: View {
                     onSetPreference: onSetPreference,
                     onReorderWithinGroup: { group in
                         groupToReorder = group
+                    },
+                    onAddExerciseToGroup: { exercise, group in
+                        addExerciseToGroup(exercise, group: group)
+                    },
+                    onAddNewExerciseToGroup: { group in
+                        onAddExerciseToGroup?(group)
+                    },
+                    onUngroupExercises: { group in
+                        ungroupExercises(group)
                     }
                 )
                 .background(
@@ -168,6 +178,31 @@ struct DraggableExerciseList: View {
             impactFeedback.impactOccurred()
         }
     }
+
+    private func addExerciseToGroup(_ exercise: WorkoutExercise, group: ExerciseGroup) {
+        guard var groups = workout.exerciseGroups,
+              let groupIndex = groups.firstIndex(where: { $0.id == group.id }) else { return }
+
+        // Add exercise to the group
+        groups[groupIndex].exerciseIds.append(exercise.id)
+
+        // Update group type based on new count
+        groups[groupIndex].groupType = ExerciseGroupType.suggestedType(for: groups[groupIndex].exerciseIds.count)
+
+        workout.exerciseGroups = groups
+
+        // Rebuild exercise order to keep grouped exercises together
+        workout.rebuildExercisesOrder()
+    }
+
+    private func ungroupExercises(_ group: ExerciseGroup) {
+        guard var groups = workout.exerciseGroups else { return }
+
+        // Remove the group
+        groups.removeAll { $0.id == group.id }
+
+        workout.exerciseGroups = groups.isEmpty ? nil : groups
+    }
 }
 
 // MARK: - Preference Key for Item Heights
@@ -183,7 +218,7 @@ private struct ItemHeightPreferenceKey: PreferenceKey {
 
 private struct ExerciseCardWrapper: View {
     let item: ExerciseDisplayItem
-    let workout: Workout
+    @Binding var workout: Workout
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
     let isDragging: Bool
@@ -193,22 +228,33 @@ private struct ExerciseCardWrapper: View {
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
     let onReorderWithinGroup: (ExerciseGroup) -> Void
+    let onAddExerciseToGroup: (WorkoutExercise, ExerciseGroup) -> Void
+    let onAddNewExerciseToGroup: (ExerciseGroup) -> Void
+    let onUngroupExercises: (ExerciseGroup) -> Void
 
     private var isElevated: Bool {
         isDragging || isLongPressed
     }
 
+    /// Exercises not in any group (for "Add Exercise" menu in supersets)
+    private var ungroupedExercises: [WorkoutExercise] {
+        workout.exercises.filter { !workout.isGrouped($0.id) }
+    }
+
     var body: some View {
         ExerciseCardContent(
             item: item,
-            workout: workout,
+            ungroupedExercises: ungroupedExercises,
             isLiveWorkout: isLiveWorkout,
             preferenceManager: preferenceManager,
             onExerciseTap: onExerciseTap,
             onExerciseReplace: onExerciseReplace,
             onExerciseRemove: onExerciseRemove,
             onSetPreference: onSetPreference,
-            onReorderWithinGroup: onReorderWithinGroup
+            onReorderWithinGroup: onReorderWithinGroup,
+            onAddExerciseToGroup: onAddExerciseToGroup,
+            onAddNewExerciseToGroup: onAddNewExerciseToGroup,
+            onUngroupExercises: onUngroupExercises
         )
         .background(Color(.systemBackground))
         .cornerRadius(12)
@@ -231,7 +277,7 @@ private struct ExerciseCardWrapper: View {
 
 private struct ExerciseCardContent: View {
     let item: ExerciseDisplayItem
-    let workout: Workout
+    let ungroupedExercises: [WorkoutExercise]
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
@@ -239,6 +285,9 @@ private struct ExerciseCardContent: View {
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onSetPreference: (WorkoutExercise, ExerciseSuggestionPreference) -> Void
     let onReorderWithinGroup: (ExerciseGroup) -> Void
+    let onAddExerciseToGroup: (WorkoutExercise, ExerciseGroup) -> Void
+    let onAddNewExerciseToGroup: (ExerciseGroup) -> Void
+    let onUngroupExercises: (ExerciseGroup) -> Void
 
     var body: some View {
         switch item {
@@ -257,13 +306,16 @@ private struct ExerciseCardContent: View {
             SupersetGroupContent(
                 group: group,
                 exercises: exercises,
+                ungroupedExercises: ungroupedExercises,
                 isLiveWorkout: isLiveWorkout,
                 preferenceManager: preferenceManager,
                 onExerciseTap: onExerciseTap,
                 onExerciseReplace: onExerciseReplace,
                 onExerciseRemove: onExerciseRemove,
                 onReorderWithinGroup: onReorderWithinGroup,
-                onGroupTap: nil // Group tap handled internally via onExerciseTap
+                onAddExerciseToGroup: { exercise in onAddExerciseToGroup(exercise, group) },
+                onAddNewExerciseToGroup: { onAddNewExerciseToGroup(group) },
+                onUngroupExercises: { onUngroupExercises(group) }
             )
         }
     }
@@ -365,6 +417,7 @@ private struct StandaloneExerciseCard: View {
                 Button(action: onReplace) {
                     Label("Replace Exercise", systemImage: "arrow.triangle.2.circlepath")
                 }
+
                 Divider()
                 Menu {
                     ForEach(ExerciseSuggestionPreference.allCases, id: \.self) { pref in
@@ -411,13 +464,16 @@ private struct StandaloneExerciseCard: View {
 private struct SupersetGroupContent: View {
     let group: ExerciseGroup
     let exercises: [WorkoutExercise]
+    let ungroupedExercises: [WorkoutExercise]
     let isLiveWorkout: Bool
     @ObservedObject var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
     let onReorderWithinGroup: (ExerciseGroup) -> Void
-    let onGroupTap: (() -> Void)?
+    let onAddExerciseToGroup: (WorkoutExercise) -> Void
+    let onAddNewExerciseToGroup: () -> Void
+    let onUngroupExercises: () -> Void
 
     private var groupColor: Color {
         group.groupType.swiftUIColor
@@ -457,15 +513,47 @@ private struct SupersetGroupContent: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Button {
-                    onReorderWithinGroup(group)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.arrow.down")
-                        Text("Reorder")
+                Menu {
+                    // Add exercise options
+                    Button {
+                        onAddNewExerciseToGroup()
+                    } label: {
+                        Label("Add New Exercise", systemImage: "plus.circle")
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                    if !ungroupedExercises.isEmpty {
+                        Menu {
+                            ForEach(ungroupedExercises) { exercise in
+                                Button {
+                                    onAddExerciseToGroup(exercise)
+                                } label: {
+                                    Text(exercise.exercise.name)
+                                }
+                            }
+                        } label: {
+                            Label("Add from Workout", systemImage: "arrow.right.circle")
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        onReorderWithinGroup(group)
+                    } label: {
+                        Label("Reorder Exercises", systemImage: "arrow.up.arrow.down")
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        onUngroupExercises()
+                    } label: {
+                        Label("Ungroup Exercises", systemImage: "rectangle.expand.vertical")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 12)
@@ -658,5 +746,157 @@ struct GroupReorderSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Create Exercise Group Sheet
+
+struct CreateExerciseGroupSheet: View {
+    @Binding var workout: Workout
+    let onGroupCreated: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedExerciseIds: Set<UUID> = []
+    @State private var groupType: ExerciseGroupType = .superset
+    @State private var restBetween: Int = 0
+    @State private var restAfter: Int = 90
+
+    /// Exercises that are not already in a group
+    private var availableExercises: [WorkoutExercise] {
+        workout.exercises.filter { exercise in
+            !workout.isGrouped(exercise.id)
+        }
+    }
+
+    private var canCreate: Bool {
+        selectedExerciseIds.count >= 2
+    }
+
+    private var suggestedGroupType: ExerciseGroupType {
+        ExerciseGroupType.suggestedType(for: selectedExerciseIds.count)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ForEach(availableExercises) { exercise in
+                        HStack {
+                            Image(systemName: selectedExerciseIds.contains(exercise.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(selectedExerciseIds.contains(exercise.id) ? .blue : .secondary)
+                                .font(.title2)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(exercise.exercise.name)
+                                Text("\(exercise.sets.count) sets")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleSelection(exercise.id)
+                        }
+                    }
+                } header: {
+                    Text("Select Exercises")
+                } footer: {
+                    Text("Select 2 or more exercises to group together. They will be performed back-to-back.")
+                }
+
+                if selectedExerciseIds.count >= 2 {
+                    Section {
+                        Picker("Group Type", selection: $groupType) {
+                            ForEach(ExerciseGroupType.allCases, id: \.self) { type in
+                                Label(type.displayName, systemImage: type.iconName)
+                                    .tag(type)
+                            }
+                        }
+                    } header: {
+                        Text("Group Type")
+                    } footer: {
+                        Text(groupType.description)
+                    }
+
+                    Section {
+                        Stepper(value: $restBetween, in: 0...60, step: 5) {
+                            HStack {
+                                Text("Rest Between Exercises")
+                                Spacer()
+                                Text("\(restBetween)s")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Stepper(value: $restAfter, in: 30...300, step: 15) {
+                            HStack {
+                                Text("Rest After Round")
+                                Spacer()
+                                Text("\(restAfter)s")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } header: {
+                        Text("Rest Times")
+                    }
+                }
+            }
+            .navigationTitle("Create Superset")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        createGroup()
+                    }
+                    .disabled(!canCreate)
+                }
+            }
+            .onChange(of: selectedExerciseIds.count) { _, newCount in
+                // Auto-update group type based on selection count
+                if newCount >= 2 {
+                    groupType = suggestedGroupType
+                }
+            }
+        }
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selectedExerciseIds.contains(id) {
+            selectedExerciseIds.remove(id)
+        } else {
+            selectedExerciseIds.insert(id)
+        }
+    }
+
+    private func createGroup() {
+        // Order selected exercises by their current order in the workout
+        let orderedIds = workout.exercises
+            .filter { selectedExerciseIds.contains($0.id) }
+            .map { $0.id }
+
+        let newGroup = ExerciseGroup(
+            groupType: groupType,
+            exerciseIds: orderedIds,
+            restBetweenExercises: TimeInterval(restBetween),
+            restAfterGroup: TimeInterval(restAfter)
+        )
+
+        if workout.exerciseGroups == nil {
+            workout.exerciseGroups = []
+        }
+        workout.exerciseGroups?.append(newGroup)
+
+        // Rebuild exercise order to keep grouped exercises together
+        workout.rebuildExercisesOrder()
+
+        onGroupCreated()
+        dismiss()
     }
 }
