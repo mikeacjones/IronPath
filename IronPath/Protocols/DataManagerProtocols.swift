@@ -45,6 +45,9 @@ protocol WorkoutDataManaging {
     /// Delete multiple workouts by IDs
     func deleteWorkouts(byIds ids: Set<UUID>)
 
+    /// Update an existing workout in history
+    func updateWorkout(_ workout: Workout)
+
     /// Detect personal records in a workout
     func detectWorkoutPRs(in workout: Workout) -> [WorkoutPR]
 }
@@ -173,6 +176,48 @@ protocol RestTimerManaging: AnyObject {
     func stopTimer()
 }
 
+// MARK: - AI Provider Managing
+
+/// Protocol for managing AI provider access
+protocol AIProviderManaging: AnyObject {
+    /// Get the currently selected provider
+    var currentProvider: AIProvider { get }
+
+    /// Check if the current provider is configured
+    var isConfigured: Bool { get }
+}
+
+// MARK: - Exercise Similarity Servicing
+
+/// Protocol for exercise similarity calculations
+protocol ExerciseSimilarityServicing {
+    /// Get replacement suggestions for an exercise
+    func getReplacementSuggestions(
+        for exercise: Exercise,
+        excludingWorkoutExercises workoutExerciseNames: [String],
+        availableEquipment: Set<Equipment>,
+        availableMachines: Set<SpecificMachine>,
+        limit: Int
+    ) -> [(Exercise, Double)]
+
+    /// Get similar exercises for a given exercise
+    func getSimilarExercises(for exercise: Exercise, limit: Int) -> [ExerciseSimilarity]
+}
+
+// MARK: - App Settings Providing
+
+/// Protocol for accessing app-wide settings
+protocol AppSettingsProviding: AnyObject {
+    /// Whether to show YouTube video demonstrations
+    var showYouTubeVideos: Bool { get }
+
+    /// Whether to show form tips in exercise details
+    var showFormTips: Bool { get }
+
+    /// Whether to show AI-generated workout summary
+    var showAIWorkoutSummary: Bool { get }
+}
+
 // MARK: - Default Conformances
 
 extension WorkoutDataManager: WorkoutDataManaging {}
@@ -181,3 +226,6 @@ extension PendingWorkoutManager: PendingWorkoutManaging {}
 extension APIKeyManager: APIKeyManaging {}
 extension GymProfileManager: GymProfileManaging {}
 extension RestTimerManager: RestTimerManaging {}
+extension AIProviderManager: AIProviderManaging {}
+extension ExerciseSimilarityService: ExerciseSimilarityServicing {}
+extension AppSettings: AppSettingsProviding {}

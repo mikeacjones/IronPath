@@ -493,26 +493,36 @@ private struct SupersetGroupContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header - tappable to jump to next exercise
+            // Header
             HStack(spacing: 8) {
-                Image(systemName: group.groupType.iconName)
-                    .foregroundStyle(groupColor)
-                Text(group.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(groupColor)
+                // Tappable area - jump to next exercise (excludes menu)
+                HStack(spacing: 8) {
+                    Image(systemName: group.groupType.iconName)
+                        .foregroundStyle(groupColor)
+                    Text(group.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(groupColor)
 
-                Spacer()
+                    Spacer()
 
-                if isLiveWorkout {
-                    // Show progress
-                    let completedSets = exercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
-                    let totalSets = exercises.flatMap { $0.sets }.count
-                    Text("\(completedSets)/\(totalSets)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if isLiveWorkout {
+                        // Show progress
+                        let completedSets = exercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
+                        let totalSets = exercises.flatMap { $0.sets }.count
+                        Text("\(completedSets)/\(totalSets)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if isLiveWorkout, let nextExercise = nextExerciseWithIncompleteSets {
+                        onExerciseTap(nextExercise)
+                    }
                 }
 
+                // Menu - separate from tap area
                 Menu {
                     // Add exercise options
                     Button {
@@ -554,17 +564,12 @@ private struct SupersetGroupContent: View {
                     Image(systemName: "ellipsis.circle")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .padding(.leading, 8)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
             .padding(.bottom, 8)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isLiveWorkout, let nextExercise = nextExerciseWithIncompleteSets {
-                    onExerciseTap(nextExercise)
-                }
-            }
 
             // Exercises
             VStack(spacing: 6) {
@@ -603,23 +608,45 @@ private struct GroupExerciseRow: View {
         exercise.sets.filter { $0.isCompleted }.count
     }
 
+    var setProgress: Double {
+        guard exercise.sets.count > 0 else { return 0 }
+        return Double(completedSetsCount) / Double(exercise.sets.count)
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             // Tappable content area
             HStack(spacing: 10) {
                 if isLiveWorkout {
+                    // Progress indicator with circular progress (matching standalone cards)
                     ZStack {
+                        // Background circle
                         Circle()
-                            .stroke(exercise.isCompleted ? Color.green : Color.gray.opacity(0.3), lineWidth: 2)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
                             .frame(width: 28, height: 28)
 
+                        // Progress arc (only shown when partially complete)
+                        if !exercise.isCompleted && completedSetsCount > 0 {
+                            Circle()
+                                .trim(from: 0, to: setProgress)
+                                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                .frame(width: 28, height: 28)
+                                .rotationEffect(.degrees(-90))
+                                .animation(.easeInOut(duration: 0.3), value: setProgress)
+                        }
+
+                        // Completed state: full green circle
                         if exercise.isCompleted {
+                            Circle()
+                                .stroke(Color.green, lineWidth: 2)
+                                .frame(width: 28, height: 28)
                             Image(systemName: "checkmark")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.green)
                         } else {
                             Text("\(completedSetsCount)/\(exercise.sets.count)")
                                 .font(.system(size: 9))
+                                .fontWeight(.medium)
                         }
                     }
                 } else {

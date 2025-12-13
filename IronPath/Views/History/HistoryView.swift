@@ -3,28 +3,7 @@ import SwiftUI
 // MARK: - History View
 
 struct HistoryView: View {
-    @State private var workouts: [Workout] = []
-    @State private var selectedDate: Date = Date()
-    @State private var showCalendar = true
-    @State private var selectedWorkout: Workout?
-    @State private var showingAddWorkout = false
-    @State private var workoutToDelete: Workout?
-    @State private var showingDeleteConfirmation = false
-
-    var workoutsForSelectedMonth: [Workout] {
-        let calendar = Calendar.current
-        return workouts.filter { workout in
-            guard let completedAt = workout.completedAt else { return false }
-            return calendar.isDate(completedAt, equalTo: selectedDate, toGranularity: .month)
-        }
-    }
-
-    var workoutDates: Set<DateComponents> {
-        Set(workouts.compactMap { workout in
-            guard let date = workout.completedAt else { return nil }
-            return Calendar.current.dateComponents([.year, .month, .day], from: date)
-        })
-    }
+    @StateObject private var viewModel = HistoryViewModel()
 
     var body: some View {
         NavigationStack {
@@ -35,34 +14,33 @@ struct HistoryView: View {
                         Text("Calendar View")
                             .font(.headline)
                         Spacer()
-                        Toggle("", isOn: $showCalendar)
+                        Toggle("", isOn: $viewModel.showCalendar)
                             .labelsHidden()
                     }
                     .padding(.horizontal)
 
-                    if showCalendar {
+                    if viewModel.showCalendar {
                         // Calendar
                         WorkoutCalendarView(
-                            selectedDate: $selectedDate,
-                            workoutDates: workoutDates
+                            selectedDate: $viewModel.selectedDate,
+                            workoutDates: viewModel.workoutDates
                         )
                         .padding(.horizontal)
                     }
 
                     // Stats summary
-                    if !workouts.isEmpty {
-                        WorkoutStatsSummary(workouts: workouts)
+                    if viewModel.hasWorkouts {
+                        WorkoutStatsSummaryView(stats: viewModel.stats)
                             .padding(.horizontal)
                     }
 
                     // Workout list
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(showCalendar ? "Workouts in \(selectedDate.formatted(.dateTime.month(.wide).year()))" : "All Workouts")
+                        Text(viewModel.workoutListTitle)
                             .font(.headline)
                             .padding(.horizontal)
 
-                        let displayWorkouts = showCalendar ? workoutsForSelectedMonth : workouts
-                        if displayWorkouts.isEmpty {
+                        if viewModel.isDisplayEmpty {
                             VStack(spacing: 8) {
                                 Image(systemName: "calendar.badge.exclamationmark")
                                     .font(.system(size: 40))
@@ -73,9 +51,9 @@ struct HistoryView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 40)
                         } else {
-                            ForEach(displayWorkouts.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) { workout in
+                            ForEach(viewModel.displayWorkouts) { workout in
                                 Button {
-                                    selectedWorkout = workout
+                                    viewModel.selectWorkout(workout)
                                 } label: {
                                     WorkoutHistoryCard(workout: workout)
                                 }
@@ -83,16 +61,14 @@ struct HistoryView: View {
                                 .accessibilityIdentifier("workout_history_row_\(workout.id.uuidString)")
                                 .contextMenu {
                                     Button(role: .destructive) {
-                                        workoutToDelete = workout
-                                        showingDeleteConfirmation = true
+                                        viewModel.confirmDelete(workout)
                                     } label: {
                                         Label("Delete Workout", systemImage: "trash")
                                     }
                                 }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
-                                        workoutToDelete = workout
-                                        showingDeleteConfirmation = true
+                                        viewModel.confirmDelete(workout)
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
@@ -108,79 +84,65 @@ struct HistoryView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showingAddWorkout = true
+                        viewModel.showingAddWorkout = true
                     } label: {
                         Image(systemName: "plus")
                     }
                     .accessibilityIdentifier("add_historical_workout_button")
                 }
             }
-            .navigationDestination(item: $selectedWorkout) { workout in
+            .navigationDestination(item: $viewModel.selectedWorkout) { workout in
                 WorkoutHistoryDetailView(
                     workout: workout,
                     onDelete: {
-                        deleteWorkout(workout)
-                        selectedWorkout = nil
+                        viewModel.handleWorkoutDeletion(workout)
                     },
-                    onUpdate: { _ in
-                        // Reload workouts to reflect changes
-                        loadWorkouts()
+                    onUpdate: { updatedWorkout in
+                        viewModel.handleWorkoutUpdate(updatedWorkout)
                     }
                 )
             }
-            .sheet(isPresented: $showingAddWorkout) {
+            .sheet(isPresented: $viewModel.showingAddWorkout) {
                 AddHistoricalWorkoutView {
-                    loadWorkouts()
+                    viewModel.loadWorkouts()
                 }
             }
-            .alert("Delete Workout?", isPresented: $showingDeleteConfirmation, presenting: workoutToDelete) { workout in
+            .alert("Delete Workout?", isPresented: $viewModel.showingDeleteConfirmation, presenting: viewModel.workoutToDelete) { workout in
                 Button("Cancel", role: .cancel) {
-                    workoutToDelete = nil
+                    viewModel.cancelDelete()
                 }
                 Button("Delete", role: .destructive) {
-                    deleteWorkout(workout)
+                    viewModel.deleteWorkout(workout)
                 }
             } message: { workout in
                 Text("Are you sure you want to delete \"\(workout.name)\"? This action cannot be undone.")
             }
             .onAppear {
-                loadWorkouts()
+                viewModel.loadWorkouts()
             }
         }
-    }
-
-    private func loadWorkouts() {
-        workouts = WorkoutDataManager.shared.getWorkoutHistory()
-    }
-
-    private func deleteWorkout(_ workout: Workout) {
-        WorkoutDataManager.shared.deleteWorkout(byId: workout.id)
-        workoutToDelete = nil
-        loadWorkouts()
     }
 }
 
 // MARK: - Workout History Detail View
 
 struct WorkoutHistoryDetailView: View {
-    @State private var workout: Workout
-    var onDelete: (() -> Void)?
-    var onUpdate: ((Workout) -> Void)?
-    @State private var showingDeleteConfirmation = false
-    @State private var showingEditSheet = false
+    @StateObject private var viewModel: HistoryDetailViewModel
     @Environment(\.dismiss) var dismiss
 
     init(workout: Workout, onDelete: (() -> Void)? = nil, onUpdate: ((Workout) -> Void)? = nil) {
-        _workout = State(initialValue: workout)
-        self.onDelete = onDelete
-        self.onUpdate = onUpdate
+        _viewModel = StateObject(wrappedValue: HistoryDetailViewModel(
+            workout: workout,
+            onDelete: onDelete,
+            onUpdate: onUpdate
+        ))
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Deload banner if applicable
-                if workout.isDeload {
+                if viewModel.workout.isDeload {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.down.heart.fill")
                             .font(.title2)
@@ -201,7 +163,7 @@ struct WorkoutHistoryDetailView: View {
 
                 // Workout summary header
                 VStack(alignment: .leading, spacing: 8) {
-                    if let completedAt = workout.completedAt {
+                    if let completedAt = viewModel.workout.completedAt {
                         Text(completedAt.formatted(date: .complete, time: .shortened))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -210,11 +172,11 @@ struct WorkoutHistoryDetailView: View {
                     HStack(spacing: 20) {
                         HistoryStatBadge(
                             icon: "figure.strengthtraining.traditional",
-                            value: "\(workout.exercises.count)",
+                            value: "\(viewModel.workout.exercises.count)",
                             label: "Exercises"
                         )
 
-                        if let duration = workout.duration {
+                        if let duration = viewModel.workout.duration {
                             HistoryStatBadge(
                                 icon: "clock",
                                 value: "\(Int(duration / 60))",
@@ -224,11 +186,11 @@ struct WorkoutHistoryDetailView: View {
 
                         HistoryStatBadge(
                             icon: "scalemass",
-                            value: formatVolume(workout.totalVolume),
+                            value: viewModel.formatVolume(viewModel.workout.totalVolume),
                             label: "Volume"
                         )
 
-                        if let calories = workout.estimatedCalories {
+                        if let calories = viewModel.workout.estimatedCalories {
                             HistoryStatBadge(
                                 icon: "flame",
                                 value: "\(calories)",
@@ -247,62 +209,45 @@ struct WorkoutHistoryDetailView: View {
                     Text("Exercises")
                         .font(.headline)
 
-                    ForEach(workout.exercises) { exercise in
+                    ForEach(viewModel.workout.exercises) { exercise in
                         WorkoutHistoryExerciseCard(exercise: exercise)
                     }
                 }
             }
             .padding()
         }
-        .navigationTitle(workout.name)
+        .navigationTitle(viewModel.workout.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingEditSheet = true
+                    viewModel.requestEdit()
                 } label: {
                     Text("Edit")
                 }
             }
             ToolbarItem(placement: .destructiveAction) {
                 Button(role: .destructive) {
-                    showingDeleteConfirmation = true
+                    viewModel.requestDelete()
                 } label: {
                     Image(systemName: "trash")
                 }
             }
         }
-        .sheet(isPresented: $showingEditSheet) {
-            EditHistoricalWorkoutView(workout: workout) { updatedWorkout in
-                // Update local state
-                workout = updatedWorkout
-                // Save to persistent storage
-                WorkoutDataManager.shared.updateWorkout(updatedWorkout)
-                // Notify parent if callback provided
-                onUpdate?(updatedWorkout)
+        .sheet(isPresented: $viewModel.showingEditSheet) {
+            EditHistoricalWorkoutView(workout: viewModel.workout) { updatedWorkout in
+                viewModel.updateWorkout(updatedWorkout)
             }
         }
-        .alert("Delete Workout?", isPresented: $showingDeleteConfirmation) {
+        .alert("Delete Workout?", isPresented: $viewModel.showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
-                if let onDelete = onDelete {
-                    onDelete()
-                } else {
-                    // Fallback if no callback provided
-                    WorkoutDataManager.shared.deleteWorkout(byId: workout.id)
-                    dismiss()
-                }
+                viewModel.deleteWorkout()
+                dismiss()
             }
         } message: {
-            Text("Are you sure you want to delete \"\(workout.name)\"? This action cannot be undone.")
+            Text("Are you sure you want to delete \"\(viewModel.workout.name)\"? This action cannot be undone.")
         }
-    }
-
-    private func formatVolume(_ volume: Double) -> String {
-        if volume >= 1000 {
-            return String(format: "%.1fK", volume / 1000)
-        }
-        return "\(Int(volume))"
     }
 }
 
@@ -574,14 +519,10 @@ struct CalendarDayView: View {
     }
 }
 
-// MARK: - Workout Stats Summary
+// MARK: - Workout Stats Summary View
 
-struct WorkoutStatsSummary: View {
-    let workouts: [Workout]
-
-    var stats: WorkoutStats {
-        WorkoutDataManager.shared.getWorkoutStats()
-    }
+struct WorkoutStatsSummaryView: View {
+    let stats: WorkoutStats
 
     var body: some View {
         HStack(spacing: 16) {
