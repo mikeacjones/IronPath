@@ -4,7 +4,7 @@ import SwiftUI
 
 struct WorkoutDetailView: View {
     @EnvironmentObject var appState: AppState
-    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
+    @EnvironmentObject private var dependencies: DependencyContainer
     @StateObject private var editorViewModel: WorkoutEditorViewModel
     @StateObject private var replacementViewModel = ExerciseReplacementViewModel()
 
@@ -100,7 +100,7 @@ struct WorkoutDetailView: View {
                     DraggableExerciseList(
                         workout: $editorViewModel.workout,
                         isLiveWorkout: false,
-                        preferenceManager: preferenceManager,
+                        exercisePreferenceManager: dependencies.exercisePreferenceManager,
                         onExerciseTap: { exercise in
                             selectedExercise = exercise
                         },
@@ -111,7 +111,7 @@ struct WorkoutDetailView: View {
                             editorViewModel.initiateRemoval(for: exercise)
                         },
                         onSetPreference: { exercise, preference in
-                            preferenceManager.setPreference(
+                            dependencies.exercisePreferenceManager.setPreference(
                                 preference,
                                 for: exercise.exercise.name
                             )
@@ -292,7 +292,7 @@ struct WorkoutDetailView: View {
             let exerciseName = updatedWorkout.exercises[i].exercise.name
             let equipment = updatedWorkout.exercises[i].exercise.equipment
 
-            if let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
+            if let suggestedWeight = dependencies.workoutDataManager.getSuggestedWeight(
                 for: exerciseName,
                 targetReps: updatedWorkout.exercises[i].sets.first?.targetReps ?? 10,
                 equipment: equipment
@@ -304,7 +304,7 @@ struct WorkoutDetailView: View {
             } else if let currentWeight = updatedWorkout.exercises[i].sets.first?.weight {
                 // No history, estimate normal weight as ~1.5x the deload weight
                 let estimatedNormalWeight = currentWeight * 1.5
-                let roundedWeight = GymSettings.shared.roundToValidWeight(estimatedNormalWeight, for: equipment)
+                let roundedWeight = dependencies.gymSettings.roundToValidWeight(estimatedNormalWeight, for: equipment, exerciseName: exerciseName)
                 for j in 0..<updatedWorkout.exercises[i].sets.count {
                     updatedWorkout.exercises[i].sets[j].weight = roundedWeight
                 }

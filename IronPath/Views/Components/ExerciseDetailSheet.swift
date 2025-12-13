@@ -5,8 +5,7 @@ import SwiftUI
 /// Shared view for editing exercise sets - used by both active workouts and historical workout entry
 struct ExerciseDetailSheet: View {
     @StateObject private var viewModel: ExerciseDetailViewModel
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
-
+    @EnvironmentObject private var dependencies: DependencyContainer
     @Environment(\.dismiss) var dismiss
 
     init(
@@ -50,7 +49,9 @@ struct ExerciseDetailSheet: View {
                         .padding(.horizontal)
 
                         // Group rest timer (shown when rest is active for superset/circuit)
-                        if restTimerManager.isActive && restTimerManager.isGroupTimer {
+                        if dependencies.restTimerManager.isActive,
+                           let timerManager = dependencies.restTimerManager as? RestTimerManager,
+                           timerManager.isGroupTimer {
                             GroupRestTimerView()
                                 .padding(.horizontal)
                         }

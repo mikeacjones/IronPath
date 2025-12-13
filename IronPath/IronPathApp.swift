@@ -4,6 +4,7 @@ import Combine
 @main
 struct IronPathApp: App {
     @StateObject private var appState = AppState()
+    @StateObject private var dependencyContainer = DependencyContainer.shared
     @ObservedObject private var cloudSync = CloudSyncManager.shared
 
     var body: some Scene {
@@ -14,6 +15,8 @@ struct IronPathApp: App {
             } else {
                 ContentView()
                     .environmentObject(appState)
+                    .environmentObject(dependencyContainer)
+                    .environment(\.dependencyContainer, dependencyContainer)
                     .overlay(alignment: .top) {
                         // Show restoration banner if data was restored
                         if cloudSync.restoredWorkoutsCount > 0 {

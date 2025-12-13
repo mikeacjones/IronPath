@@ -34,6 +34,20 @@ class DependencyContainer: ObservableObject {
     /// Exercise similarity calculations
     let similarityService: ExerciseSimilarityServicing
 
+    /// Exercise preference management
+    let exercisePreferenceManager: ExercisePreferenceManaging
+
+    /// App settings
+    let appSettings: AppSettingsProviding
+
+    /// Gym settings
+    let gymSettings: GymSettingsProviding
+
+    // MARK: - Observation Forwarding
+
+    /// Cancellables for forwarding objectWillChange from managers
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Initialization
 
     /// Create container with production dependencies (default)
@@ -45,6 +59,11 @@ class DependencyContainer: ObservableObject {
         self.gymProfileManager = GymProfileManager.shared
         self.aiProviderManager = AIProviderManager.shared
         self.similarityService = ExerciseSimilarityService.shared
+        self.exercisePreferenceManager = ExercisePreferenceManager.shared
+        self.appSettings = AppSettings.shared
+        self.gymSettings = GymSettings.shared
+
+        setupObservationForwarding()
     }
 
     /// Create container with custom dependencies (for testing)
@@ -55,7 +74,10 @@ class DependencyContainer: ObservableObject {
         restTimerManager: RestTimerManaging,
         gymProfileManager: GymProfileManaging,
         aiProviderManager: AIProviderManaging,
-        similarityService: ExerciseSimilarityServicing
+        similarityService: ExerciseSimilarityServicing,
+        exercisePreferenceManager: ExercisePreferenceManaging,
+        appSettings: AppSettingsProviding,
+        gymSettings: GymSettingsProviding
     ) {
         self.workoutDataManager = workoutDataManager
         self.activeWorkoutManager = activeWorkoutManager
@@ -64,6 +86,71 @@ class DependencyContainer: ObservableObject {
         self.gymProfileManager = gymProfileManager
         self.aiProviderManager = aiProviderManager
         self.similarityService = similarityService
+        self.exercisePreferenceManager = exercisePreferenceManager
+        self.appSettings = appSettings
+        self.gymSettings = gymSettings
+
+        setupObservationForwarding()
+    }
+
+    /// Forward objectWillChange from observable managers to this container
+    /// This allows views observing the container to react to manager state changes
+    private func setupObservationForwarding() {
+        // Forward from ActiveWorkoutManager
+        if let manager = activeWorkoutManager as? ActiveWorkoutManager {
+            manager.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from PendingWorkoutManager
+        if let manager = pendingWorkoutManager as? PendingWorkoutManager {
+            manager.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from RestTimerManager
+        if let manager = restTimerManager as? RestTimerManager {
+            manager.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from GymProfileManager
+        if let manager = gymProfileManager as? GymProfileManager {
+            manager.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from ExercisePreferenceManager
+        if let manager = exercisePreferenceManager as? ExercisePreferenceManager {
+            manager.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from AppSettings
+        if let settings = appSettings as? AppSettings {
+            settings.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
+
+        // Forward from GymSettings
+        if let settings = gymSettings as? GymSettings {
+            settings.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
     }
 
     // MARK: - ViewModel Factory Methods

@@ -12,11 +12,18 @@ struct SetRowView: View {
     let onWeightChanged: ((Int, Double) -> Void)?  // Callback when weight changes (setIndex, newWeight)
     let onRepsChanged: ((Int, Int) -> Void)?  // Callback when reps change (setIndex, newReps)
 
+    // Dependencies injected via init
+    private let workoutDataManager: WorkoutDataManaging
+    private let restTimerManager: RestTimerManaging
+    private let gymSettings: GymSettingsProviding
+
     @State private var weight: String
     @State private var reps: String
     @State private var isCompleted: Bool
     @State private var showPlateCalculator: Bool = false
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+
+    // Cached suggested weight for display purposes
+    private let suggestedWeight: Double?
 
     init(
         set: ExerciseSet,
@@ -25,7 +32,10 @@ struct SetRowView: View {
         equipment: Equipment = .dumbbells,
         onUpdate: @escaping (ExerciseSet) -> Void,
         onWeightChanged: ((Int, Double) -> Void)? = nil,
-        onRepsChanged: ((Int, Int) -> Void)? = nil
+        onRepsChanged: ((Int, Int) -> Void)? = nil,
+        workoutDataManager: WorkoutDataManaging = WorkoutDataManager.shared,
+        restTimerManager: RestTimerManaging = RestTimerManager.shared,
+        gymSettings: GymSettingsProviding = GymSettings.shared
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -34,14 +44,18 @@ struct SetRowView: View {
         self.onUpdate = onUpdate
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
+        self.workoutDataManager = workoutDataManager
+        self.restTimerManager = restTimerManager
+        self.gymSettings = gymSettings
 
         // Get suggested weight from history if available
-        let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
+        let suggested = workoutDataManager.getSuggestedWeight(
             for: exerciseName,
             targetReps: set.targetReps
         )
+        self.suggestedWeight = suggested
 
-        _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? suggestedWeight.map { String(format: "%.0f", $0) } ?? "")
+        _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? suggested.map { String(format: "%.0f", $0) } ?? "")
         _reps = State(initialValue: set.actualReps.map { String($0) } ?? String(set.targetReps))
         _isCompleted = State(initialValue: set.isCompleted)
     }
@@ -79,7 +93,7 @@ struct SetRowView: View {
         guard equipment == .cables, let weightValue = Double(weight), weightValue > 0 else {
             return false
         }
-        let config = GymSettings.shared.cableConfig(for: exerciseName)
+        let config = gymSettings.cableConfig(for: exerciseName)
         return !config.isValidWeight(weightValue)
     }
 
@@ -88,7 +102,7 @@ struct SetRowView: View {
         guard equipment == .cables, let weightValue = Double(weight), weightValue > 0 else {
             return nil
         }
-        let config = GymSettings.shared.cableConfig(for: exerciseName)
+        let config = gymSettings.cableConfig(for: exerciseName)
         return config.pinLocation(for: weightValue)
     }
 
@@ -160,10 +174,7 @@ struct SetRowView: View {
                     }
 
                     // Show if this is a suggested weight from history
-                    if let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
-                        for: exerciseName,
-                        targetReps: set.targetReps
-                    ), !weight.isEmpty, Double(weight) == suggestedWeight {
+                    if let suggested = suggestedWeight, !weight.isEmpty, Double(weight) == suggested {
                         Text("↑ +2.5%")
                             .font(.caption2)
                             .foregroundStyle(.green)

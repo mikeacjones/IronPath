@@ -8,6 +8,8 @@ struct WorkoutCompletionSummaryView: View {
     let userProfile: UserProfile?
     let onDismiss: () -> Void
 
+    @EnvironmentObject private var dependencies: DependencyContainer
+
     @State private var estimatedCalories: Int?
     @State private var isEstimatingCalories = false
     @State private var isExportingToHealth = false
@@ -92,7 +94,7 @@ struct WorkoutCompletionSummaryView: View {
                     }
 
                     // AI Summary section
-                    if AppSettings.shared.showAIWorkoutSummary {
+                    if dependencies.appSettings.showAIWorkoutSummary {
                         VStack(spacing: 12) {
                             HStack {
                                 Image(systemName: "text.bubble")
@@ -231,7 +233,7 @@ struct WorkoutCompletionSummaryView: View {
     }
 
     private func detectPRs() {
-        workoutPRs = WorkoutDataManager.shared.detectWorkoutPRs(in: workout)
+        workoutPRs = dependencies.workoutDataManager.detectWorkoutPRs(in: workout)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -259,9 +261,11 @@ struct WorkoutCompletionSummaryView: View {
             userProfile: userProfile
         )
 
+        let aiProvider = dependencies.aiProviderManager.currentProvider
+        let workoutManager = dependencies.workoutDataManager
+
         do {
-            let provider = AIProviderManager.shared.currentProvider
-            let calories = try await provider.estimateCaloriesBurned(workoutSummary: summary)
+            let calories = try await aiProvider.estimateCaloriesBurned(workoutSummary: summary)
             await MainActor.run {
                 // Ensure we never show 0 calories
                 let finalCalories = max(calories, 50)
@@ -269,7 +273,7 @@ struct WorkoutCompletionSummaryView: View {
                 isEstimatingCalories = false
 
                 // Save calories to the workout for history display
-                saveCaloriesToWorkout(finalCalories)
+                saveCaloriesToWorkout(finalCalories, using: workoutManager)
             }
         } catch {
             // Fallback to a simple estimate based on duration
@@ -281,29 +285,30 @@ struct WorkoutCompletionSummaryView: View {
                 isEstimatingCalories = false
 
                 // Save calories to the workout for history display
-                saveCaloriesToWorkout(finalCalories)
+                saveCaloriesToWorkout(finalCalories, using: workoutManager)
             }
         }
     }
 
-    private func saveCaloriesToWorkout(_ calories: Int) {
+    private func saveCaloriesToWorkout(_ calories: Int, using workoutManager: WorkoutDataManaging) {
         var updatedWorkout = workout
         updatedWorkout.estimatedCalories = calories
-        WorkoutDataManager.shared.updateWorkout(updatedWorkout)
+        workoutManager.updateWorkout(updatedWorkout)
     }
 
     private func generateAISummary() async {
-        guard AppSettings.shared.showAIWorkoutSummary else { return }
+        guard dependencies.appSettings.showAIWorkoutSummary else { return }
 
         await MainActor.run {
             isGeneratingAISummary = true
         }
 
-        do {
-            let provider = AIProviderManager.shared.currentProvider
+        let aiProvider = dependencies.aiProviderManager.currentProvider
+        let workoutManager = dependencies.workoutDataManager
 
+        do {
             // Get recent workouts for context (excluding current workout)
-            let allWorkouts: [Workout] = WorkoutDataManager.shared.getWorkoutHistory()
+            let allWorkouts: [Workout] = workoutManager.getWorkoutHistory()
             let completedWorkouts = allWorkouts.filter { (w: Workout) -> Bool in
                 w.id != workout.id && w.completedAt != nil
             }
@@ -314,7 +319,7 @@ struct WorkoutCompletionSummaryView: View {
             }
             let recentWorkouts: [Workout] = Array(sortedWorkouts.prefix(3))
 
-            let summary = try await provider.generateWorkoutSummary(
+            let summary = try await aiProvider.generateWorkoutSummary(
                 workout: workout,
                 recentWorkouts: recentWorkouts,
                 personalRecords: workoutPRs

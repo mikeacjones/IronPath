@@ -7,7 +7,7 @@ struct ActiveWorkoutView: View {
     let onComplete: (Workout) -> Void
     let onCancel: () -> Void
 
-    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
+    @EnvironmentObject private var dependencies: DependencyContainer
     @StateObject private var viewModel: ActiveWorkoutViewModel
     @StateObject private var editorViewModel: WorkoutEditorViewModel
     @StateObject private var replacementViewModel = ExerciseReplacementViewModel()
@@ -59,7 +59,7 @@ struct ActiveWorkoutView: View {
                         DraggableExerciseList(
                             workout: $viewModel.workout,
                             isLiveWorkout: true,
-                            preferenceManager: preferenceManager,
+                            exercisePreferenceManager: dependencies.exercisePreferenceManager,
                             onExerciseTap: { exercise in
                                 viewModel.selectExercise(exercise)
                             },
@@ -70,7 +70,7 @@ struct ActiveWorkoutView: View {
                                 editorViewModel.initiateRemoval(for: exercise)
                             },
                             onSetPreference: { exercise, preference in
-                                preferenceManager.setPreference(
+                                dependencies.exercisePreferenceManager.setPreference(
                                     preference,
                                     for: exercise.exercise.name
                                 )

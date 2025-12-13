@@ -166,6 +166,14 @@ protocol RestTimerManaging: AnyObject {
     /// Start a new timer
     func startTimer(duration: TimeInterval, exerciseName: String, setNumber: Int)
 
+    /// Start a rest timer after completing all exercises in a superset/circuit round
+    func startGroupTimer(
+        duration: TimeInterval,
+        groupType: ExerciseGroupType,
+        exerciseNames: [String],
+        completedRound: Int
+    )
+
     /// Add time to the current timer
     func addTime(_ seconds: TimeInterval)
 
@@ -218,6 +226,46 @@ protocol AppSettingsProviding: AnyObject {
     var showAIWorkoutSummary: Bool { get }
 }
 
+// MARK: - Exercise Preference Managing
+
+/// Protocol for managing user exercise preferences
+protocol ExercisePreferenceManaging: AnyObject {
+    /// Get the preference for a specific exercise
+    func getPreference(for exerciseName: String) -> ExerciseSuggestionPreference
+
+    /// Set the preference for a specific exercise
+    func setPreference(_ preference: ExerciseSuggestionPreference, for exerciseName: String)
+
+    /// Check if an exercise should be excluded from suggestions
+    func isExerciseBlocked(_ exerciseName: String) -> Bool
+
+    /// Get all exercises with non-normal preferences
+    func getAllCustomPreferences() -> [ExercisePreferenceEntry]
+
+    /// Generate prompt text for AI to respect exercise preferences
+    func generatePreferencePrompt() -> String?
+}
+
+// MARK: - Gym Settings Providing
+
+/// Protocol for accessing gym settings
+protocol GymSettingsProviding: AnyObject {
+    /// Get cable config for specific exercise
+    func cableConfig(for exerciseName: String) -> CableMachineConfig
+
+    /// Round weight to nearest valid for equipment
+    func roundToValidWeight(_ weight: Double, for equipment: Equipment, exerciseName: String?) -> Double
+
+    /// Get valid weights for equipment type
+    func validWeights(for equipment: Equipment, exerciseName: String?) -> [Double]
+
+    /// Get machine weight for exercise
+    func machineWeight(for exerciseName: String, equipment: Equipment) -> Double
+
+    /// Check if exercise is single-sided
+    func isSingleSided(for exerciseName: String) -> Bool
+}
+
 // MARK: - Default Conformances
 
 extension WorkoutDataManager: WorkoutDataManaging {}
@@ -229,3 +277,5 @@ extension RestTimerManager: RestTimerManaging {}
 extension AIProviderManager: AIProviderManaging {}
 extension ExerciseSimilarityService: ExerciseSimilarityServicing {}
 extension AppSettings: AppSettingsProviding {}
+extension ExercisePreferenceManager: ExercisePreferenceManaging {}
+extension GymSettings: GymSettingsProviding {}

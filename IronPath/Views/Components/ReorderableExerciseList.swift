@@ -6,7 +6,7 @@ import SwiftUI
 struct DraggableExerciseList: View {
     @Binding var workout: Workout
     let isLiveWorkout: Bool
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    let exercisePreferenceManager: ExercisePreferenceManaging
 
     // Callbacks for exercise interactions
     let onExerciseTap: (WorkoutExercise) -> Void
@@ -43,7 +43,7 @@ struct DraggableExerciseList: View {
                     item: item,
                     workout: $workout,
                     isLiveWorkout: isLiveWorkout,
-                    preferenceManager: preferenceManager,
+                    exercisePreferenceManager: exercisePreferenceManager,
                     isDragging: isDragging,
                     isLongPressed: isLongPressed,
                     onExerciseTap: onExerciseTap,
@@ -220,7 +220,7 @@ private struct ExerciseCardWrapper: View {
     let item: ExerciseDisplayItem
     @Binding var workout: Workout
     let isLiveWorkout: Bool
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    let exercisePreferenceManager: ExercisePreferenceManaging
     let isDragging: Bool
     let isLongPressed: Bool
     let onExerciseTap: (WorkoutExercise) -> Void
@@ -246,7 +246,7 @@ private struct ExerciseCardWrapper: View {
             item: item,
             ungroupedExercises: ungroupedExercises,
             isLiveWorkout: isLiveWorkout,
-            preferenceManager: preferenceManager,
+            exercisePreferenceManager: exercisePreferenceManager,
             onExerciseTap: onExerciseTap,
             onExerciseReplace: onExerciseReplace,
             onExerciseRemove: onExerciseRemove,
@@ -279,7 +279,7 @@ private struct ExerciseCardContent: View {
     let item: ExerciseDisplayItem
     let ungroupedExercises: [WorkoutExercise]
     let isLiveWorkout: Bool
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
+    let exercisePreferenceManager: ExercisePreferenceManaging
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void
@@ -295,7 +295,7 @@ private struct ExerciseCardContent: View {
             StandaloneExerciseCard(
                 exercise: exercise,
                 isLiveWorkout: isLiveWorkout,
-                currentPreference: preferenceManager.getPreference(for: exercise.exercise.name),
+                currentPreference: exercisePreferenceManager.getPreference(for: exercise.exercise.name),
                 onTap: { onExerciseTap(exercise) },
                 onReplace: { onExerciseReplace(exercise) },
                 onRemove: { onExerciseRemove(exercise) },
@@ -308,7 +308,6 @@ private struct ExerciseCardContent: View {
                 exercises: exercises,
                 ungroupedExercises: ungroupedExercises,
                 isLiveWorkout: isLiveWorkout,
-                preferenceManager: preferenceManager,
                 onExerciseTap: onExerciseTap,
                 onExerciseReplace: onExerciseReplace,
                 onExerciseRemove: onExerciseRemove,
@@ -466,7 +465,6 @@ private struct SupersetGroupContent: View {
     let exercises: [WorkoutExercise]
     let ungroupedExercises: [WorkoutExercise]
     let isLiveWorkout: Bool
-    @ObservedObject var preferenceManager: ExercisePreferenceManager
     let onExerciseTap: (WorkoutExercise) -> Void
     let onExerciseReplace: (WorkoutExercise) -> Void
     let onExerciseRemove: (WorkoutExercise) -> Void

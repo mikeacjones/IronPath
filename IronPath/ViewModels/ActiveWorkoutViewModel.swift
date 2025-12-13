@@ -255,7 +255,7 @@ class ActiveWorkoutViewModel: ObservableObject {
             let completedSets = exercise.sets.filter { $0.isCompleted }.count
             let completedRound = completedSets
 
-            RestTimerManager.shared.startGroupTimer(
+            restTimerManager.startGroupTimer(
                 duration: group.restAfterGroup,
                 groupType: group.groupType,
                 exerciseNames: [nextInfo.exercise.exercise.name, exercise.exercise.name],

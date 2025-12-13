@@ -4,8 +4,7 @@ import SwiftUI
 
 struct WorkoutView: View {
     @EnvironmentObject var appState: AppState
-    @ObservedObject private var pendingWorkoutManager = PendingWorkoutManager.shared
-    @ObservedObject private var activeWorkoutManager = ActiveWorkoutManager.shared
+    @EnvironmentObject private var dependencies: DependencyContainer
     @State private var isGeneratingWorkout = false
     @State private var showError = false
     @State private var errorMessage = ""
@@ -14,14 +13,14 @@ struct WorkoutView: View {
     /// Computed binding for active workout navigation
     private var activeWorkout: Binding<Workout?> {
         Binding(
-            get: { activeWorkoutManager.activeWorkout },
+            get: { (dependencies.activeWorkoutManager as? ActiveWorkoutManager)?.activeWorkout },
             set: { _ in } // Navigation dismissal handled by onComplete/onCancel
         )
     }
 
     /// Convenience accessor for the pending workout
     private var generatedWorkout: Workout? {
-        get { pendingWorkoutManager.pendingWorkout }
+        get { (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout }
     }
 
     var body: some View {
@@ -36,13 +35,13 @@ struct WorkoutView: View {
                             startWorkout(updatedWorkout)
                         },
                         onRegenerate: {
-                            pendingWorkoutManager.clearPendingWorkout()
+                            dependencies.pendingWorkoutManager.clearPendingWorkout()
                         },
                         onConvertToNormal: { updatedWorkout in
-                            pendingWorkoutManager.pendingWorkout = updatedWorkout
+                            (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout = updatedWorkout
                         },
                         onWorkoutUpdated: { updatedWorkout in
-                            pendingWorkoutManager.pendingWorkout = updatedWorkout
+                            (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout = updatedWorkout
                         }
                     )
                 } else {
@@ -109,10 +108,10 @@ struct WorkoutView: View {
             .fullScreenCover(item: activeWorkout) { workout in
                 NavigationStack {
                     ActiveWorkoutView(workout: workout, userProfile: appState.userProfile, onComplete: { _ in
-                        _ = activeWorkoutManager.completeWorkout()
-                        pendingWorkoutManager.clearPendingWorkout()
+                        _ = dependencies.activeWorkoutManager.completeWorkout()
+                        dependencies.pendingWorkoutManager.clearPendingWorkout()
                     }, onCancel: {
-                        activeWorkoutManager.cancelWorkout()
+                        dependencies.activeWorkoutManager.cancelWorkout()
                     })
                 }
             }
@@ -134,7 +133,7 @@ struct WorkoutView: View {
     }
 
     private func startWorkout(_ workout: Workout) {
-        activeWorkoutManager.startWorkout(workout)
+        dependencies.activeWorkoutManager.startWorkout(workout)
     }
 
     /// Auto-generate a workout - LLM decides the type based on split and history
@@ -145,7 +144,7 @@ struct WorkoutView: View {
             return
         }
 
-        guard AIProviderManager.shared.isConfigured else {
+        guard dependencies.aiProviderManager.isConfigured else {
             errorMessage = "Please configure your AI provider in the Profile tab before generating workouts"
             showError = true
             return
@@ -160,10 +159,11 @@ struct WorkoutView: View {
         // Apply global technique settings from profile
         let effectiveOptions = WorkoutGenerationOptions().applying(globalSettings: profile.workoutPreferences.advancedTechniqueSettings)
 
+        let aiProvider = dependencies.aiProviderManager.currentProvider
+        let pendingManager = dependencies.pendingWorkoutManager
+
         Task {
             do {
-                let provider = AIProviderManager.shared.currentProvider
-
                 // Create agentic builder - no specific workout type, LLM decides
                 let builder = AgentWorkoutBuilder(
                     workoutType: nil,
@@ -173,13 +173,13 @@ struct WorkoutView: View {
                     profile: profile
                 )
 
-                let workout = try await provider.generateWorkoutAgentic(
+                let workout = try await aiProvider.generateWorkoutAgentic(
                     builder: builder,
                     progressCallback: nil  // Could add progress UI later
                 )
 
                 await MainActor.run {
-                    pendingWorkoutManager.pendingWorkout = workout
+                    (pendingManager as? PendingWorkoutManager)?.pendingWorkout = workout
                     isGeneratingWorkout = false
                 }
             } catch {
@@ -199,7 +199,7 @@ struct WorkoutView: View {
             return
         }
 
-        guard AIProviderManager.shared.isConfigured else {
+        guard dependencies.aiProviderManager.isConfigured else {
             errorMessage = "Please configure your AI provider in the Profile tab before generating workouts"
             showError = true
             return
@@ -207,10 +207,11 @@ struct WorkoutView: View {
 
         isGeneratingWorkout = true
 
+        let aiProvider = dependencies.aiProviderManager.currentProvider
+        let pendingManager = dependencies.pendingWorkoutManager
+
         Task {
             do {
-                let provider = AIProviderManager.shared.currentProvider
-
                 // Create agentic builder
                 let builder = AgentWorkoutBuilder(
                     workoutType: workoutType.rawValue,
@@ -220,14 +221,14 @@ struct WorkoutView: View {
                     profile: profile
                 )
 
-                var workout = try await provider.generateWorkoutAgentic(
+                var workout = try await aiProvider.generateWorkoutAgentic(
                     builder: builder,
                     progressCallback: nil  // Could add progress UI later
                 )
                 workout.isDeload = isDeload
 
                 await MainActor.run {
-                    pendingWorkoutManager.pendingWorkout = workout
+                    (pendingManager as? PendingWorkoutManager)?.pendingWorkout = workout
                     isGeneratingWorkout = false
                     showWorkoutSetup = false
                 }
@@ -247,6 +248,6 @@ struct WorkoutView: View {
             exercises: [],
             notes: ""
         )
-        pendingWorkoutManager.pendingWorkout = workout
+        (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout = workout
     }
 }

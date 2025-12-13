@@ -34,6 +34,7 @@ class ExerciseReplacementViewModel: ObservableObject {
     private let aiProviderManager: AIProviderManaging
     private let similarityService: ExerciseSimilarityServicing
     private let gymProfileManager: GymProfileManaging
+    private let exerciseCountProvider: () -> Int
     private var userProfile: UserProfile?
 
     // MARK: - Context
@@ -54,11 +55,15 @@ class ExerciseReplacementViewModel: ObservableObject {
     init(
         aiProviderManager: AIProviderManaging = AIProviderManager.shared,
         similarityService: ExerciseSimilarityServicing = ExerciseSimilarityService.shared,
-        gymProfileManager: GymProfileManaging = GymProfileManager.shared
+        gymProfileManager: GymProfileManaging = GymProfileManager.shared,
+        exerciseCountProvider: @escaping () -> Int = {
+            ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count
+        }
     ) {
         self.aiProviderManager = aiProviderManager
         self.similarityService = similarityService
         self.gymProfileManager = gymProfileManager
+        self.exerciseCountProvider = exerciseCountProvider
     }
 
     // MARK: - Configuration
@@ -204,6 +209,6 @@ class ExerciseReplacementViewModel: ObservableObject {
 
     /// Total number of available exercises
     var totalExerciseCount: Int {
-        ExerciseDatabase.shared.exercises.count + CustomExerciseStore.shared.exercises.count
+        exerciseCountProvider()
     }
 }
