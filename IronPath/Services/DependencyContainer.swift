@@ -43,6 +43,9 @@ final class DependencyContainer {
     /// Gym settings
     let gymSettings: GymSettingsProviding
 
+    /// Equipment manager
+    let equipmentManager: EquipmentManaging
+
     // MARK: - Initialization
 
     /// Create container with production dependencies (default)
@@ -57,6 +60,7 @@ final class DependencyContainer {
         self.exercisePreferenceManager = ExercisePreferenceManager.shared
         self.appSettings = AppSettings.shared
         self.gymSettings = GymSettings.shared
+        self.equipmentManager = EquipmentManager.shared
     }
 
     /// Create container with custom dependencies (for testing)
@@ -70,7 +74,8 @@ final class DependencyContainer {
         similarityService: ExerciseSimilarityServicing,
         exercisePreferenceManager: ExercisePreferenceManaging,
         appSettings: AppSettingsProviding,
-        gymSettings: GymSettingsProviding
+        gymSettings: GymSettingsProviding,
+        equipmentManager: EquipmentManaging
     ) {
         self.workoutDataManager = workoutDataManager
         self.activeWorkoutManager = activeWorkoutManager
@@ -82,6 +87,7 @@ final class DependencyContainer {
         self.exercisePreferenceManager = exercisePreferenceManager
         self.appSettings = appSettings
         self.gymSettings = gymSettings
+        self.equipmentManager = equipmentManager
     }
 
     // MARK: - ViewModel Factory Methods

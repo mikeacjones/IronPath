@@ -281,6 +281,34 @@ protocol GymSettingsProviding: AnyObject, Sendable {
     func isSingleSided(for exerciseName: String) -> Bool
 }
 
+// MARK: - Equipment Managing
+
+/// Protocol for managing equipment options (standard and custom)
+/// Provides the single source of truth for equipment selection across the app
+@MainActor
+protocol EquipmentManaging: AnyObject, Sendable {
+    /// All equipment options including custom equipment (for gym profile editor)
+    var allEquipmentOptions: [EquipmentManager.EquipmentOption] { get }
+
+    /// Standard equipment only (for onboarding wizard)
+    var standardEquipmentOptions: [EquipmentManager.EquipmentOption] { get }
+
+    /// All machine options including custom machines (for gym profile editor)
+    var allMachineOptions: [EquipmentManager.MachineOption] { get }
+
+    /// Standard machines only (for onboarding wizard)
+    var standardMachineOptions: [EquipmentManager.MachineOption] { get }
+
+    /// Check if equipment with the given name exists (standard or custom)
+    func equipmentExists(name: String) -> Bool
+
+    /// Refresh all equipment options (call after adding custom equipment)
+    func refreshAllOptions()
+
+    /// Get icon for standard equipment type
+    func iconForEquipment(_ equipment: Equipment) -> String
+}
+
 // MARK: - Default Conformances
 
 extension WorkoutDataManager: WorkoutDataManaging {}
@@ -294,3 +322,4 @@ extension ExerciseSimilarityService: ExerciseSimilarityServicing {}
 extension AppSettings: AppSettingsProviding {}
 extension ExercisePreferenceManager: ExercisePreferenceManaging {}
 extension GymSettings: GymSettingsProviding {}
+extension EquipmentManager: EquipmentManaging {}

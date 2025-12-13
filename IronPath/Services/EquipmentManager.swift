@@ -7,8 +7,19 @@ import Foundation
 final class EquipmentManager {
     static let shared = EquipmentManager()
 
+    // MARK: - Observable Properties for Views
+
+    /// All equipment options including custom equipment (for gym profile editor)
     private(set) var allEquipmentOptions: [EquipmentOption] = []
+
+    /// Standard equipment only (for onboarding wizard)
+    private(set) var standardEquipmentOptions: [EquipmentOption] = []
+
+    /// All machine options including custom machines (for gym profile editor)
     private(set) var allMachineOptions: [MachineOption] = []
+
+    /// Standard machines only (for onboarding wizard)
+    private(set) var standardMachineOptions: [MachineOption] = []
 
     private init() {
         refreshAllOptions()
@@ -222,10 +233,13 @@ final class EquipmentManager {
         "chair.lounge"
     ]
 
-    // MARK: - Private
+    // MARK: - Refresh Options
 
+    /// Refresh all equipment options - call after adding/removing custom equipment
     func refreshAllOptions() {
-        allEquipmentOptions = getEquipmentOptions()
-        allMachineOptions = getMachineOptions()
+        standardEquipmentOptions = getEquipmentOptions(includeCustom: false)
+        allEquipmentOptions = getEquipmentOptions(includeCustom: true)
+        standardMachineOptions = getMachineOptions(includeCustom: false)
+        allMachineOptions = getMachineOptions(includeCustom: true)
     }
 }

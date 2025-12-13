@@ -4,6 +4,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
     @FocusState private var isTextFieldFocused: Bool
     @State private var currentStep = 0
     @State private var name = ""
@@ -56,7 +57,8 @@ struct OnboardingView: View {
                     EquipmentStep(
                         selectedEquipment: $selectedEquipment,
                         selectedMachines: $selectedMachines,
-                        showingMachineSelection: $showingMachineSelection
+                        showingMachineSelection: $showingMachineSelection,
+                        equipmentManager: dependencies.equipmentManager
                     )
                         .tag(7)
 
@@ -77,7 +79,11 @@ struct OnboardingView: View {
             }
             .navigationTitle("Welcome to IronPath")
             .sheet(isPresented: $showingMachineSelection) {
-                MachineSelectionView(selectedMachines: $selectedMachines)
+                MachineSelectionSheet(
+                    selectedMachines: $selectedMachines,
+                    includeCustomMachines: false,
+                    equipmentManager: dependencies.equipmentManager
+                )
             }
         }
     }
@@ -160,4 +166,5 @@ struct OnboardingView: View {
 #Preview {
     OnboardingView()
         .environment(AppState())
+        .environment(DependencyContainer.shared)
 }

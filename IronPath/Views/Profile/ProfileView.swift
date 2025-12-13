@@ -5,6 +5,7 @@ import UIKit
 
 struct ProfileView: View {
     @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var gymProfileManager = GymProfileManager.shared
     @State private var providerManager = AIProviderManager.shared
     @State private var appSettings = AppSettings.shared
@@ -54,6 +55,7 @@ struct ProfileView: View {
             .sheet(isPresented: $showingNewGymProfile) {
                 GymProfileEditorView(
                     profile: nil,
+                    equipmentManager: dependencies.equipmentManager,
                     onSave: { newProfile in
                         gymProfileManager.addProfile(newProfile)
                         showingNewGymProfile = false
@@ -63,6 +65,7 @@ struct ProfileView: View {
             .sheet(item: $editingGymProfile) { profile in
                 GymProfileEditorView(
                     profile: profile,
+                    equipmentManager: dependencies.equipmentManager,
                     onSave: { updatedProfile in
                         gymProfileManager.updateProfile(updatedProfile)
                         editingGymProfile = nil
