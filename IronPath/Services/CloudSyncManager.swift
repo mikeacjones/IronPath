@@ -291,9 +291,9 @@ final class CloudSyncManager {
                         self.restoredWorkoutsCount = restoredCount
                         NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                         AppLogger.cloud.info("Restored \(restoredCount) workouts from iCloud")
-                    } else if !localWorkouts.isEmpty && localUpdatedAt > cloudUpdatedAt {
+                    } else if let localData, !localWorkouts.isEmpty, localUpdatedAt > cloudUpdatedAt {
                         // Local is newer and not empty, push to cloud
-                        await saveWorkoutHistoryToCloud(localData!)
+                        await saveWorkoutHistoryToCloud(localData)
                     }
                 }
                 return // Success, exit retry loop
@@ -459,8 +459,8 @@ final class CloudSyncManager {
 
                     NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                     AppLogger.cloud.info("Restored gym settings from iCloud")
-                } else if localData != nil && localUpdatedAt > cloudUpdatedAt {
-                    await saveGymSettingsToCloud(localData!)
+                } else if let localData, localUpdatedAt > cloudUpdatedAt {
+                    await saveGymSettingsToCloud(localData)
                 }
             }
         } catch let error as CKError where error.code == .unknownItem {
