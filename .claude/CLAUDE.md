@@ -1,442 +1,275 @@
 # IronPath - Claude Code Instructions
 
-## Project Overview
+## Quick Reference
 
-IronPath is a SwiftUI fitness tracking iOS app targeting iOS 17+ using MVVM architecture with Swift concurrency.
+**Build:** `xcodebuild -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17' build`
+**Test:** `xcodebuild -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17' test`
 
-**Build & Run:**
-```bash
-xcodebuild -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 16' build
+---
+
+## Architecture Overview
+
+```
+IronPath/
+├── Models/                    # Data models (Workout, Exercise, UserProfile, etc.)
+├── ViewModels/                # @Observable ViewModels
+├── Views/
+│   ├── ActiveWorkout/         # Live workout tracking
+│   │   ├── Components/        # SetRowView, RestTimer*, WorkoutTimerHeader
+│   │   ├── Calculators/       # Plate/Cable calculators
+│   │   └── Sheets/            # Completion summary, replacement
+│   ├── Components/            # Shared: ExerciseDetailSheet, AddExerciseSheet, etc.
+│   ├── History/               # Workout history views
+│   ├── Profile/               # Settings, gym profiles, AI config
+│   ├── Workout/               # Workout generation/setup
+│   └── Onboarding/            # Onboarding flow
+├── Services/                  # Business logic, managers, persistence
+└── Protocols/                 # DataManagerProtocols.swift (all DI protocols)
 ```
 
 ---
 
-## Swift & SwiftUI Best Practices (iOS 17+ / 2025)
+## Dependency Injection Pattern
 
-### Architecture: MVVM with Dependency Injection
+**CRITICAL: This app uses `DependencyContainer`, NOT individual environment keys.**
 
-**ViewModels use `@Observable` macro:**
+### DependencyContainer (Services/DependencyContainer.swift)
 ```swift
-@Observable
-@MainActor
-final class WorkoutViewModel {
-    var workout: Workout
-    var isLoading = false
-    var error: Error?
-
-    private let workoutService: WorkoutServiceProtocol
-
-    init(workout: Workout, workoutService: WorkoutServiceProtocol) {
-        self.workout = workout
-        self.workoutService = workoutService
-    }
-
-    func save() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            try await workoutService.saveWorkout(workout)
-        } catch {
-            self.error = error
-        }
-    }
+@Observable @MainActor
+final class DependencyContainer {
+    let workoutDataManager: WorkoutDataManaging
+    let exercisePreferenceManager: ExercisePreferenceManaging
+    let restTimerManager: RestTimerManaging
+    let equipmentManager: EquipmentManaging
+    let customEquipmentStore: CustomEquipmentStoring
+    let customExerciseStore: CustomExerciseStoring
+    let exerciseDatabase: ExerciseDatabaseProviding
+    // ... other services
 }
 ```
 
-**Views consume `@Observable` directly - no property wrapper needed:**
+### Injected at App Root (IronPathApp.swift)
 ```swift
-struct WorkoutView: View {
-    var viewModel: WorkoutViewModel
+ContentView()
+    .environment(dependencies)           // DependencyContainer
+    .environment(appState)               // AppState
+```
+
+### Access in Views
+```swift
+struct MyView: View {
+    @Environment(DependencyContainer.self) private var dependencies
+    @Environment(AppState.self) var appState
 
     var body: some View {
-        // SwiftUI automatically tracks @Observable changes
-        List(viewModel.workout.exercises) { exercise in
-            ExerciseRow(exercise: exercise)
-        }
-        .overlay {
-            if viewModel.isLoading {
-                ProgressView()
-            }
-        }
+        // Use: dependencies.workoutDataManager, dependencies.restTimerManager, etc.
     }
 }
 ```
 
-**Use `@State` when the view owns the `@Observable` object:**
+### ViewModels: Pragmatic Pattern
+**SwiftUI limitation:** Cannot access `@Environment` in `init()`. ViewModels use optional params with `.shared` fallbacks:
+
 ```swift
-struct WorkoutContainerView: View {
-    @State private var viewModel: WorkoutViewModel
+@Observable @MainActor
+final class MyViewModel {
+    private let dataManager: WorkoutDataManaging
 
-    init(workout: Workout, workoutService: WorkoutServiceProtocol) {
-        _viewModel = State(initialValue: WorkoutViewModel(
-            workout: workout,
-            workoutService: workoutService
-        ))
-    }
-
-    var body: some View {
-        WorkoutView(viewModel: viewModel)
+    init(dataManager: WorkoutDataManaging? = nil) {
+        self.dataManager = dataManager ?? WorkoutDataManager.shared
     }
 }
-```
 
-### Dependency Injection via Environment
-
-**Define environment keys for services:**
-```swift
-extension EnvironmentValues {
-    @Entry var workoutService: WorkoutServiceProtocol = WorkoutService()
-    @Entry var exerciseService: ExerciseServiceProtocol = ExerciseService()
-}
-```
-
-**Inject at app root:**
-```swift
-@main
-struct IronPathApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(\.workoutService, ProductionWorkoutService())
-                .environment(\.exerciseService, ProductionExerciseService())
-        }
-    }
-}
-```
-
-**Consume in views:**
-```swift
-struct WorkoutView: View {
-    @Environment(\.workoutService) private var workoutService
-
-    var body: some View {
-        // Use workoutService here
-    }
-}
-```
-
-### View Composition
-
-**Keep views small and focused (~150 lines max):**
-```swift
-struct ExerciseRowView: View {
-    let exercise: Exercise
-
-    var body: some View {
-        HStack {
-            exerciseInfo
-            Spacer()
-            exerciseStats
-        }
-    }
-
-    private var exerciseInfo: some View {
-        VStack(alignment: .leading) {
-            Text(exercise.name).font(.headline)
-            Text(exercise.muscleGroup).font(.caption)
-        }
-    }
-
-    private var exerciseStats: some View {
-        Text("\(exercise.sets) sets")
-            .foregroundStyle(.secondary)
-    }
-}
-```
-
-**Use `@ViewBuilder` for conditional content:**
-```swift
-@ViewBuilder
-private var statusView: some View {
-    switch viewModel.status {
-    case .loading:
-        ProgressView()
-    case .loaded(let data):
-        DataView(data: data)
-    case .error(let error):
-        ErrorView(error: error)
-    }
-}
-```
-
-### Swift Concurrency
-
-**All UI-updating code must be `@MainActor`:**
-```swift
-@Observable
-@MainActor
-final class SyncManager {
-    var syncStatus: SyncStatus = .idle
-
-    func sync() async {
-        syncStatus = .syncing
-        defer { syncStatus = .idle }
-
-        do {
-            try await performSync()
-            syncStatus = .completed
-        } catch {
-            syncStatus = .failed(error)
-        }
-    }
-}
-```
-
-**Use structured concurrency for parallel operations:**
-```swift
-func loadData() async throws {
-    async let workouts = workoutService.fetchWorkouts()
-    async let exercises = exerciseService.fetchExercises()
-
-    let (w, e) = try await (workouts, exercises)
-    self.workouts = w
-    self.exercises = e
-}
-```
-
-**Handle notifications with `nonisolated` + Task:**
-```swift
-@Observable
-@MainActor
-final class DataManager {
-    var data: [Item] = []
+// View passes dependency when possible:
+struct MyView: View {
+    @Environment(DependencyContainer.self) private var dependencies
+    @State private var viewModel: MyViewModel
 
     init() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleUpdate),
-            name: .dataDidUpdate,
-            object: nil
-        )
+        _viewModel = State(initialValue: MyViewModel())
     }
-
-    @objc nonisolated private func handleUpdate(_ notification: Notification) {
-        Task { @MainActor in
-            await refreshData()
-        }
-    }
-}
-```
-
-**Use `.task` modifier for async work in views:**
-```swift
-struct WorkoutListView: View {
-    var viewModel: WorkoutListViewModel
-
-    var body: some View {
-        List(viewModel.workouts) { workout in
-            WorkoutRow(workout: workout)
-        }
-        .task {
-            await viewModel.loadWorkouts()
-        }
-        .refreshable {
-            await viewModel.loadWorkouts()
-        }
-    }
-}
-```
-
-### State Management
-
-**Property wrapper guide for iOS 17+:**
-
-| Wrapper | Use Case |
-|---------|----------|
-| `@State` | Value types OR `@Observable` objects owned by the view |
-| `@Binding` | Two-way connection to parent's state |
-| `@Environment` | Dependency injection, system values |
-| `@Bindable` | Create bindings to `@Observable` object properties |
-| No wrapper | `@Observable` objects passed from parent |
-
-**Create bindings with `@Bindable`:**
-```swift
-struct WorkoutEditorView: View {
-    @Bindable var viewModel: WorkoutViewModel
-
-    var body: some View {
-        TextField("Workout Name", text: $viewModel.workout.name)
-        Toggle("Completed", isOn: $viewModel.workout.isCompleted)
-    }
-}
-```
-
-### Error Handling
-
-**Use typed errors and handle at ViewModel level:**
-```swift
-enum WorkoutError: LocalizedError {
-    case saveFailed
-    case loadFailed
-    case networkUnavailable
-
-    var errorDescription: String? {
-        switch self {
-        case .saveFailed: "Failed to save workout"
-        case .loadFailed: "Failed to load workouts"
-        case .networkUnavailable: "Network unavailable"
-        }
-    }
-}
-
-@Observable
-@MainActor
-final class WorkoutViewModel {
-    var error: WorkoutError?
-
-    func save() async {
-        do {
-            try await workoutService.saveWorkout(workout)
-        } catch {
-            self.error = .saveFailed
-        }
-    }
-}
-```
-
-**Display errors with `.alert`:**
-```swift
-struct WorkoutView: View {
-    @Bindable var viewModel: WorkoutViewModel
 
     var body: some View {
         content
-            .alert(
-                "Error",
-                isPresented: Binding(
-                    get: { viewModel.error != nil },
-                    set: { if !$0 { viewModel.error = nil } }
-                ),
-                presenting: viewModel.error
-            ) { _ in
-                Button("OK") { viewModel.error = nil }
-            } message: { error in
-                Text(error.localizedDescription)
+            .onAppear {
+                // Late injection if needed
+                viewModel.configure(dataManager: dependencies.workoutDataManager)
             }
     }
 }
 ```
 
-### Testing
+---
 
-**Protocol-based dependencies for testability:**
+## Key Services & Managers
+
+| Service | File | Purpose |
+|---------|------|---------|
+| `WorkoutDataManager` | Services/WorkoutDataManager.swift | Workout CRUD, history |
+| `RestTimerManager` | Services/RestTimerManager.swift | Global rest timer state |
+| `GymProfileManager` | Services/GymProfileManager.swift | Multi-gym equipment profiles |
+| `EquipmentManager` | Services/EquipmentManager.swift | Available equipment catalog |
+| `ExercisePreferenceManager` | Services/ExercisePreferenceManager.swift | User exercise preferences |
+| `AIProviderManager` | Services/AIProviders/AIProviderManager.swift | AI workout generation |
+| `CloudSyncManager` | Services/CloudSyncManager.swift | iCloud sync |
+| `AppSettings` | Services/AppSettings.swift | User preferences |
+| `ActiveWorkoutManager` | Services/ActiveWorkoutManager.swift | In-progress workout persistence |
+
+**All protocols in:** `Protocols/DataManagerProtocols.swift`
+
+---
+
+## View Size Guidelines
+
+**Target: ~150 lines per file. Max: ~300 lines.**
+
+When a view grows large, split into:
+1. **Main view file** - Body, navigation, sheets
+2. **Components file** - `{Feature}Components.swift` for subviews
+3. **Sections file** - For list sections (e.g., `ProfileSettingsComponents.swift`)
+
+Example splits already done:
+- `HistoryView.swift` + `HistoryComponents.swift` + `WorkoutHistoryDetailView.swift`
+- `ExerciseDetailSheet.swift` + `ExerciseDetailComponents.swift`
+- `ProfileView.swift` + `ProfileSettingsComponents.swift`
+
+---
+
+## Common Tasks
+
+### Adding a New View
+1. Create in appropriate `Views/` subfolder
+2. If >150 lines, split into `{Name}View.swift` + `{Name}Components.swift`
+3. Use `@Environment(DependencyContainer.self)` for services
+4. Use `@State private var viewModel` if view owns the ViewModel
+
+### Adding a New Service
+1. Add protocol to `Protocols/DataManagerProtocols.swift`
+2. Create service in `Services/`
+3. Add to `DependencyContainer` (both init methods)
+4. Add `.shared` static for fallback pattern
+
+### Adding a ViewModel
+1. Create in `ViewModels/`
+2. Use `@Observable @MainActor final class`
+3. Accept dependencies as optional params with `.shared` fallbacks
+4. Keep UI state (sheets, alerts) in ViewModel, not View
+
+### Modifying Existing Features
+1. **Check ViewModels/** first for business logic
+2. **Check Services/** for data operations
+3. **Check existing components** before creating new ones
+4. **Search for similar patterns** - likely already implemented somewhere
+
+---
+
+## @Observable + SwiftUI Patterns
+
+### Timer/Continuous Updates (RestTimerManager pattern)
 ```swift
-protocol WorkoutServiceProtocol: Sendable {
-    func saveWorkout(_ workout: Workout) async throws
-    func fetchWorkouts() async throws -> [Workout]
-}
+@Observable @MainActor
+final class TimerManager {
+    var remainingTime: TimeInterval = 0
+    private(set) var timerTick: UInt64 = 0  // Heartbeat for SwiftUI updates
 
-// Production implementation
-final class WorkoutService: WorkoutServiceProtocol {
-    func saveWorkout(_ workout: Workout) async throws { ... }
-    func fetchWorkouts() async throws -> [Workout] { ... }
-}
-
-// Test mock
-final class MockWorkoutService: WorkoutServiceProtocol {
-    var savedWorkouts: [Workout] = []
-    var workoutsToReturn: [Workout] = []
-    var shouldThrow = false
-
-    func saveWorkout(_ workout: Workout) async throws {
-        if shouldThrow { throw WorkoutError.saveFailed }
-        savedWorkouts.append(workout)
-    }
-
-    func fetchWorkouts() async throws -> [Workout] {
-        if shouldThrow { throw WorkoutError.loadFailed }
-        return workoutsToReturn
+    private func tick() {
+        remainingTime -= 1
+        timerTick &+= 1  // Forces @Observable to notify
     }
 }
 ```
 
-**Test ViewModels directly:**
+### View Owns ViewModel
 ```swift
-@MainActor
-final class WorkoutViewModelTests: XCTestCase {
-    func testSaveWorkout() async {
-        let mockService = MockWorkoutService()
-        let viewModel = WorkoutViewModel(
-            workout: .sample,
-            workoutService: mockService
-        )
+struct MyView: View {
+    @State private var viewModel: MyViewModel
 
-        await viewModel.save()
-
-        XCTAssertEqual(mockService.savedWorkouts.count, 1)
-        XCTAssertNil(viewModel.error)
+    init(data: SomeData) {
+        _viewModel = State(initialValue: MyViewModel(data: data))
     }
+}
+```
 
-    func testSaveWorkoutFailure() async {
-        let mockService = MockWorkoutService()
-        mockService.shouldThrow = true
-        let viewModel = WorkoutViewModel(
-            workout: .sample,
-            workoutService: mockService
-        )
+### View Receives ViewModel (no wrapper)
+```swift
+struct ChildView: View {
+    var viewModel: MyViewModel  // No @State, no @Bindable
+    var body: some View { ... }
+}
+```
 
-        await viewModel.save()
-
-        XCTAssertEqual(viewModel.error, .saveFailed)
+### Creating Bindings
+```swift
+struct EditorView: View {
+    @Bindable var viewModel: MyViewModel
+    var body: some View {
+        TextField("Name", text: $viewModel.name)
     }
 }
 ```
 
 ---
 
-## Project Conventions
+## Anti-Patterns to AVOID
 
-### File Organization
-```
-IronPath/
-├── Models/           # Data models, Codable structs
-├── ViewModels/       # @Observable ViewModels
-├── Views/
-│   ├── Components/   # Reusable UI components
-│   ├── ActiveWorkout/
-│   └── Profile/
-├── Services/         # Business logic, API calls, persistence
-└── Protocols/        # Protocol definitions for DI
-```
-
-### Naming Conventions
-- ViewModels: `{Feature}ViewModel` (e.g., `ActiveWorkoutViewModel`)
-- Views: `{Feature}View` (e.g., `ActiveWorkoutView`)
-- Services: `{Domain}Service` (e.g., `WorkoutService`)
-- Protocols: `{Name}Protocol` or `{Name}Providing` (e.g., `WorkoutServiceProtocol`)
+| Don't | Do Instead |
+|-------|------------|
+| `ObservableObject`/`@Published` | `@Observable` macro |
+| `@StateObject`/`@ObservedObject` | `@State` for owned, plain var for passed |
+| New singleton without protocol | Add to `DependencyContainer` with protocol |
+| View files >300 lines | Split into components |
+| `DispatchQueue.main.async` | `@MainActor` or `Task { @MainActor in }` |
+| Force unwraps `!` | `guard let`, `if let`, `??` |
+| Duplicate components | Search existing, reuse or extract shared |
 
 ---
 
-## Patterns to Avoid
+## Existing Reusable Components
 
-1. **`ObservableObject` / `@Published`** - Use `@Observable` macro instead
+**Before creating new UI, check these:**
 
-2. **`@StateObject` / `@ObservedObject`** - Use `@State` for owned objects, no wrapper for passed objects
-
-3. **Singletons (`.shared`)** - Use environment-based dependency injection
-
-4. **`DispatchQueue.main.async`** - Use `@MainActor` or `Task { @MainActor in }`
-
-5. **Massive view files** - Extract components when files exceed 150 lines
-
-6. **Force unwrapping** - Use `guard let`, `if let`, or nil coalescing
-
-7. **Unstructured concurrency** - Use `async let`, `TaskGroup` for parallel work
-
-8. **Blocking operations on main thread** - All I/O must be `async`
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `ExerciseDetailSheet` | Views/Components/ | Edit exercise sets |
+| `AddExerciseSheet` | Views/Components/ | Browse/add exercises |
+| `SetRowView` | Views/ActiveWorkout/Components/ | Single set input |
+| `AdvancedSetRowView` | Views/ActiveWorkout/ | Set with all features |
+| `RestTimerView` | Views/ActiveWorkout/Components/ | Inline timer |
+| `GlobalRestTimerBar` | Views/ActiveWorkout/Components/ | Top timer bar |
+| `WorkoutHistoryCard` | Views/History/ | History list item |
+| `ExerciseHistorySection` | Views/Components/ | Past performance |
+| `GymProfileRow` | Views/Profile/ | Gym profile item |
+| `ProfileTechniqueModePicker` | Views/Profile/EditProfileView.swift | Technique toggles |
 
 ---
 
-## Code Review Checklist
+## File Search Hints
 
-Before committing, verify:
+| Looking for... | Search/Check |
+|----------------|--------------|
+| Workout models | `Models/Workout.swift` |
+| Exercise definitions | `Models/Exercise.swift`, `Data/ExerciseDatabase.swift` |
+| User settings | `Models/UserProfile.swift`, `Services/AppSettings.swift` |
+| Data persistence | `Services/WorkoutDataManager.swift`, `Services/CloudSyncManager.swift` |
+| AI/LLM code | `Services/AIProviders/` folder |
+| Gym equipment | `Models/GymProfile.swift`, `Services/EquipmentManager.swift` |
+| Rest timer | `Services/RestTimerManager.swift`, `Views/ActiveWorkout/Components/RestTimer*.swift` |
 
-- [ ] ViewModels use `@Observable` macro with `@MainActor`
-- [ ] Dependencies injected via Environment, not singletons
-- [ ] All async operations use structured concurrency
-- [ ] Views are focused (<150 lines) with extracted subviews
-- [ ] `@Bindable` used for creating bindings to `@Observable` properties
-- [ ] Error states handled and displayed to user
-- [ ] No force unwraps without clear safety guarantees
-- [ ] Services conform to `Sendable` for safe concurrency
+---
+
+## Code Style
+
+- **MARK comments:** `// MARK: - Section Name`
+- **Private subviews:** Use computed properties: `private var headerView: some View { ... }`
+- **Modifiers:** Chain on new lines for readability
+- **Error handling:** ViewModel holds errors, View displays via `.alert`
+- **Async in views:** Use `.task { }` modifier, not `onAppear` with Task
+
+---
+
+## Testing
+
+- Tests in `IronPathTests/`
+- ViewModels testable via protocol injection
+- Use `MockWorkoutDataManager`, etc. from test files
+- Run: `xcodebuild test -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17'`
