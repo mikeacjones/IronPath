@@ -27,6 +27,10 @@ final class RestTimerManager {
     var setNumber: Int = 0
     var showCompletionBanner: Bool = false
 
+    /// Tick counter that increments every timer update to trigger @Observable refresh
+    /// SwiftUI observes this to know when to recalculate computed properties
+    private(set) var timerTick: UInt64 = 0
+
     // Superset/Circuit tracking
     var isGroupTimer: Bool = false
     var groupType: ExerciseGroupType?
@@ -47,16 +51,22 @@ final class RestTimerManager {
 
     /// Remaining time calculated from endTime - ensures accuracy even after app backgrounding
     var remainingTime: TimeInterval {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         guard let endTime = endTime else { return 0 }
         return max(0, endTime.timeIntervalSinceNow)
     }
 
     var progress: Double {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         guard totalDuration > 0 else { return 0 }
         return 1 - (remainingTime / totalDuration)
     }
 
     var formattedTime: String {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         let time = remainingTime
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -245,8 +255,9 @@ final class RestTimerManager {
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                // Touch a property to trigger @Observable update
-                // (reading remainingTime in formattedTime will auto-update UI)
+                // Increment tick to trigger @Observable update
+                // This causes SwiftUI to re-read computed properties (remainingTime, progress, formattedTime)
+                self.timerTick &+= 1
 
                 // Check if timer completed
                 if self.remainingTime <= 0 {

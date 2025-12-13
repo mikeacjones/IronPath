@@ -133,16 +133,14 @@ struct RestTimerView: View {
         self.onRestTimeChanged = onRestTimeChanged
     }
 
+    /// Progress from timer manager (dependency tracked via timerTick in manager)
     var progress: Double {
-        guard timerManager.totalDuration > 0 else { return 0 }
-        return 1 - (timerManager.remainingTime / timerManager.totalDuration)
+        timerManager.progress
     }
 
+    /// Formatted time from timer manager (dependency tracked via timerTick in manager)
     var formattedTime: String {
-        let time = timerManager.remainingTime
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        timerManager.formattedTime
     }
 
     var body: some View {
