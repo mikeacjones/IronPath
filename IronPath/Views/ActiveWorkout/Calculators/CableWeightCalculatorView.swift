@@ -8,7 +8,7 @@ struct CableWeightCalculatorView: View {
     let exerciseName: String
     let onSelectWeight: (Double) -> Void
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var settings = GymSettings.shared
+    @StateObject private var settings = GymSettings.shared
     @State private var showingConfigEditor = false
 
     private var config: CableMachineConfig {

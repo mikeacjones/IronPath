@@ -188,7 +188,7 @@ struct ExerciseRowView: View {
 struct ExerciseLibraryDetailView: View {
     let exercise: Exercise
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var gymSettings = GymSettings.shared
+    @StateObject private var gymSettings = GymSettings.shared
 
     var body: some View {
         NavigationStack {
@@ -308,7 +308,7 @@ struct ExerciseLibraryDetailView: View {
 /// Picker for exercise suggestion preference
 struct ExercisePreferencePickerView: View {
     let exerciseName: String
-    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
+    @StateObject private var preferenceManager = ExercisePreferenceManager.shared
 
     private var currentPreference: ExerciseSuggestionPreference {
         preferenceManager.getPreference(for: exerciseName)

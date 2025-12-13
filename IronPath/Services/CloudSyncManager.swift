@@ -17,6 +17,7 @@ enum CloudSyncStatus: Equatable {
 
 /// Manages iCloud sync for app data persistence across installs
 /// Uses NSUbiquitousKeyValueStore for small data and CloudKit for larger data
+@MainActor
 class CloudSyncManager: ObservableObject {
     static let shared = CloudSyncManager()
 
@@ -70,7 +71,7 @@ class CloudSyncManager: ObservableObject {
             kvStore.synchronize()
 
             // Fetch CloudKit data on launch
-            Task { @MainActor in
+            Task {
                 await performInitialSync()
             }
         } else {
@@ -81,7 +82,6 @@ class CloudSyncManager: ObservableObject {
     }
 
     /// Perform initial sync on app launch - waits for CloudKit data
-    @MainActor
     private func performInitialSync() async {
         syncStatus = .syncing
         print("CloudSync: Starting initial sync...")
@@ -104,7 +104,8 @@ class CloudSyncManager: ObservableObject {
 
     // MARK: - KV Store Sync Trigger
 
-    @objc private func cloudDataDidChange(_ notification: Notification) {
+    // Note: nonisolated because @objc selectors are called from NotificationCenter on arbitrary threads
+    @objc nonisolated private func cloudDataDidChange(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let reason = userInfo[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int else {
             return
@@ -112,7 +113,7 @@ class CloudSyncManager: ObservableObject {
 
         switch reason {
         case NSUbiquitousKeyValueStoreServerChange, NSUbiquitousKeyValueStoreInitialSyncChange:
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
             }
         case NSUbiquitousKeyValueStoreQuotaViolationChange:
@@ -286,10 +287,8 @@ class CloudSyncManager: ObservableObject {
 
                         let restoredCount = (try? decoder.decode([Workout].self, from: data))?.count ?? 0
 
-                        await MainActor.run {
-                            self.restoredWorkoutsCount = restoredCount
-                            NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
-                        }
+                        self.restoredWorkoutsCount = restoredCount
+                        NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                         print("CloudSync: Restored \(restoredCount) workouts from iCloud")
                     } else if !localWorkouts.isEmpty && localUpdatedAt > cloudUpdatedAt {
                         // Local is newer and not empty, push to cloud
@@ -457,9 +456,7 @@ class CloudSyncManager: ObservableObject {
                     UserDefaults.standard.set(data, forKey: "gymProfiles")
                     UserDefaults.standard.set(cloudUpdatedAt, forKey: "gym_settings_updated")
 
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
-                    }
+                    NotificationCenter.default.post(name: .cloudDataDidSync, object: nil)
                     print("CloudSync: Restored gym settings from iCloud")
                 } else if localData != nil && localUpdatedAt > cloudUpdatedAt {
                     await saveGymSettingsToCloud(localData!)
@@ -557,9 +554,7 @@ class CloudSyncManager: ObservableObject {
         await deleteCloudKitRecord(recordName: "gym_settings_v1", recordType: RecordTypes.gymSettings)
 
         // Reset restored count
-        await MainActor.run {
-            restoredWorkoutsCount = 0
-        }
+        restoredWorkoutsCount = 0
 
         print("CloudSync: All data cleared from local and iCloud storage")
     }

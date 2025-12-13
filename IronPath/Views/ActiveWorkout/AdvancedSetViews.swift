@@ -35,7 +35,7 @@ struct AdvancedSetRowView: View {
     @State private var showPlateCalculator: Bool = false
     @State private var showDropSetEditor: Bool = false
     @State private var showRestPauseEditor: Bool = false
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+    @StateObject private var restTimerManager = RestTimerManager.shared
 
     init(
         set: ExerciseSet,
@@ -247,7 +247,7 @@ struct StandardSetRow: View {
     let previousSetWeight: Double?
 
     @State private var showPlateCalculator = false
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+    @StateObject private var restTimerManager = RestTimerManager.shared
 
     init(
         set: ExerciseSet,
@@ -433,7 +433,7 @@ struct WarmupSetRow: View {
     let isPendingWorkout: Bool
 
     @State private var showPlateCalculator = false
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+    @StateObject private var restTimerManager = RestTimerManager.shared
 
     init(
         set: ExerciseSet,
@@ -600,7 +600,7 @@ struct DropSetRow: View {
 
     @State private var localConfig: DropSetConfig
     @State private var showEditSheet = false
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+    @StateObject private var restTimerManager = RestTimerManager.shared
 
     init(
         set: ExerciseSet,
@@ -867,7 +867,7 @@ struct RestPauseSetRow: View {
     @State private var weight: String
     @State private var showEditSheet = false
     @State private var activePauseTimer: Int? = nil
-    @ObservedObject private var restTimerManager = RestTimerManager.shared
+    @StateObject private var restTimerManager = RestTimerManager.shared
 
     init(
         set: ExerciseSet,

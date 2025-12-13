@@ -8,6 +8,9 @@ struct ExerciseDetailSheet: View {
     @EnvironmentObject private var dependencies: DependencyContainer
     @Environment(\.dismiss) var dismiss
 
+    /// Tracks whether changes have been saved to prevent double-save
+    @State private var hasSaved = false
+
     init(
         exercise: WorkoutExercise,
         onUpdate: @escaping (WorkoutExercise) -> Void,
@@ -251,6 +254,7 @@ struct ExerciseDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        hasSaved = true
                         viewModel.saveAndDismiss()
                         dismiss()
                     }
@@ -262,7 +266,8 @@ struct ExerciseDetailSheet: View {
                 }
             }
             .onDisappear {
-                // Always save changes when sheet is dismissed (including swipe-to-dismiss)
+                // Save changes on swipe-to-dismiss, but skip if already saved via Done button
+                guard !hasSaved else { return }
                 viewModel.saveAndDismiss()
             }
         }

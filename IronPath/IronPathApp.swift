@@ -5,7 +5,7 @@ import Combine
 struct IronPathApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var dependencyContainer = DependencyContainer.shared
-    @ObservedObject private var cloudSync = CloudSyncManager.shared
+    @StateObject private var cloudSync = CloudSyncManager.shared
 
     var body: some Scene {
         WindowGroup {
@@ -31,7 +31,7 @@ struct IronPathApp: App {
 // MARK: - Cloud Sync Loading View
 
 struct CloudSyncLoadingView: View {
-    @ObservedObject private var cloudSync = CloudSyncManager.shared
+    @StateObject private var cloudSync = CloudSyncManager.shared
     @State private var showingManualContinue = false
 
     var body: some View {

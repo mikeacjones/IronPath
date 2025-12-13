@@ -10,7 +10,7 @@ struct PlateCalculatorView: View {
     var previousWeight: Double? = nil  // Previous set weight for comparison
 
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var settings = GymSettings.shared
+    @StateObject private var settings = GymSettings.shared
     @State private var showingPlateEditor = false
     @State private var customWeightText: String = ""
     @State private var localMachineWeight: Double = 0
@@ -449,7 +449,7 @@ struct AvailablePlatesEditor: View {
     let exerciseName: String
 
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var settings = GymSettings.shared
+    @StateObject private var settings = GymSettings.shared
     @State private var newPlateWeight: String = ""
     @State private var newPlateCount: String = ""
     @State private var localPlates: [AvailablePlate] = []

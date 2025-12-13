@@ -3,9 +3,9 @@ import UIKit
 
 struct ProfileView: View {
     @EnvironmentObject var appState: AppState
-    @ObservedObject private var gymProfileManager = GymProfileManager.shared
-    @ObservedObject private var providerManager = AIProviderManager.shared
-    @ObservedObject private var appSettings = AppSettings.shared
+    @StateObject private var gymProfileManager = GymProfileManager.shared
+    @StateObject private var providerManager = AIProviderManager.shared
+    @StateObject private var appSettings = AppSettings.shared
     @State private var showingEditProfile = false
     @State private var showingGymSettings = false
     @State private var showingGymProfileEditor = false
@@ -670,7 +670,7 @@ struct GymMachineSelectionView: View {
 }
 struct GymEquipmentSettingsView: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var settings = GymSettings.shared
+    @StateObject private var settings = GymSettings.shared
     @State private var showingDefaultCableEditor = false
     @State private var showingDumbbellConfig = false
 
@@ -1182,7 +1182,7 @@ struct TierInputRow: View {
 
 struct DumbbellConfigurationView: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject private var settings = GymSettings.shared
+    @StateObject private var settings = GymSettings.shared
 
     @State private var useSpecificDumbbells: Bool
     @State private var selectedDumbbells: Set<Double>
