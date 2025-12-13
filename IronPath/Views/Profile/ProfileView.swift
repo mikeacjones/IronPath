@@ -749,7 +749,7 @@ struct GymEquipmentSettingsView: View {
                 }
 
                 Section {
-                    Text("These settings are sent to Claude when generating workouts to ensure only achievable weights are suggested.")
+                    Text("These settings are sent to your AI when generating workouts to ensure only achievable weights are suggested.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -876,6 +876,7 @@ struct FreeWeightsEditor: View {
                                     Image(systemName: "minus.circle.fill")
                                         .foregroundStyle(freeWeight.count > 1 ? .blue : .gray)
                                 }
+                                .buttonStyle(.plain)
                                 .disabled(freeWeight.count <= 1)
 
                                 Text("\(freeWeight.count)")
@@ -889,6 +890,7 @@ struct FreeWeightsEditor: View {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundStyle(.blue)
                                 }
+                                .buttonStyle(.plain)
                             }
 
                             // Delete button

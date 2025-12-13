@@ -164,7 +164,7 @@ struct WorkoutSetupView: View {
                     } header: {
                         Text("Training Techniques")
                     } footer: {
-                        Text("Control whether Claude can suggest or must include advanced techniques. Global settings can be changed in Profile.")
+                        Text("Control whether your AI can suggest or must include advanced techniques. Global settings can be changed in Profile.")
                     }
 
                     Section {
@@ -179,7 +179,7 @@ struct WorkoutSetupView: View {
                                     .font(.caption)
                             }
                         } else {
-                            Text("Notes for Claude")
+                            Text("Notes for AI")
                         }
                     } footer: {
                         Text(promptFooter)

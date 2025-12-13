@@ -163,7 +163,7 @@ struct AddExerciseSheet: View {
                                         Text("Generating...")
                                     } else {
                                         Image(systemName: "sparkles")
-                                        Text("Generate with Claude")
+                                        Text("Generate with AI")
                                     }
                                     Spacer()
                                 }

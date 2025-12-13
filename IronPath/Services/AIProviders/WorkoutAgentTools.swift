@@ -82,7 +82,7 @@ enum WorkoutAgentTools {
 
     static let getExerciseHistoryTool: [String: Any] = [
         "name": "get_exercise_history",
-        "description": "Get user's recent performance and suggested weight for an exercise. Returns progressive overload recommendation. If no history, use sensible defaults.",
+        "description": "Get user's recent workout sessions for an exercise. Returns raw history (dates, weights, reps). Analyze the progression yourself and decide appropriate weight based on their history. If no history, use sensible defaults for their fitness level.",
         "input_schema": [
             "type": "object",
             "properties": [

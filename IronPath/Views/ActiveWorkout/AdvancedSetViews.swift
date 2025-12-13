@@ -189,8 +189,17 @@ struct AdvancedSetRowView: View {
             }
         }
         .onChange(of: set.actualReps) { _, newReps in
-            if !isCompleted, let newReps = newReps {
+            if !isCompleted && !isPendingWorkout, let newReps = newReps {
                 let newRepsString = String(newReps)
+                if reps != newRepsString {
+                    reps = newRepsString
+                }
+            }
+        }
+        .onChange(of: set.targetReps) { _, newTargetReps in
+            // For pending workouts, sync the displayed reps from targetReps
+            if !isCompleted && isPendingWorkout {
+                let newRepsString = String(newTargetReps)
                 if reps != newRepsString {
                     reps = newRepsString
                 }

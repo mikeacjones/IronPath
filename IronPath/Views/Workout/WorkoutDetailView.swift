@@ -29,6 +29,10 @@ struct WorkoutDetailView: View {
     @State private var replacementError: String?
     @State private var showReplacementError = false
 
+    // Superset/circuit creation state
+    @State private var showCreateGroupSheet = false
+    @State private var groupToAddExerciseTo: ExerciseGroup?
+
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
         self._workout = State(initialValue: workout)
         self.onStartWorkout = { _ in onStartWorkout() }
@@ -118,6 +122,9 @@ struct WorkoutDetailView: View {
                                 preference,
                                 for: exercise.exercise.name
                             )
+                        },
+                        onAddExerciseToGroup: { group in
+                            groupToAddExerciseTo = group
                         }
                     )
                     .onChange(of: workout) { _, newWorkout in
@@ -140,6 +147,25 @@ struct WorkoutDetailView: View {
                         .foregroundStyle(.blue)
                         .cornerRadius(12)
                     }
+
+                    // Create Superset button (only show if there are 2+ ungrouped exercises)
+                    if ungroupedExercises.count >= 2 {
+                        Button {
+                            showCreateGroupSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.title2)
+                                Text("Create Superset")
+                                    .fontWeight(.medium)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .foregroundStyle(.purple)
+                            .cornerRadius(12)
+                        }
+                    }
                 }
                 .padding(.horizontal)
 
@@ -156,7 +182,7 @@ struct WorkoutDetailView: View {
                     Button {
                         onRegenerate()
                     } label: {
-                        Text("Generate Different Workout")
+                        Text("Discard Workout")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -224,6 +250,31 @@ struct WorkoutDetailView: View {
         } message: {
             Text(replacementError ?? "Failed to replace exercise")
         }
+        .sheet(isPresented: $showCreateGroupSheet) {
+            CreateExerciseGroupSheet(
+                workout: $workout,
+                onGroupCreated: {
+                    onWorkoutUpdated?(workout)
+                }
+            )
+        }
+        .sheet(item: $groupToAddExerciseTo) { group in
+            AddExerciseSheet(
+                existingExercises: workout.exercises.map { $0.exercise.name },
+                userProfile: appState.userProfile
+            ) { exercise in
+                addExerciseToGroup(exercise, group: group)
+            }
+        }
+    }
+
+    // MARK: - Computed Properties
+
+    /// Exercises that are not part of any group
+    private var ungroupedExercises: [WorkoutExercise] {
+        workout.exercises.filter { exercise in
+            !workout.isGrouped(exercise.id)
+        }
     }
 
     // MARK: - Exercise Management
@@ -248,10 +299,40 @@ struct WorkoutDetailView: View {
         onWorkoutUpdated?(workout)
     }
 
-    private func removeExercise(_ exercise: WorkoutExercise) {
-        // Don't allow removing the last exercise
-        guard workout.exercises.count > 1 else { return }
+    private func addExerciseToGroup(_ exercise: Exercise, group: ExerciseGroup) {
+        // Create the workout exercise
+        let sets = (1...3).map { setNum in
+            ExerciseSet(
+                setNumber: setNum,
+                targetReps: 10,
+                restPeriod: 90
+            )
+        }
 
+        let workoutExercise = WorkoutExercise(
+            exercise: exercise,
+            sets: sets,
+            orderIndex: workout.exercises.count,
+            notes: ""
+        )
+
+        // Add to workout
+        workout.exercises.append(workoutExercise)
+
+        // Add to the group
+        if var groups = workout.exerciseGroups,
+           let groupIndex = groups.firstIndex(where: { $0.id == group.id }) {
+            groups[groupIndex].exerciseIds.append(workoutExercise.id)
+            groups[groupIndex].groupType = ExerciseGroupType.suggestedType(for: groups[groupIndex].exerciseIds.count)
+            workout.exerciseGroups = groups
+        }
+
+        // Rebuild exercise order to keep grouped exercises together
+        workout.rebuildExercisesOrder()
+        onWorkoutUpdated?(workout)
+    }
+
+    private func removeExercise(_ exercise: WorkoutExercise) {
         // Remove exercise from any group it belongs to
         if var groups = workout.exerciseGroups {
             for i in groups.indices {

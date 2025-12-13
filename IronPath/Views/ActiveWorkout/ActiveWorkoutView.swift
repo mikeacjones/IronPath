@@ -23,6 +23,7 @@ struct ActiveWorkoutView: View {
 
     // Add exercise state
     @State private var showAddExerciseSheet = false
+    @State private var groupToAddExerciseTo: ExerciseGroup?
 
     // Remove exercise state
     @State private var exerciseToRemove: WorkoutExercise?
@@ -92,6 +93,9 @@ struct ActiveWorkoutView: View {
                                     preference,
                                     for: exercise.exercise.name
                                 )
+                            },
+                            onAddExerciseToGroup: { group in
+                                groupToAddExerciseTo = group
                             }
                         )
                         .onChange(of: currentWorkout) { _, _ in
@@ -231,6 +235,14 @@ struct ActiveWorkoutView: View {
                 addExerciseFromLibrary(exercise)
             }
         }
+        .sheet(item: $groupToAddExerciseTo) { group in
+            AddExerciseSheet(
+                existingExercises: currentWorkout.exercises.map { $0.exercise.name },
+                userProfile: userProfile
+            ) { exercise in
+                addExerciseToGroup(exercise, group: group)
+            }
+        }
         .sheet(isPresented: $showCompletionSummary, onDismiss: {
             // Reset finishing state when sheet is dismissed
             // This handles edge cases where the sheet might be dismissed unexpectedly
@@ -290,6 +302,39 @@ struct ActiveWorkoutView: View {
         )
 
         currentWorkout.exercises.append(workoutExercise)
+        persistWorkoutState()
+    }
+
+    private func addExerciseToGroup(_ exercise: Exercise, group: ExerciseGroup) {
+        // Create the workout exercise
+        let sets = (1...3).map { setNum in
+            ExerciseSet(
+                setNumber: setNum,
+                targetReps: 10,
+                restPeriod: 90
+            )
+        }
+
+        let workoutExercise = WorkoutExercise(
+            exercise: exercise,
+            sets: sets,
+            orderIndex: currentWorkout.exercises.count,
+            notes: ""
+        )
+
+        // Add to workout
+        currentWorkout.exercises.append(workoutExercise)
+
+        // Add to the group
+        if var groups = currentWorkout.exerciseGroups,
+           let groupIndex = groups.firstIndex(where: { $0.id == group.id }) {
+            groups[groupIndex].exerciseIds.append(workoutExercise.id)
+            groups[groupIndex].groupType = ExerciseGroupType.suggestedType(for: groups[groupIndex].exerciseIds.count)
+            currentWorkout.exerciseGroups = groups
+        }
+
+        // Rebuild exercise order to keep grouped exercises together
+        currentWorkout.rebuildExercisesOrder()
         persistWorkoutState()
     }
 
@@ -2407,7 +2452,7 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Available Plates")
                 } footer: {
-                    Text("Set count per side (0 = unlimited). Swipe left to remove.")
+                    Text("Swipe left to remove available plates")
                 }
 
                 Section {
@@ -2441,7 +2486,7 @@ struct AvailablePlatesEditor: View {
                 } header: {
                     Text("Add Plate")
                 } footer: {
-                    Text("Enter weight and quantity per side (leave qty empty for unlimited)")
+                    Text("Enter weight and quantity of plates (leave qty empty for unlimited)")
                 }
 
                 Section {
@@ -2541,7 +2586,7 @@ struct PlateRowEditor: View {
                     }
                 }
 
-            Text("/side")
+            Text("")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
