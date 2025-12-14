@@ -18,7 +18,7 @@ struct AddExerciseSheet: View {
     @State private var isGenerating = false
     @State private var generationError: String?
 
-    @ObservedObject private var customExercises = CustomExerciseStore.shared
+    @State private var customExercises = CustomExerciseStore.shared
 
     var filteredExercises: [Exercise] {
         var results = ExerciseDatabase.shared.exercises + customExercises.exercises

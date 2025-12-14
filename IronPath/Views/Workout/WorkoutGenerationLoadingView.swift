@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // MARK: - Workout Generation Loading View
 
@@ -20,8 +19,6 @@ struct WorkoutGenerationLoadingView: View {
         ("Summoning workout wisdom...", "sparkles"),
         ("Almost there, stay hydrated...", "drop.fill")
     ]
-
-    private let timer = Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(spacing: 20) {
@@ -52,16 +49,26 @@ struct WorkoutGenerationLoadingView: View {
         .background(.ultraThinMaterial)
         .cornerRadius(20)
         .shadow(radius: 10)
-        .onReceive(timer) { _ in
+        .task {
+            await rotateMessages()
+        }
+    }
+
+    private func rotateMessages() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+
             withAnimation(.easeOut(duration: 0.2)) {
                 opacity = 0
             }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                currentMessageIndex = (currentMessageIndex + 1) % messages.count
-                withAnimation(.easeIn(duration: 0.2)) {
-                    opacity = 1
-                }
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+
+            currentMessageIndex = (currentMessageIndex + 1) % messages.count
+            withAnimation(.easeIn(duration: 0.2)) {
+                opacity = 1
             }
         }
     }

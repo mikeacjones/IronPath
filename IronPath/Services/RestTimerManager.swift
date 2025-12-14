@@ -1,14 +1,15 @@
 import Foundation
 import UIKit
 import UserNotifications
-import Combine
 import AudioToolbox
 
 // MARK: - Rest Timer Manager
 
 /// Manages a global rest timer that persists when navigating away from exercise detail
 /// Timer state is persisted to UserDefaults so it survives app restarts
-class RestTimerManager: ObservableObject {
+@Observable
+@MainActor
+final class RestTimerManager {
     static let shared = RestTimerManager()
 
     // UserDefaults keys for persistence
@@ -20,16 +21,20 @@ class RestTimerManager: ObservableObject {
     private let groupTypeKey = "rest_timer_group_type"
     private let nextExerciseNameKey = "rest_timer_next_exercise"
 
-    @Published var isActive: Bool = false
-    @Published var totalDuration: TimeInterval = 0
-    @Published var exerciseName: String = ""
-    @Published var setNumber: Int = 0
-    @Published var showCompletionBanner: Bool = false
+    var isActive: Bool = false
+    var totalDuration: TimeInterval = 0
+    var exerciseName: String = ""
+    var setNumber: Int = 0
+    var showCompletionBanner: Bool = false
+
+    /// Tick counter that increments every timer update to trigger @Observable refresh
+    /// SwiftUI observes this to know when to recalculate computed properties
+    private(set) var timerTick: UInt64 = 0
 
     // Superset/Circuit tracking
-    @Published var isGroupTimer: Bool = false
-    @Published var groupType: ExerciseGroupType?
-    @Published var nextExerciseName: String?  // Next exercise in superset to do
+    var isGroupTimer: Bool = false
+    var groupType: ExerciseGroupType?
+    var nextExerciseName: String?  // Next exercise in superset to do
 
     /// The absolute time when the timer should complete
     private var endTime: Date?
@@ -42,24 +47,26 @@ class RestTimerManager: ObservableObject {
         restoreTimerState()
     }
 
-    deinit {
-        if let observer = notificationObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
+    // Note: Singleton never deallocates, no deinit needed
 
     /// Remaining time calculated from endTime - ensures accuracy even after app backgrounding
     var remainingTime: TimeInterval {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         guard let endTime = endTime else { return 0 }
         return max(0, endTime.timeIntervalSinceNow)
     }
 
     var progress: Double {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         guard totalDuration > 0 else { return 0 }
         return 1 - (remainingTime / totalDuration)
     }
 
     var formattedTime: String {
+        // Access timerTick to establish @Observable dependency for SwiftUI
+        _ = timerTick
         let time = remainingTime
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -217,7 +224,8 @@ class RestTimerManager: ObservableObject {
             showCompletionBanner = true
             // Play sound for expired timer
             playCompletionSound()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3))
                 self?.showCompletionBanner = false
             }
             return
@@ -243,14 +251,18 @@ class RestTimerManager: ObservableObject {
     private func startDisplayTimer() {
         timer?.invalidate()
         let newTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
 
-            // Force UI update
-            self.objectWillChange.send()
+                // Increment tick to trigger @Observable update
+                // This causes SwiftUI to re-read computed properties (remainingTime, progress, formattedTime)
+                self.timerTick &+= 1
 
-            // Check if timer completed
-            if self.remainingTime <= 0 {
-                self.timerCompleted()
+                // Check if timer completed
+                if self.remainingTime <= 0 {
+                    self.timerCompleted()
+                }
             }
         }
         // Add to common run loop modes so timer continues during sheet presentations and scrolling
@@ -266,7 +278,8 @@ class RestTimerManager: ObservableObject {
         playCompletionSound()
 
         // Auto-hide banner after 5 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
             self?.showCompletionBanner = false
         }
     }
@@ -285,7 +298,10 @@ class RestTimerManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleAppForeground()
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                self?.handleAppForeground()
+            }
         }
     }
 

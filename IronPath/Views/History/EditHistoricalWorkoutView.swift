@@ -4,7 +4,7 @@ struct EditHistoricalWorkoutView: View {
     let originalWorkout: Workout
     var onSave: (Workout) -> Void
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
 
     @State private var workoutName: String
     @State private var workoutDate: Date
@@ -221,5 +221,5 @@ struct EditHistoricalWorkoutView: View {
         ),
         onSave: { _ in }
     )
-    .environmentObject(AppState())
+    .environment(AppState())
 }

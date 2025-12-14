@@ -1,23 +1,23 @@
 import Foundation
-import Combine
 
 // MARK: - AI Provider Manager
 
 /// Manages AI provider selection, configuration, and API key storage
 /// This is the central point for all AI provider operations
-class AIProviderManager: ObservableObject {
+@Observable
+@MainActor
+final class AIProviderManager {
     static let shared = AIProviderManager()
 
-    // MARK: - Published Properties
+    // MARK: - Properties
 
-    @Published var selectedProviderType: AIProviderType {
+    var selectedProviderType: AIProviderType {
         didSet {
             UserDefaults.standard.set(selectedProviderType.rawValue, forKey: Keys.selectedProvider)
-            objectWillChange.send()
         }
     }
 
-    @Published var selectedModelId: String {
+    var selectedModelId: String {
         didSet {
             UserDefaults.standard.set(selectedModelId, forKey: Keys.selectedModel)
         }
@@ -26,6 +26,7 @@ class AIProviderManager: ObservableObject {
     // MARK: - Private Properties
 
     private var providers: [AIProviderType: AIProvider] = [:]
+    private let defaultProvider: AIProvider = AnthropicProvider()
 
     private enum Keys {
         static let selectedProvider = "ai_selected_provider"
@@ -66,7 +67,7 @@ class AIProviderManager: ObservableObject {
 
     /// Get the currently selected provider
     var currentProvider: AIProvider {
-        providers[selectedProviderType] ?? providers[.anthropic]!
+        providers[selectedProviderType] ?? defaultProvider
     }
 
     /// Get a specific provider by type
@@ -103,7 +104,6 @@ class AIProviderManager: ObservableObject {
     func saveAPIKey(_ key: String, for providerType: AIProviderType) {
         let storageKey = apiKeyStorageKey(for: providerType)
         CloudSyncManager.shared.saveValue(key, forKey: storageKey)
-        objectWillChange.send()
     }
 
     /// Get API key for a provider
@@ -133,7 +133,6 @@ class AIProviderManager: ObservableObject {
     func clearAPIKey(for providerType: AIProviderType) {
         let storageKey = apiKeyStorageKey(for: providerType)
         CloudSyncManager.shared.saveValue("", forKey: storageKey)
-        objectWillChange.send()
     }
 
     private func apiKeyStorageKey(for providerType: AIProviderType) -> String {

@@ -1,8 +1,8 @@
 import Foundation
-import Combine
 import AudioToolbox
 import UserNotifications
 import AVFoundation
+import OSLog
 
 // MARK: - Rest Notification Sound
 
@@ -124,7 +124,7 @@ class SoundPlayer: NSObject {
             try session.setActive(true)
             isAudioSessionConfigured = true
         } catch {
-            print("Failed to configure audio session: \(error)")
+            AppLogger.settings.error("Failed to configure audio session", error: error)
         }
     }
 
@@ -197,7 +197,7 @@ class SoundPlayer: NSObject {
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
         } catch {
-            print("Failed to play audio file: \(error)")
+            AppLogger.settings.warning("Failed to play audio file, falling back to system sound: \(error.localizedDescription)")
             // Fallback to system sound
             AudioServicesPlaySystemSound(1007)
         }
@@ -207,7 +207,9 @@ class SoundPlayer: NSObject {
 // MARK: - App Settings
 
 /// App-wide settings for UI preferences
-class AppSettings: ObservableObject {
+@Observable
+@MainActor
+final class AppSettings {
     static let shared = AppSettings()
 
     private let defaults = UserDefaults.standard
@@ -221,24 +223,24 @@ class AppSettings: ObservableObject {
         static let showAIWorkoutSummary = "appSettings.showAIWorkoutSummary"
     }
 
-    // MARK: - Published Properties
+    // MARK: - Properties
 
     /// Whether to show YouTube video demonstrations in exercise detail sheets
-    @Published var showYouTubeVideos: Bool {
+    var showYouTubeVideos: Bool {
         didSet {
             defaults.set(showYouTubeVideos, forKey: Keys.showYouTubeVideos)
         }
     }
 
     /// Whether to show form tips in exercise detail sheets
-    @Published var showFormTips: Bool {
+    var showFormTips: Bool {
         didSet {
             defaults.set(showFormTips, forKey: Keys.showFormTips)
         }
     }
 
     /// The sound to play when rest timer completes
-    @Published var restNotificationSound: RestNotificationSound {
+    var restNotificationSound: RestNotificationSound {
         didSet {
             defaults.set(restNotificationSound.rawValue, forKey: Keys.restNotificationSound)
         }
@@ -246,14 +248,14 @@ class AppSettings: ObservableObject {
 
     /// Volume for rest notification sound (0.0 to 1.0)
     /// Note: Volume control works with custom bundled audio files. System sounds play at device volume.
-    @Published var restNotificationVolume: Double {
+    var restNotificationVolume: Double {
         didSet {
             defaults.set(restNotificationVolume, forKey: Keys.restNotificationVolume)
         }
     }
 
     /// Whether to show AI-generated workout summary on completion
-    @Published var showAIWorkoutSummary: Bool {
+    var showAIWorkoutSummary: Bool {
         didSet {
             defaults.set(showAIWorkoutSummary, forKey: Keys.showAIWorkoutSummary)
         }

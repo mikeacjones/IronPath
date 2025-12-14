@@ -1,12 +1,13 @@
 import Foundation
-import Combine
 import SwiftUI
 
 /// Manages custom exercises created by the user via AI generation
-class CustomExerciseStore: ObservableObject {
+@Observable
+@MainActor
+final class CustomExerciseStore {
     static let shared = CustomExerciseStore()
 
-    @Published var exercises: [Exercise] = [] {
+    var exercises: [Exercise] = [] {
         didSet { save() }
     }
 

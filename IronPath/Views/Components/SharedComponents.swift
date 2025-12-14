@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import OSLog
 
 // MARK: - Weight Formatting
 
@@ -26,7 +27,7 @@ struct ExportData: Identifiable {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
         } catch {
-            print("Failed to write export file: \(error)")
+            AppLogger.app.error("Failed to write export file: \(error.localizedDescription)")
             return nil
         }
     }

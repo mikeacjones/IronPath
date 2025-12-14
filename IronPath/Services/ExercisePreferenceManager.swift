@@ -1,14 +1,15 @@
 import Foundation
-import Combine
 
 // MARK: - Exercise Preference Manager
 
 /// Manages user preferences for exercise suggestions
 /// Persists to iCloud via CloudSyncManager
-class ExercisePreferenceManager: ObservableObject {
+@Observable
+@MainActor
+final class ExercisePreferenceManager {
     static let shared = ExercisePreferenceManager()
 
-    @Published private(set) var preferences: [String: ExercisePreferenceEntry] = [:]
+    private(set) var preferences: [String: ExercisePreferenceEntry] = [:]
 
     private let storageKey = "exercise_preferences"
     private let encoder = JSONEncoder()
@@ -30,8 +31,10 @@ class ExercisePreferenceManager: ObservableObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func handleCloudSync() {
-        loadPreferences()
+    @objc nonisolated private func handleCloudSync() {
+        Task { @MainActor in
+            loadPreferences()
+        }
     }
 
     // MARK: - Public API

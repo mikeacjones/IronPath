@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Workout Setup View
 
 struct WorkoutSetupView: View {
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     @Environment(\.dismiss) var dismiss
     @Binding var isGenerating: Bool
     let onGenerate: (WorkoutType, String, Bool, WorkoutGenerationOptions) -> Void // (workoutType, notes, isDeload, options)

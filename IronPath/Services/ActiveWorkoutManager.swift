@@ -1,9 +1,10 @@
 import Foundation
-import Combine
 
 /// Manages an active workout in progress
 /// Persists workout state so it survives app restarts with correct elapsed time
-class ActiveWorkoutManager: ObservableObject {
+@Observable
+@MainActor
+final class ActiveWorkoutManager {
     static let shared = ActiveWorkoutManager()
 
     private let workoutKey = "active_workout_data"
@@ -11,14 +12,14 @@ class ActiveWorkoutManager: ObservableObject {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    @Published var activeWorkout: Workout? {
+    var activeWorkout: Workout? {
         didSet {
             saveActiveWorkout()
         }
     }
 
     /// The time when the workout was started (persisted for accurate elapsed time)
-    @Published var workoutStartTime: Date? {
+    var workoutStartTime: Date? {
         didSet {
             if let startTime = workoutStartTime {
                 UserDefaults.standard.set(startTime.timeIntervalSince1970, forKey: startTimeKey)

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AddHistoricalWorkoutView: View {
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var appState: AppState
+    @Environment(AppState.self) var appState
     var onSave: () -> Void
 
     @State private var workoutName = ""
@@ -200,5 +200,5 @@ extension Int: @retroactive Identifiable {
 
 #Preview {
     MainTabView()
-        .environmentObject(AppState())
+        .environment(AppState())
 }

@@ -1,18 +1,27 @@
 import Foundation
-import Combine
 
 /// Centralized manager for all equipment (standard + custom)
 /// Provides a single source of truth for equipment access across the app
-class EquipmentManager: ObservableObject {
+@Observable
+@MainActor
+final class EquipmentManager {
     static let shared = EquipmentManager()
 
-    @Published private(set) var allEquipmentOptions: [EquipmentOption] = []
-    @Published private(set) var allMachineOptions: [MachineOption] = []
+    // MARK: - Observable Properties for Views
 
-    private var cancellables = Set<AnyCancellable>()
+    /// All equipment options including custom equipment (for gym profile editor)
+    private(set) var allEquipmentOptions: [EquipmentOption] = []
+
+    /// Standard equipment only (for onboarding wizard)
+    private(set) var standardEquipmentOptions: [EquipmentOption] = []
+
+    /// All machine options including custom machines (for gym profile editor)
+    private(set) var allMachineOptions: [MachineOption] = []
+
+    /// Standard machines only (for onboarding wizard)
+    private(set) var standardMachineOptions: [MachineOption] = []
 
     private init() {
-        setupBindings()
         refreshAllOptions()
     }
 
@@ -224,18 +233,13 @@ class EquipmentManager: ObservableObject {
         "chair.lounge"
     ]
 
-    // MARK: - Private
+    // MARK: - Refresh Options
 
-    private func setupBindings() {
-        CustomEquipmentStore.shared.$customEquipment
-            .sink { [weak self] _ in
-                self?.refreshAllOptions()
-            }
-            .store(in: &cancellables)
-    }
-
-    private func refreshAllOptions() {
-        allEquipmentOptions = getEquipmentOptions()
-        allMachineOptions = getMachineOptions()
+    /// Refresh all equipment options - call after adding/removing custom equipment
+    func refreshAllOptions() {
+        standardEquipmentOptions = getEquipmentOptions(includeCustom: false)
+        allEquipmentOptions = getEquipmentOptions(includeCustom: true)
+        standardMachineOptions = getMachineOptions(includeCustom: false)
+        allMachineOptions = getMachineOptions(includeCustom: true)
     }
 }

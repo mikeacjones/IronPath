@@ -4,11 +4,17 @@ import Foundation
 
 /// These protocols enable dependency injection and make components testable.
 /// Views can depend on protocols instead of concrete singleton implementations.
+///
+/// Note on actor isolation:
+/// - Protocols with `AnyObject` are marked `@MainActor` because their implementations
+///   are `@Observable @MainActor` classes that manage UI state.
+/// - Value-type focused protocols are marked `Sendable` for safe cross-actor use.
 
 // MARK: - Workout Data Managing
 
 /// Protocol for managing workout history and data persistence
-protocol WorkoutDataManaging {
+@MainActor
+protocol WorkoutDataManaging: AnyObject, Sendable {
     /// Save a completed workout to history
     func saveWorkout(_ workout: Workout)
 
@@ -45,6 +51,9 @@ protocol WorkoutDataManaging {
     /// Delete multiple workouts by IDs
     func deleteWorkouts(byIds ids: Set<UUID>)
 
+    /// Update an existing workout in history
+    func updateWorkout(_ workout: Workout)
+
     /// Detect personal records in a workout
     func detectWorkoutPRs(in workout: Workout) -> [WorkoutPR]
 }
@@ -52,7 +61,8 @@ protocol WorkoutDataManaging {
 // MARK: - Active Workout Managing
 
 /// Protocol for managing the currently active workout session
-protocol ActiveWorkoutManaging: AnyObject {
+@MainActor
+protocol ActiveWorkoutManaging: AnyObject, Sendable {
     /// The currently active workout, if any
     var activeWorkout: Workout? { get }
 
@@ -78,7 +88,8 @@ protocol ActiveWorkoutManaging: AnyObject {
 // MARK: - Pending Workout Managing
 
 /// Protocol for managing generated workouts that haven't been started yet
-protocol PendingWorkoutManaging: AnyObject {
+@MainActor
+protocol PendingWorkoutManaging: AnyObject, Sendable {
     /// The pending generated workout
     var pendingWorkout: Workout? { get set }
 
@@ -92,7 +103,7 @@ protocol PendingWorkoutManaging: AnyObject {
 // MARK: - API Key Managing
 
 /// Protocol for managing API key storage
-protocol APIKeyManaging {
+protocol APIKeyManaging: Sendable {
     /// Check if an API key is stored
     var hasAPIKey: Bool { get }
 
@@ -109,7 +120,8 @@ protocol APIKeyManaging {
 // MARK: - Gym Profile Managing
 
 /// Protocol for managing gym profiles
-protocol GymProfileManaging: AnyObject {
+@MainActor
+protocol GymProfileManaging: AnyObject, Sendable {
     /// All stored gym profiles
     var profiles: [GymProfile] { get }
 
@@ -135,7 +147,8 @@ protocol GymProfileManaging: AnyObject {
 // MARK: - Rest Timer Managing
 
 /// Protocol for managing the rest timer
-protocol RestTimerManaging: AnyObject {
+@MainActor
+protocol RestTimerManaging: AnyObject, Sendable {
     /// Whether the timer is currently active
     var isActive: Bool { get }
 
@@ -163,6 +176,14 @@ protocol RestTimerManaging: AnyObject {
     /// Start a new timer
     func startTimer(duration: TimeInterval, exerciseName: String, setNumber: Int)
 
+    /// Start a rest timer after completing all exercises in a superset/circuit round
+    func startGroupTimer(
+        duration: TimeInterval,
+        groupType: ExerciseGroupType,
+        exerciseNames: [String],
+        completedRound: Int
+    )
+
     /// Add time to the current timer
     func addTime(_ seconds: TimeInterval)
 
@@ -173,6 +194,178 @@ protocol RestTimerManaging: AnyObject {
     func stopTimer()
 }
 
+// MARK: - AI Provider Managing
+
+/// Protocol for managing AI provider access
+@MainActor
+protocol AIProviderManaging: AnyObject, Sendable {
+    /// Get the currently selected provider
+    var currentProvider: AIProvider { get }
+
+    /// Check if the current provider is configured
+    var isConfigured: Bool { get }
+}
+
+// MARK: - Exercise Similarity Servicing
+
+/// Protocol for exercise similarity calculations
+@MainActor
+protocol ExerciseSimilarityServicing: AnyObject, Sendable {
+    /// Get replacement suggestions for an exercise
+    func getReplacementSuggestions(
+        for exercise: Exercise,
+        excludingWorkoutExercises workoutExerciseNames: [String],
+        availableEquipment: Set<Equipment>,
+        availableMachines: Set<SpecificMachine>,
+        limit: Int
+    ) -> [(Exercise, Double)]
+
+    /// Get similar exercises for a given exercise
+    func getSimilarExercises(for exercise: Exercise, limit: Int) -> [ExerciseSimilarity]
+}
+
+// MARK: - App Settings Providing
+
+/// Protocol for accessing app-wide settings
+@MainActor
+protocol AppSettingsProviding: AnyObject, Sendable {
+    /// Whether to show YouTube video demonstrations
+    var showYouTubeVideos: Bool { get }
+
+    /// Whether to show form tips in exercise details
+    var showFormTips: Bool { get }
+
+    /// Whether to show AI-generated workout summary
+    var showAIWorkoutSummary: Bool { get }
+}
+
+// MARK: - Exercise Preference Managing
+
+/// Protocol for managing user exercise preferences
+@MainActor
+protocol ExercisePreferenceManaging: AnyObject, Sendable {
+    /// Get the preference for a specific exercise
+    func getPreference(for exerciseName: String) -> ExerciseSuggestionPreference
+
+    /// Set the preference for a specific exercise
+    func setPreference(_ preference: ExerciseSuggestionPreference, for exerciseName: String)
+
+    /// Check if an exercise should be excluded from suggestions
+    func isExerciseBlocked(_ exerciseName: String) -> Bool
+
+    /// Get all exercises with non-normal preferences
+    func getAllCustomPreferences() -> [ExercisePreferenceEntry]
+
+    /// Generate prompt text for AI to respect exercise preferences
+    func generatePreferencePrompt() -> String?
+}
+
+// MARK: - Gym Settings Providing
+
+/// Protocol for accessing gym settings
+@MainActor
+protocol GymSettingsProviding: AnyObject, Sendable {
+    /// Get cable config for specific exercise
+    func cableConfig(for exerciseName: String) -> CableMachineConfig
+
+    /// Round weight to nearest valid for equipment
+    func roundToValidWeight(_ weight: Double, for equipment: Equipment, exerciseName: String?) -> Double
+
+    /// Get valid weights for equipment type
+    func validWeights(for equipment: Equipment, exerciseName: String?) -> [Double]
+
+    /// Get machine weight for exercise
+    func machineWeight(for exerciseName: String, equipment: Equipment) -> Double
+
+    /// Check if exercise is single-sided
+    func isSingleSided(for exerciseName: String) -> Bool
+}
+
+// MARK: - Custom Equipment Storing
+
+/// Protocol for managing custom equipment created by users
+@MainActor
+protocol CustomEquipmentStoring: AnyObject, Sendable {
+    /// All custom equipment
+    var customEquipment: [CustomEquipment] { get }
+
+    /// Add new custom equipment
+    func addEquipment(_ equipment: CustomEquipment) throws
+
+    /// Update existing custom equipment
+    func updateEquipment(_ equipment: CustomEquipment) throws
+
+    /// Delete custom equipment by ID
+    func deleteEquipment(id: UUID)
+
+    /// Get custom equipment by ID
+    func getEquipment(id: UUID) -> CustomEquipment?
+
+    /// Get all equipment of a specific type
+    func getEquipment(ofType type: CustomEquipment.CustomEquipmentType) -> [CustomEquipment]
+
+    /// Check if equipment with the given name already exists
+    func exists(name: String) -> Bool
+}
+
+// MARK: - Custom Exercise Storing
+
+/// Protocol for managing custom exercises created by users
+@MainActor
+protocol CustomExerciseStoring: AnyObject, Sendable {
+    /// All custom exercises
+    var exercises: [Exercise] { get }
+
+    /// Check if an exercise with the given name already exists
+    func exerciseExists(name: String) -> Bool
+
+    /// Add a single exercise with duplicate checking
+    func addExercise(_ exercise: Exercise) throws
+
+    /// Delete an exercise by ID
+    func deleteExercise(id: UUID)
+
+    /// Update an existing exercise
+    func updateExercise(_ exercise: Exercise)
+}
+
+// MARK: - Exercise Database Providing
+
+/// Protocol for accessing the exercise database
+@MainActor
+protocol ExerciseDatabaseProviding: AnyObject, Sendable {
+    /// All available exercises (built-in)
+    var exercises: [Exercise] { get }
+}
+
+// MARK: - Equipment Managing
+
+/// Protocol for managing equipment options (standard and custom)
+/// Provides the single source of truth for equipment selection across the app
+@MainActor
+protocol EquipmentManaging: AnyObject, Sendable {
+    /// All equipment options including custom equipment (for gym profile editor)
+    var allEquipmentOptions: [EquipmentManager.EquipmentOption] { get }
+
+    /// Standard equipment only (for onboarding wizard)
+    var standardEquipmentOptions: [EquipmentManager.EquipmentOption] { get }
+
+    /// All machine options including custom machines (for gym profile editor)
+    var allMachineOptions: [EquipmentManager.MachineOption] { get }
+
+    /// Standard machines only (for onboarding wizard)
+    var standardMachineOptions: [EquipmentManager.MachineOption] { get }
+
+    /// Check if equipment with the given name exists (standard or custom)
+    func equipmentExists(name: String) -> Bool
+
+    /// Refresh all equipment options (call after adding custom equipment)
+    func refreshAllOptions()
+
+    /// Get icon for standard equipment type
+    func iconForEquipment(_ equipment: Equipment) -> String
+}
+
 // MARK: - Default Conformances
 
 extension WorkoutDataManager: WorkoutDataManaging {}
@@ -181,3 +374,12 @@ extension PendingWorkoutManager: PendingWorkoutManaging {}
 extension APIKeyManager: APIKeyManaging {}
 extension GymProfileManager: GymProfileManaging {}
 extension RestTimerManager: RestTimerManaging {}
+extension AIProviderManager: AIProviderManaging {}
+extension ExerciseSimilarityService: ExerciseSimilarityServicing {}
+extension AppSettings: AppSettingsProviding {}
+extension ExercisePreferenceManager: ExercisePreferenceManaging {}
+extension GymSettings: GymSettingsProviding {}
+extension EquipmentManager: EquipmentManaging {}
+extension CustomEquipmentStore: CustomEquipmentStoring {}
+extension CustomExerciseStore: CustomExerciseStoring {}
+extension ExerciseDatabase: ExerciseDatabaseProviding {}

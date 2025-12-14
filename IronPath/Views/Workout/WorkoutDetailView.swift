@@ -3,9 +3,10 @@ import SwiftUI
 // MARK: - Workout Detail View
 
 struct WorkoutDetailView: View {
-    @State var workout: Workout
-    @EnvironmentObject var appState: AppState
-    @ObservedObject private var preferenceManager = ExercisePreferenceManager.shared
+    @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
+    @State private var editorViewModel: WorkoutEditorViewModel
+    @State private var replacementViewModel = ExerciseReplacementViewModel()
 
     let onStartWorkout: (Workout) -> Void
     let onRegenerate: () -> Void
@@ -18,23 +19,11 @@ struct WorkoutDetailView: View {
     // Add exercise state
     @State private var showAddExerciseSheet = false
 
-    // Remove exercise state
-    @State private var exerciseToRemove: WorkoutExercise?
-    @State private var showRemoveConfirmation = false
-
-    // Replace exercise state
-    @State private var exerciseToReplace: WorkoutExercise?
-    @State private var replacementNotes: String = ""
-    @State private var isReplacingExercise = false
-    @State private var replacementError: String?
-    @State private var showReplacementError = false
-
     // Superset/circuit creation state
     @State private var showCreateGroupSheet = false
-    @State private var groupToAddExerciseTo: ExerciseGroup?
 
     init(workout: Workout, onStartWorkout: @escaping () -> Void, onRegenerate: @escaping () -> Void) {
-        self._workout = State(initialValue: workout)
+        _editorViewModel = State(initialValue: WorkoutEditorViewModel(workout: workout))
         self.onStartWorkout = { _ in onStartWorkout() }
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = nil
@@ -42,11 +31,17 @@ struct WorkoutDetailView: View {
     }
 
     init(workout: Workout, onStartWorkout: @escaping (Workout) -> Void, onRegenerate: @escaping () -> Void, onConvertToNormal: ((Workout) -> Void)? = nil, onWorkoutUpdated: ((Workout) -> Void)? = nil) {
-        self._workout = State(initialValue: workout)
+        _editorViewModel = State(initialValue: WorkoutEditorViewModel(workout: workout))
         self.onStartWorkout = onStartWorkout
         self.onRegenerate = onRegenerate
         self.onConvertToNormal = onConvertToNormal
         self.onWorkoutUpdated = onWorkoutUpdated
+    }
+
+    /// Convenience accessor for the workout
+    private var workout: Workout {
+        get { editorViewModel.workout }
+        nonmutating set { editorViewModel.workout = newValue }
     }
 
     var body: some View {
@@ -95,39 +90,32 @@ struct WorkoutDetailView: View {
                     .fontWeight(.bold)
                     .padding(.horizontal)
 
-                Text("Tap an exercise to edit. Long press to drag and reorder.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-
                 // Exercise list with drag-to-reorder
                 VStack(spacing: 12) {
                     DraggableExerciseList(
-                        workout: $workout,
+                        workout: $editorViewModel.workout,
                         isLiveWorkout: false,
-                        preferenceManager: preferenceManager,
+                        exercisePreferenceManager: dependencies.exercisePreferenceManager,
                         onExerciseTap: { exercise in
                             selectedExercise = exercise
                         },
                         onExerciseReplace: { exercise in
-                            replacementNotes = ""
-                            exerciseToReplace = exercise
+                            replacementViewModel.initiateReplacement(for: exercise)
                         },
                         onExerciseRemove: { exercise in
-                            exerciseToRemove = exercise
-                            showRemoveConfirmation = true
+                            editorViewModel.initiateRemoval(for: exercise)
                         },
                         onSetPreference: { exercise, preference in
-                            preferenceManager.setPreference(
+                            dependencies.exercisePreferenceManager.setPreference(
                                 preference,
                                 for: exercise.exercise.name
                             )
                         },
                         onAddExerciseToGroup: { group in
-                            groupToAddExerciseTo = group
+                            editorViewModel.groupToAddExerciseTo = group
                         }
                     )
-                    .onChange(of: workout) { _, newWorkout in
+                    .onChange(of: editorViewModel.workout) { _, newWorkout in
                         onWorkoutUpdated?(newWorkout)
                     }
 
@@ -149,7 +137,7 @@ struct WorkoutDetailView: View {
                     }
 
                     // Create Superset button (only show if there are 2+ ungrouped exercises)
-                    if ungroupedExercises.count >= 2 {
+                    if editorViewModel.ungroupedExercises.count >= 2 {
                         Button {
                             showCreateGroupSheet = true
                         } label: {
@@ -193,12 +181,13 @@ struct WorkoutDetailView: View {
         }
         .sheet(item: $selectedExercise) { exercise in
             // Get current version of exercise from workout (in case it was updated)
-            let currentExercise = workout.exercises.first { $0.id == exercise.id } ?? exercise
+            let currentExercise = editorViewModel.workout.exercises.first { $0.id == exercise.id } ?? exercise
 
             ExerciseDetailSheet(
                 exercise: currentExercise,
                 onUpdate: { updatedExercise in
-                    updateExercise(updatedExercise)
+                    editorViewModel.updateExercise(updatedExercise)
+                    selectedExercise = nil
                 },
                 isLiveWorkout: false,
                 isPendingWorkout: true,
@@ -208,235 +197,78 @@ struct WorkoutDetailView: View {
         }
         .sheet(isPresented: $showAddExerciseSheet) {
             AddExerciseSheet(
-                existingExercises: workout.exercises.map { $0.exercise.name },
+                existingExercises: editorViewModel.existingExerciseNames,
                 userProfile: appState.userProfile
             ) { exercise in
-                addExerciseFromLibrary(exercise)
+                editorViewModel.addExerciseFromLibrary(exercise)
             }
         }
-        .sheet(item: $exerciseToReplace) { exercise in
+        .sheet(item: $replacementViewModel.exerciseToReplace) { exercise in
             ExerciseReplacementSheet(
-                exercise: exercise,
-                currentWorkoutExercises: workout.exercises.map { $0.exercise.name },
-                notes: $replacementNotes,
-                isLoading: $isReplacingExercise,
-                onReplace: {
-                    replaceExercise()
-                },
-                onQuickReplace: { newExercise in
-                    quickReplaceExercise(with: newExercise)
-                },
-                onCancel: {
-                    exerciseToReplace = nil
-                }
+                viewModel: replacementViewModel,
+                exercise: exercise
             )
         }
         .alert(
             "Remove Exercise?",
-            isPresented: $showRemoveConfirmation,
-            presenting: exerciseToRemove
+            isPresented: $editorViewModel.showRemoveConfirmation,
+            presenting: editorViewModel.exerciseToRemove
         ) { exercise in
             Button("Remove", role: .destructive) {
-                removeExercise(exercise)
+                editorViewModel.removeExercise(exercise)
             }
             Button("Cancel", role: .cancel) {
-                exerciseToRemove = nil
+                editorViewModel.cancelRemoval()
             }
         } message: { exercise in
             Text("Remove \(exercise.exercise.name) from this workout?")
         }
-        .alert("Replacement Error", isPresented: $showReplacementError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(replacementError ?? "Failed to replace exercise")
-        }
         .sheet(isPresented: $showCreateGroupSheet) {
             CreateExerciseGroupSheet(
-                workout: $workout,
+                workout: $editorViewModel.workout,
                 onGroupCreated: {
-                    onWorkoutUpdated?(workout)
+                    onWorkoutUpdated?(editorViewModel.workout)
                 }
             )
         }
-        .sheet(item: $groupToAddExerciseTo) { group in
+        .sheet(item: $editorViewModel.groupToAddExerciseTo) { group in
             AddExerciseSheet(
-                existingExercises: workout.exercises.map { $0.exercise.name },
+                existingExercises: editorViewModel.existingExerciseNames,
                 userProfile: appState.userProfile
             ) { exercise in
-                addExerciseToGroup(exercise, group: group)
+                editorViewModel.addExerciseToGroup(exercise, group: group)
             }
         }
-    }
+        .onAppear {
+            // Configure the ViewModel with user profile and callbacks
+            editorViewModel.updateUserProfile(appState.userProfile)
+            editorViewModel.onWorkoutChanged = { workout in
+                onWorkoutUpdated?(workout)
+            }
 
-    // MARK: - Computed Properties
-
-    /// Exercises that are not part of any group
-    private var ungroupedExercises: [WorkoutExercise] {
-        workout.exercises.filter { exercise in
-            !workout.isGrouped(exercise.id)
-        }
-    }
-
-    // MARK: - Exercise Management
-
-    private func addExerciseFromLibrary(_ exercise: Exercise) {
-        let sets = (1...3).map { setNum in
-            ExerciseSet(
-                setNumber: setNum,
-                targetReps: 10,
-                restPeriod: 90
+            // Configure replacement ViewModel
+            replacementViewModel.configure(
+                userProfile: appState.userProfile,
+                currentWorkout: editorViewModel.workout,
+                currentWorkoutExercises: editorViewModel.existingExerciseNames
             )
-        }
-
-        let workoutExercise = WorkoutExercise(
-            exercise: exercise,
-            sets: sets,
-            orderIndex: workout.exercises.count,
-            notes: ""
-        )
-
-        workout.exercises.append(workoutExercise)
-        onWorkoutUpdated?(workout)
-    }
-
-    private func addExerciseToGroup(_ exercise: Exercise, group: ExerciseGroup) {
-        // Create the workout exercise
-        let sets = (1...3).map { setNum in
-            ExerciseSet(
-                setNumber: setNum,
-                targetReps: 10,
-                restPeriod: 90
-            )
-        }
-
-        let workoutExercise = WorkoutExercise(
-            exercise: exercise,
-            sets: sets,
-            orderIndex: workout.exercises.count,
-            notes: ""
-        )
-
-        // Add to workout
-        workout.exercises.append(workoutExercise)
-
-        // Add to the group
-        if var groups = workout.exerciseGroups,
-           let groupIndex = groups.firstIndex(where: { $0.id == group.id }) {
-            groups[groupIndex].exerciseIds.append(workoutExercise.id)
-            groups[groupIndex].groupType = ExerciseGroupType.suggestedType(for: groups[groupIndex].exerciseIds.count)
-            workout.exerciseGroups = groups
-        }
-
-        // Rebuild exercise order to keep grouped exercises together
-        workout.rebuildExercisesOrder()
-        onWorkoutUpdated?(workout)
-    }
-
-    private func removeExercise(_ exercise: WorkoutExercise) {
-        // Remove exercise from any group it belongs to
-        if var groups = workout.exerciseGroups {
-            for i in groups.indices {
-                if groups[i].exerciseIds.contains(exercise.id) {
-                    // Remove the exercise from this group
-                    groups[i].exerciseIds.removeAll { $0 == exercise.id }
-                }
-            }
-
-            // Remove any groups that now have only 1 or 0 exercises
-            // (a group with 1 exercise is no longer a valid superset/circuit)
-            groups.removeAll { $0.exerciseIds.count <= 1 }
-
-            // Update group types based on new exercise counts
-            for i in groups.indices {
-                groups[i].groupType = ExerciseGroupType.suggestedType(for: groups[i].exerciseIds.count)
-            }
-
-            workout.exerciseGroups = groups.isEmpty ? nil : groups
-        }
-
-        workout.exercises.removeAll { $0.id == exercise.id }
-
-        // Reindex remaining exercises
-        for i in workout.exercises.indices {
-            workout.exercises[i].orderIndex = i
-        }
-
-        exerciseToRemove = nil
-        onWorkoutUpdated?(workout)
-    }
-
-    private func updateExercise(_ updatedExercise: WorkoutExercise) {
-        if let index = workout.exercises.firstIndex(where: { $0.id == updatedExercise.id }) {
-            workout.exercises[index] = updatedExercise
-        }
-        selectedExercise = nil
-        onWorkoutUpdated?(workout)
-    }
-
-    private func replaceExercise() {
-        guard let exerciseToReplace = exerciseToReplace,
-              let profile = appState.userProfile else { return }
-
-        isReplacingExercise = true
-
-        Task {
-            do {
-                let provider = AIProviderManager.shared.currentProvider
-                let replacement = try await provider.replaceExercise(
-                    exercise: exerciseToReplace,
-                    profile: profile,
-                    reason: replacementNotes.isEmpty ? nil : replacementNotes,
-                    currentWorkout: workout
-                )
-
-                await MainActor.run {
-                    if let index = workout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
-                        workout.exercises[index] = replacement
-                    }
-                    onWorkoutUpdated?(workout)
-                    isReplacingExercise = false
-                    self.exerciseToReplace = nil
-                }
-            } catch {
-                await MainActor.run {
-                    replacementError = error.localizedDescription
-                    showReplacementError = true
-                    isReplacingExercise = false
-                }
+            replacementViewModel.onReplacement = { oldExercise, newExercise in
+                // Update the workout with the replacement, maintaining group membership
+                editorViewModel.workout.replaceExercise(oldExerciseId: oldExercise.id, with: newExercise)
+                onWorkoutUpdated?(editorViewModel.workout)
             }
         }
+        .onChange(of: editorViewModel.workout) { _, newWorkout in
+            // Keep replacement ViewModel context up to date
+            replacementViewModel.currentWorkout = newWorkout
+            replacementViewModel.currentWorkoutExercises = newWorkout.exercises.map { $0.exercise.name }
+        }
     }
 
-    private func quickReplaceExercise(with newExercise: Exercise) {
-        guard let exerciseToReplace = exerciseToReplace else { return }
-
-        // Create a new WorkoutExercise with the same sets structure but new exercise
-        let newSets = exerciseToReplace.sets.map { oldSet in
-            ExerciseSet(
-                setNumber: oldSet.setNumber,
-                targetReps: oldSet.targetReps,
-                weight: oldSet.weight,
-                restPeriod: oldSet.restPeriod
-            )
-        }
-
-        let replacement = WorkoutExercise(
-            exercise: newExercise,
-            sets: newSets,
-            orderIndex: exerciseToReplace.orderIndex,
-            notes: ""
-        )
-
-        if let index = workout.exercises.firstIndex(where: { $0.id == exerciseToReplace.id }) {
-            workout.exercises[index] = replacement
-        }
-        onWorkoutUpdated?(workout)
-
-        self.exerciseToReplace = nil
-    }
+    // MARK: - Deload Conversion
 
     private func convertToNormalWorkout() {
-        var updatedWorkout = workout
+        var updatedWorkout = editorViewModel.workout
         updatedWorkout.isDeload = false
 
         // Update workout name if it contains deload
@@ -455,7 +287,7 @@ struct WorkoutDetailView: View {
             let exerciseName = updatedWorkout.exercises[i].exercise.name
             let equipment = updatedWorkout.exercises[i].exercise.equipment
 
-            if let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
+            if let suggestedWeight = dependencies.workoutDataManager.getSuggestedWeight(
                 for: exerciseName,
                 targetReps: updatedWorkout.exercises[i].sets.first?.targetReps ?? 10,
                 equipment: equipment
@@ -467,14 +299,14 @@ struct WorkoutDetailView: View {
             } else if let currentWeight = updatedWorkout.exercises[i].sets.first?.weight {
                 // No history, estimate normal weight as ~1.5x the deload weight
                 let estimatedNormalWeight = currentWeight * 1.5
-                let roundedWeight = GymSettings.shared.roundToValidWeight(estimatedNormalWeight, for: equipment)
+                let roundedWeight = dependencies.gymSettings.roundToValidWeight(estimatedNormalWeight, for: equipment, exerciseName: exerciseName)
                 for j in 0..<updatedWorkout.exercises[i].sets.count {
                     updatedWorkout.exercises[i].sets[j].weight = roundedWeight
                 }
             }
         }
 
-        workout = updatedWorkout
+        editorViewModel.workout = updatedWorkout
         onConvertToNormal?(updatedWorkout)
     }
 }

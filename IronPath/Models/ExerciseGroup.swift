@@ -265,4 +265,31 @@ extension Workout {
 
         exercises = newExercises
     }
+
+    /// Replace an exercise with a new one, maintaining group membership
+    /// - Parameters:
+    ///   - oldExerciseId: The ID of the exercise to replace
+    ///   - newExercise: The new exercise to replace it with
+    /// - Returns: True if the replacement was successful
+    @discardableResult
+    mutating func replaceExercise(oldExerciseId: UUID, with newExercise: WorkoutExercise) -> Bool {
+        // Find and replace the exercise in the exercises array
+        guard let index = exercises.firstIndex(where: { $0.id == oldExerciseId }) else {
+            return false
+        }
+
+        exercises[index] = newExercise
+
+        // Update group membership: replace old ID with new ID in any group
+        if var groups = exerciseGroups {
+            for groupIndex in groups.indices {
+                if let exerciseIdIndex = groups[groupIndex].exerciseIds.firstIndex(of: oldExerciseId) {
+                    groups[groupIndex].exerciseIds[exerciseIdIndex] = newExercise.id
+                }
+            }
+            exerciseGroups = groups
+        }
+
+        return true
+    }
 }
