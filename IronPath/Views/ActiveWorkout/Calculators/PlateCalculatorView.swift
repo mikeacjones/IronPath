@@ -15,6 +15,14 @@ struct PlateCalculatorView: View {
     @State private var localMachineWeight: Double = 0
     @State private var localIsSingleSided: Bool = false
 
+    private var weightUnit: WeightUnit {
+        // Use active workout unit if available, otherwise use gym profile unit
+        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+            return activeWorkout.weightUnit
+        }
+        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     private var machineWeightLabel: String {
         switch equipment {
         case .legPress: return "Sled Weight"
@@ -169,7 +177,7 @@ struct PlateCalculatorView: View {
             Text("Total Weight")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(Int(totalWeight)) lbs")
+            Text("\(Int(totalWeight)) \(weightUnit.abbreviation)")
                 .font(.system(size: 48, weight: .bold))
             Text(equipmentLabel)
                 .font(.caption)
@@ -222,7 +230,7 @@ struct PlateCalculatorView: View {
                             saveMachineWeight()
                         }
                     }
-                Text("lbs")
+                Text(weightUnit.abbreviation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -258,7 +266,7 @@ struct PlateCalculatorView: View {
             Text(localIsSingleSided ? "Total Plate Weight" : "Each Side")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(String(format: "%.1f", weightPerSide)) lbs")
+            Text("\(String(format: "%.1f", weightPerSide)) \(weightUnit.abbreviation)")
                 .font(.title)
                 .fontWeight(.semibold)
         }
@@ -279,7 +287,7 @@ struct PlateCalculatorView: View {
                     HStack {
                         PlateVisual(weight: plate)
                         Spacer()
-                        Text("\(formatWeight(plate)) lbs")
+                        Text("\(formatWeight(plate)) \(weightUnit.abbreviation)")
                             .fontWeight(.medium)
                         Text("× \(count)")
                             .foregroundStyle(.secondary)
@@ -311,7 +319,7 @@ struct PlateCalculatorView: View {
                 HStack {
                     PlateVisual(weight: plate)
                     Spacer()
-                    Text("\(formatWeight(plate)) lbs")
+                    Text("\(formatWeight(plate)) \(weightUnit.abbreviation)")
                         .fontWeight(.medium)
                     Text(change > 0 ? "+ \(change)" : "- \(abs(change))")
                         .foregroundStyle(change > 0 ? .green : .orange)
@@ -357,7 +365,7 @@ struct PlateCalculatorView: View {
                                     .foregroundStyle(.blue)
                             }
                         }
-                        Text(currentPlates.map { formatWeight($0.weight) }.joined(separator: ", ") + " lbs")
+                        Text(currentPlates.map { formatWeight($0.weight) }.joined(separator: ", ") + " \(weightUnit.abbreviation)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
