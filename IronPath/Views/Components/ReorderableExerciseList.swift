@@ -68,7 +68,7 @@ struct DraggableExerciseList: View {
                 )
                 .offset(y: offsetForItem(at: index))
                 .zIndex(isDragging ? 100 : 0)
-                .simultaneousGesture(
+                .gesture(
                     LongPressGesture(minimumDuration: 0.3)
                         .sequenced(before: DragGesture(minimumDistance: 0))
                         .onChanged { value in

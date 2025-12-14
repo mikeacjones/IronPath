@@ -41,30 +41,32 @@ struct SupersetGroupContent: View {
 
     private var groupHeader: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: group.groupType.iconName)
-                    .foregroundStyle(groupColor)
-                Text(group.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(groupColor)
-
-                Spacer()
-
-                if isLiveWorkout {
-                    let completedSets = exercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
-                    let totalSets = exercises.flatMap { $0.sets }.count
-                    Text("\(completedSets)/\(totalSets)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
+            Button {
                 if isLiveWorkout, let nextExercise = nextExerciseWithIncompleteSets {
                     onExerciseTap(nextExercise)
                 }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: group.groupType.iconName)
+                        .foregroundStyle(groupColor)
+                    Text(group.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(groupColor)
+
+                    Spacer()
+
+                    if isLiveWorkout {
+                        let completedSets = exercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
+                        let totalSets = exercises.flatMap { $0.sets }.count
+                        Text("\(completedSets)/\(totalSets)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+            .buttonStyle(.plain)
+            .allowsHitTesting(isLiveWorkout)
 
             groupMenu
         }

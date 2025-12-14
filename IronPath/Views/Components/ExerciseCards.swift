@@ -22,27 +22,28 @@ struct StandaloneExerciseCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 12) {
-                if isLiveWorkout {
-                    progressIndicator
-                } else {
-                    Image(systemName: "dumbbell.fill")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
-                        .frame(width: 40, height: 40)
+            // Drag handle
+            Image(systemName: "line.3.horizontal")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+
+            Button(action: onTap) {
+                HStack(spacing: 12) {
+                    if isLiveWorkout {
+                        progressIndicator
+                    }
+
+                    exerciseInfo
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.secondary)
                 }
-
-                exerciseInfo
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onTap()
-            }
+            .buttonStyle(.plain)
 
             exerciseMenu
         }
@@ -170,26 +171,30 @@ struct GroupExerciseRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 10) {
-                if isLiveWorkout {
-                    progressIndicator
-                } else {
-                    staticIndicator
+        HStack(spacing: 8) {
+            // Drag handle
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+
+            Button(action: onTap) {
+                HStack(spacing: 10) {
+                    if isLiveWorkout {
+                        progressIndicator
+                    }
+
+                    exerciseInfo
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
-
-                exerciseInfo
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onTap()
-            }
+            .buttonStyle(.plain)
 
             exerciseMenu
         }
