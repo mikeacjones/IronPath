@@ -2,6 +2,9 @@
 
 ## Quick Reference
 
+You should: Create commits with appropriate messages - be concise.
+You should never: Commit directly to main, create pull requests automatically, or push automatically.
+
 **Build:** `xcodebuild -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17' build`
 **Test:** `xcodebuild -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17' test`
 
@@ -276,7 +279,7 @@ struct EditorView: View {
 
 ---
 
-## Complete File Inventory
+## Complete File Inventory - All paths starts with IronPath/ and is implied
 
 ### Root
 - `IronPathApp.swift` - App entry point, environment injection

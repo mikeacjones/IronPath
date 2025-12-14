@@ -31,7 +31,7 @@ enum EquipmentCategory: String, CaseIterable {
     /// Get the category for a given equipment type
     static func category(for equipment: Equipment) -> EquipmentCategory {
         switch equipment {
-        case .barbell, .dumbbells, .kettlebells, .trapBar:
+        case .barbell, .dumbbells, .kettlebells, .medicineBall, .trapBar:
             return .freeWeights
         case .cables, .legPress, .smithMachine:
             return .machines

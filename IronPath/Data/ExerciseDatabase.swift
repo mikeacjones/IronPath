@@ -10,7 +10,8 @@ final class ExerciseDatabase {
     /// All available exercises
     lazy var exercises: [Exercise] = {
         return chestExercises + backExercises + shoulderExercises + bicepExercises +
-               tricepExercises + legExercises + coreExercises + trapBarExercises
+               tricepExercises + legExercises + coreExercises + trapBarExercises +
+               medicineBallExercises
     }()
 
     // MARK: - Chest Exercises
@@ -1393,6 +1394,157 @@ final class ExerciseDatabase {
             formTips: "The trap bar keeps weight centered making balance easier than with dumbbells. Keep your torso upright. Don't let your front knee cave inward.",
             movementPattern: .lunge,
             isUnilateral: true
+        )
+    ]
+
+    // MARK: - Medicine Ball Exercises
+
+    let medicineBallExercises: [Exercise] = [
+        Exercise(
+            name: "Medicine Ball Slam",
+            alternateNames: ["Ball Slam", "Med Ball Slam", "Overhead Slam"],
+            primaryMuscleGroups: [.abs, .shoulders],
+            secondaryMuscleGroups: [.back, .obliques],
+            equipment: .medicineBall,
+            difficulty: .beginner,
+            instructions: "Hold medicine ball overhead with arms extended. Explosively throw the ball down to the ground, bending at the hips. Catch the ball on the bounce and repeat.",
+            formTips: "Use your whole body - this is not just an arm movement. Engage your core throughout. Let the ball bounce back up naturally. Great for power development and stress relief.",
+            movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Medicine Ball Chest Slam",
+            alternateNames: ["Chest Slam", "Med Ball Chest Slam", "Front Slam"],
+            primaryMuscleGroups: [.chest, .abs],
+            secondaryMuscleGroups: [.shoulders, .obliques],
+            equipment: .medicineBall,
+            difficulty: .beginner,
+            instructions: "Hold medicine ball at chest level with arms bent. Explosively slam the ball down to the ground in front of you, extending through your chest and core. Catch the ball on the bounce and return to chest position.",
+            formTips: "Drive through your chest and abs as you slam. Keep your core engaged throughout. This variation emphasizes chest and upper body power more than the overhead version. Great for building explosive pressing strength.",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Medicine Ball Chest Pass",
+            alternateNames: ["Ball Chest Throw", "Med Ball Pass", "Chest Push"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [.shoulders, .triceps],
+            equipment: .medicineBall,
+            difficulty: .beginner,
+            instructions: "Hold ball at chest level. Explosively push the ball forward against a wall or to a partner. Catch the ball as it returns and immediately go into the next rep.",
+            formTips: "Keep your core tight and feet planted. Extend through your chest and arms. This develops explosive pushing power for sports.",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Medicine Ball Russian Twist",
+            alternateNames: ["Russian Twist with Ball", "Seated Med Ball Twist", "Oblique Twist"],
+            primaryMuscleGroups: [.abs, .obliques],
+            secondaryMuscleGroups: [],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Sit on floor with knees bent, holding medicine ball at chest. Lean back slightly to engage core. Rotate torso side to side, touching ball to ground on each side.",
+            formTips: "Keep your core engaged throughout. The weight of the ball increases the challenge. For extra difficulty, lift your feet off the ground. Control the rotation - don't just swing the ball.",
+            movementPattern: .rotational
+        ),
+        Exercise(
+            name: "Medicine Ball Wall Ball",
+            alternateNames: ["Wall Ball", "Ball Toss", "Squat and Throw"],
+            primaryMuscleGroups: [.quads, .glutes, .shoulders],
+            secondaryMuscleGroups: [.abs, .back],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Stand facing wall holding ball at chest. Squat down, then explosively stand while throwing ball up the wall to a target. Catch the ball and immediately go into next rep.",
+            formTips: "Use your legs to generate power, not just your arms. Aim for a consistent target height. This is a full-body cardio and strength exercise. Keep your chest up throughout.",
+            movementPattern: .squat
+        ),
+        Exercise(
+            name: "Medicine Ball Overhead Throw",
+            alternateNames: ["Overhead Ball Throw", "Soccer Throw", "Scoop Toss"],
+            primaryMuscleGroups: [.shoulders, .back],
+            secondaryMuscleGroups: [.abs, .triceps],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Hold ball overhead with both hands. Explosively throw the ball forward and down against a wall or to a partner. Follow through with your core and hips.",
+            formTips: "Generate power from your core and hips, not just your arms. Step forward as you throw for more power. Great for developing throwing power for sports.",
+            movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Medicine Ball Rotational Throw",
+            alternateNames: ["Side Throw", "Rotational Toss", "Woodchop Throw"],
+            primaryMuscleGroups: [.obliques, .abs],
+            secondaryMuscleGroups: [.shoulders, .back],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Stand sideways to a wall. Hold ball at hip level on the side away from wall. Rotate explosively, throwing ball against wall. Catch and repeat, then switch sides.",
+            formTips: "Rotate from your core, not just your arms. Let your hips and feet pivot naturally. Excellent for rotational power development. Keep your core tight throughout.",
+            movementPattern: .rotational,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Medicine Ball Push-Up",
+            alternateNames: ["Ball Push-Up", "Unstable Push-Up", "Med Ball Press-Up"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [.triceps, .shoulders, .abs],
+            equipment: .medicineBall,
+            difficulty: .advanced,
+            instructions: "Place one or both hands on medicine ball in push-up position. Perform push-ups while maintaining balance on the ball. For easier variation, use just one hand on the ball.",
+            formTips: "The instability engages more core and stabilizer muscles. Keep your body in a straight line. For single-ball variation, alternate which hand is on the ball between sets.",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Medicine Ball Squat",
+            alternateNames: ["Goblet Squat with Ball", "Ball Squat", "Med Ball Front Squat"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings, .abs],
+            equipment: .medicineBall,
+            difficulty: .beginner,
+            instructions: "Hold medicine ball at chest level. Squat down keeping chest up and knees tracking over toes. Drive through heels to stand back up.",
+            formTips: "Keep the ball close to your chest throughout. The weight helps counterbalance and teaches proper squat form. Great beginner variation before advancing to barbell squats.",
+            movementPattern: .squat
+        ),
+        Exercise(
+            name: "Medicine Ball Lunge with Twist",
+            alternateNames: ["Rotational Lunge", "Lunge and Twist", "Med Ball Lunge Rotation"],
+            primaryMuscleGroups: [.quads, .glutes, .obliques],
+            secondaryMuscleGroups: [.hamstrings, .abs],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Hold ball at chest. Step forward into a lunge. While in the lunge position, rotate your torso toward the front leg. Return to center, step back, and repeat on other side.",
+            formTips: "Keep your front knee over your ankle. The rotation engages your obliques and challenges your balance. Don't let your knee cave inward. This combines lower body strength with core rotation.",
+            movementPattern: .lunge,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Medicine Ball V-Up",
+            alternateNames: ["Ball V-Up", "Med Ball Crunch", "Seated Ball Pass"],
+            primaryMuscleGroups: [.abs],
+            secondaryMuscleGroups: [.obliques],
+            equipment: .medicineBall,
+            difficulty: .advanced,
+            instructions: "Lie on back holding medicine ball overhead. Simultaneously lift legs and upper body, passing ball from hands to feet at the top. Lower back down with ball between feet. Repeat, passing ball back to hands.",
+            formTips: "Keep your core engaged throughout - don't let your lower back arch off the ground when lowering. The ball transfer makes this significantly harder than standard V-ups. Control the movement.",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Medicine Ball Woodchop",
+            alternateNames: ["Diagonal Chop", "Med Ball Chop", "Standing Woodchop"],
+            primaryMuscleGroups: [.obliques, .abs],
+            secondaryMuscleGroups: [.shoulders],
+            equipment: .medicineBall,
+            difficulty: .intermediate,
+            instructions: "Hold ball with both hands. Start with ball at one shoulder. Rotate and chop down diagonally across your body toward opposite hip, squatting slightly. Return with control and repeat. Switch sides after reps.",
+            formTips: "Rotate from your core and hips, not just your arms. Let your feet pivot naturally. This movement pattern mimics chopping wood and builds functional rotational strength.",
+            movementPattern: .rotational,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Medicine Ball Plank Roll",
+            alternateNames: ["Ball Roll Plank", "Plank with Ball Roll", "Med Ball Stability Roll"],
+            primaryMuscleGroups: [.abs],
+            secondaryMuscleGroups: [.shoulders, .chest],
+            equipment: .medicineBall,
+            difficulty: .advanced,
+            instructions: "Start in plank position with one hand on medicine ball. Roll the ball to your other hand while maintaining plank position. Continue rolling ball side to side.",
+            formTips: "Keep your core tight and hips level - don't let them rotate. The instability makes this extremely challenging. Move slowly and with control. Great for core stability and anti-rotation strength.",
+            movementPattern: .isometric
         )
     ]
 

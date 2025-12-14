@@ -176,6 +176,7 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
     case trapBar = "Trap Bar"
     case dumbbells = "Dumbbells"
     case kettlebells = "Kettlebells"
+    case medicineBall = "Medicine Ball"
     case resistanceBands = "Resistance Bands"
     case pullUpBar = "Pull-up Bar"
     case bench = "Bench"
@@ -192,7 +193,7 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
             return .plateLoaded
         case .cables:
             return .pinSelector
-        case .dumbbells, .kettlebells, .resistanceBands, .bench:
+        case .dumbbells, .kettlebells, .medicineBall, .resistanceBands, .bench:
             return .fixedWeight
         case .pullUpBar, .bodyweightOnly:
             return .bodyweight
@@ -218,6 +219,8 @@ enum Equipment: String, Codable, CaseIterable, Hashable {
             return .dumbbells
         case "kettlebell", "kettlebells", "kb":
             return .kettlebells
+        case "medicine ball", "medicineball", "med ball", "medball", "mb":
+            return .medicineBall
         case "resistance bands", "bands", "resistance band":
             return .resistanceBands
         case "pull-up bar", "pullup bar", "pull up bar", "chin up bar":
