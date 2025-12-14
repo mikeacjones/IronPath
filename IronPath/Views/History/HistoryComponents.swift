@@ -252,7 +252,7 @@ struct WorkoutHistoryCard: View {
                 if let duration = workout.duration {
                     Label("\(Int(duration / 60)) min", systemImage: "clock")
                 }
-                Label("\(Int(workout.totalVolume)) lbs", systemImage: "scalemass")
+                Label("\(Int(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                 if let calories = workout.estimatedCalories {
                     Label("\(calories) cal", systemImage: "flame")
                 }
