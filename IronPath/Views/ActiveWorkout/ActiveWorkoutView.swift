@@ -13,6 +13,7 @@ struct ActiveWorkoutView: View {
 
     // Add exercise state (UI-only, stays in View)
     @State private var showAddExerciseSheet = false
+    @State private var showCreateGroupSheet = false
 
     /// Convenience accessor for the current workout state
     private var currentWorkout: Workout {
@@ -99,6 +100,25 @@ struct ActiveWorkoutView: View {
                             .background(Color(.systemGray6))
                             .foregroundStyle(.blue)
                             .cornerRadius(12)
+                        }
+
+                        // Create Superset button (only show if there are 2+ ungrouped exercises)
+                        if editorViewModel.ungroupedExercises.count >= 2 {
+                            Button {
+                                showCreateGroupSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.title2)
+                                    Text("Create Superset")
+                                        .fontWeight(.medium)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .foregroundStyle(.purple)
+                                .cornerRadius(12)
+                            }
                         }
                     }
                     .padding()
@@ -204,6 +224,15 @@ struct ActiveWorkoutView: View {
             ) { exercise in
                 editorViewModel.addExerciseToGroup(exercise, group: group)
             }
+        }
+        .sheet(isPresented: $showCreateGroupSheet) {
+            CreateExerciseGroupSheet(
+                workout: $editorViewModel.workout,
+                onGroupCreated: {
+                    viewModel.workout = editorViewModel.workout
+                    viewModel.persistWorkoutState()
+                }
+            )
         }
         .sheet(isPresented: $viewModel.showCompletionSummary, onDismiss: {
             // Reset finishing state when sheet is dismissed
