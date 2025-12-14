@@ -676,6 +676,13 @@ enum AIProviderHelpers {
                             numberOfPauses: advSet.numberOfPauses ?? 2,
                             pauseDuration: TimeInterval(advSet.pauseDuration ?? 15)
                         )
+                    case .timed:
+                        // AI should not typically generate timed sets, but handle it gracefully
+                        return ExerciseSet.createTimedSet(
+                            setNumber: advSet.setNumber,
+                            targetDuration: 30, // Default 30 seconds
+                            restPeriod: TimeInterval(exerciseJSON.restSeconds)
+                        )
                     }
                 }
             } else {

@@ -129,3 +129,52 @@ struct CompleteButton: View {
         .accessibilityIdentifier(accessibilityId)
     }
 }
+
+// MARK: - Timed Exercise Input Components
+
+struct AddedWeightInputView: View {
+    @Binding var weight: String
+    let onWeightChanged: (Double?) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField("Weight", text: $weight)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .onChange(of: weight) { _, newValue in
+                    if newValue.isEmpty {
+                        onWeightChanged(nil)
+                    } else if let weightValue = Double(newValue) {
+                        onWeightChanged(weightValue)
+                    }
+                }
+            Text("lbs")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct DurationInputView: View {
+    @Binding var seconds: String
+    let targetDuration: TimeInterval
+    let onDurationChanged: (TimeInterval) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField("Seconds", text: $seconds)
+                .keyboardType(.numberPad)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .onChange(of: seconds) { _, newValue in
+                    if let sec = Double(newValue) {
+                        onDurationChanged(sec)
+                    }
+                }
+            Text("sec")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}

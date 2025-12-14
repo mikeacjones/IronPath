@@ -25,6 +25,9 @@ final class DependencyContainer {
     /// Rest timer management
     let restTimerManager: RestTimerManaging
 
+    /// Exercise timer management (for timed exercises like planks)
+    let exerciseTimerManager: ExerciseTimerManaging
+
     /// Gym profile management
     let gymProfileManager: GymProfileManaging
 
@@ -63,6 +66,7 @@ final class DependencyContainer {
         self.activeWorkoutManager = ActiveWorkoutManager.shared
         self.pendingWorkoutManager = PendingWorkoutManager.shared
         self.restTimerManager = RestTimerManager.shared
+        self.exerciseTimerManager = ExerciseTimerManager.shared
         self.gymProfileManager = GymProfileManager.shared
         self.aiProviderManager = AIProviderManager.shared
         self.similarityService = ExerciseSimilarityService.shared
@@ -81,6 +85,7 @@ final class DependencyContainer {
         activeWorkoutManager: ActiveWorkoutManaging,
         pendingWorkoutManager: PendingWorkoutManaging,
         restTimerManager: RestTimerManaging,
+        exerciseTimerManager: ExerciseTimerManaging,
         gymProfileManager: GymProfileManaging,
         aiProviderManager: AIProviderManaging,
         similarityService: ExerciseSimilarityServicing,
@@ -96,6 +101,7 @@ final class DependencyContainer {
         self.activeWorkoutManager = activeWorkoutManager
         self.pendingWorkoutManager = pendingWorkoutManager
         self.restTimerManager = restTimerManager
+        self.exerciseTimerManager = exerciseTimerManager
         self.gymProfileManager = gymProfileManager
         self.aiProviderManager = aiProviderManager
         self.similarityService = similarityService

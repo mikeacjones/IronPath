@@ -44,6 +44,7 @@ struct ExerciseDetailSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     supersetSection
                     exerciseHeader
+                    exerciseModeToggle
                     videoSection
                     formTipsSection
                     historySection
@@ -110,6 +111,31 @@ struct ExerciseDetailSheet: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var exerciseModeToggle: some View {
+        if viewModel.exercise.exercise.supportsTiming {
+            HStack {
+                Text("Mode:")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Picker("", selection: $viewModel.isTimedMode) {
+                    Label("Reps", systemImage: "number").tag(false)
+                    Label("Timed", systemImage: "timer").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 200)
+
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            .padding(.horizontal)
+        }
     }
 
     @ViewBuilder
@@ -189,6 +215,12 @@ struct ExerciseDetailSheet: View {
                     onRestPeriodChanged: { changedSetIndex, newRestPeriod in
                         viewModel.propagateRestPeriod(from: changedSetIndex, newRestPeriod: newRestPeriod)
                     },
+                    onDurationChanged: { changedSetIndex, newDuration in
+                        viewModel.propagateDuration(from: changedSetIndex, newDuration: newDuration)
+                    },
+                    onAddedWeightChanged: { changedSetIndex, newWeight in
+                        viewModel.propagateAddedWeight(from: changedSetIndex, newWeight: newWeight)
+                    },
                     suppressRestTimer: viewModel.suppressRestTimer,
                     isLastSet: viewModel.isLastSet(index: setIndex),
                     onSetCompleted: (viewModel.isLiveWorkout && viewModel.isInSuperset) ? {
@@ -197,7 +229,8 @@ struct ExerciseDetailSheet: View {
                     isLiveWorkout: viewModel.isLiveWorkout,
                     isPendingWorkout: viewModel.isPendingWorkout,
                     workingSetNumber: viewModel.workingSetNumber(forSetIndex: setIndex),
-                    previousSetWeight: viewModel.previousSetWeight(forSetIndex: setIndex)
+                    previousSetWeight: viewModel.previousSetWeight(forSetIndex: setIndex),
+                    isFirstIncompleteSet: isFirstIncompleteSet(at: setIndex)
                 )
 
                 if viewModel.exercise.sets.count > 1 {
@@ -301,5 +334,18 @@ struct ExerciseDetailSheet: View {
             }
             .padding(.horizontal)
         }
+    }
+
+    // MARK: - Helper Methods
+
+    private func isFirstIncompleteSet(at index: Int) -> Bool {
+        // Check if this is the first incomplete set in the list
+        for i in 0..<viewModel.exercise.sets.count {
+            let currentSet = viewModel.exercise.sets[i]
+            if !currentSet.isCompleted {
+                return i == index
+            }
+        }
+        return false
     }
 }

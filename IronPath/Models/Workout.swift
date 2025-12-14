@@ -69,14 +69,11 @@ struct WorkoutExercise: Codable, Identifiable, Hashable {
     var sets: [ExerciseSet]
     var orderIndex: Int
     var notes: String
+    var isTimedMode: Bool // Whether this exercise instance is in timed mode
 
     var totalVolume: Double {
         sets.reduce(0) { total, set in
-            if let weight = set.weight {
-                let reps = set.actualReps ?? set.targetReps
-                return total + (weight * Double(reps))
-            }
-            return total
+            total + set.totalVolume
         }
     }
 
@@ -89,13 +86,15 @@ struct WorkoutExercise: Codable, Identifiable, Hashable {
         exercise: Exercise,
         sets: [ExerciseSet] = [],
         orderIndex: Int,
-        notes: String = ""
+        notes: String = "",
+        isTimedMode: Bool = false
     ) {
         self.id = id
         self.exercise = exercise
         self.sets = sets
         self.orderIndex = orderIndex
         self.notes = notes
+        self.isTimedMode = isTimedMode
     }
 }
 
@@ -113,6 +112,7 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
     // Advanced set type configurations
     var dropSetConfig: DropSetConfig?
     var restPauseConfig: RestPauseConfig?
+    var timedSetConfig: TimedSetConfig?
 
     var isCompleted: Bool {
         switch setType {
@@ -126,6 +126,10 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
             // Rest-pause is complete when all mini-sets are completed
             guard let config = restPauseConfig else { return actualReps != nil && completedAt != nil }
             return config.miniSets.allSatisfy { $0.isCompleted }
+        case .timed:
+            // Timed set is complete when actualDuration is recorded
+            guard let config = timedSetConfig else { return false }
+            return config.actualDuration != nil && completedAt != nil
         }
     }
 
@@ -138,6 +142,8 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
             return dropSetConfig?.drops.compactMap { $0.actualReps }.reduce(0, +) ?? actualReps ?? 0
         case .restPause:
             return restPauseConfig?.totalActualReps ?? actualReps ?? 0
+        case .timed:
+            return 0 // Timed sets don't use reps
         }
     }
 
@@ -157,6 +163,12 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
             // Rest-pause uses same weight for all mini-sets
             guard let config = restPauseConfig else { return (weight ?? 0) * Double(actualReps ?? 0) }
             return (weight ?? 0) * Double(config.totalActualReps)
+        case .timed:
+            // Timed sets: volume = addedWeight × (duration in minutes)
+            guard let config = timedSetConfig else { return 0 }
+            let durationMinutes = (config.actualDuration ?? 0) / 60.0
+            let addedWeight = config.addedWeight ?? 0
+            return addedWeight * durationMinutes
         }
     }
 
@@ -170,7 +182,8 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
         restPeriod: TimeInterval = 90,
         completedAt: Date? = nil,
         dropSetConfig: DropSetConfig? = nil,
-        restPauseConfig: RestPauseConfig? = nil
+        restPauseConfig: RestPauseConfig? = nil,
+        timedSetConfig: TimedSetConfig? = nil
     ) {
         self.id = id
         self.setNumber = setNumber
@@ -182,5 +195,6 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
         self.completedAt = completedAt
         self.dropSetConfig = dropSetConfig
         self.restPauseConfig = restPauseConfig
+        self.timedSetConfig = timedSetConfig
     }
 }
