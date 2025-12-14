@@ -195,6 +195,8 @@ final class EquipmentManager {
             return "dumbbell"
         case .kettlebells:
             return "scalemass"
+        case .medicineBall:
+            return "basketball.fill"
         case .resistanceBands:
             return "lines.measurement.horizontal"
         case .pullUpBar:
