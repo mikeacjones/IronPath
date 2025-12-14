@@ -67,6 +67,7 @@ final class FitBodCSVImporter: WorkoutImporter {
 
     private let dateFormatters: [DateFormatter] = {
         let formats = [
+            "yyyy-MM-dd HH:mm:ss Z",      // FitBod format: 2025-05-03 13:30:00 +0000
             "yyyy-MM-dd HH:mm:ss",
             "yyyy-MM-dd'T'HH:mm:ss",
             "yyyy-MM-dd",
@@ -77,6 +78,7 @@ final class FitBodCSVImporter: WorkoutImporter {
             let formatter = DateFormatter()
             formatter.dateFormat = format
             formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0) // Handle UTC offsets
             return formatter
         }
     }()
