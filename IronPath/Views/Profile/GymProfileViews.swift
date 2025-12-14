@@ -116,7 +116,7 @@ struct GymProfileEditorView: View {
                 } header: {
                     Text("Weight Unit")
                 } footer: {
-                    Text("All weights will be displayed and entered in this unit. Historical workout data will be interpreted using this unit.")
+                    Text("All new workouts will use this unit. Historical workouts display in their original unit.")
                 }
 
                 Section {

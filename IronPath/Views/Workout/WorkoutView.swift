@@ -246,7 +246,8 @@ struct WorkoutView: View {
         let workout = Workout(
             name: "Custom Workout",
             exercises: [],
-            notes: ""
+            notes: "",
+            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
         )
         (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout = workout
     }

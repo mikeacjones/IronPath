@@ -179,7 +179,8 @@ struct AddHistoricalWorkoutView: View {
             startedAt: startTime,
             completedAt: workoutDate,
             notes: notes,
-            isDeload: isDeload
+            isDeload: isDeload,
+            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
         )
 
         WorkoutDataManager.shared.saveWorkout(workout)

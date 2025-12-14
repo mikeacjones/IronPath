@@ -172,7 +172,7 @@ struct EditHistoricalWorkoutView: View {
             }
         }
 
-        // Create updated workout preserving the original ID
+        // Create updated workout preserving the original ID and weight unit
         let updatedWorkout = Workout(
             id: originalWorkout.id,
             name: workoutName,
@@ -181,7 +181,8 @@ struct EditHistoricalWorkoutView: View {
             startedAt: startTime,
             completedAt: workoutDate,
             notes: notes,
-            isDeload: isDeload
+            isDeload: isDeload,
+            weightUnit: originalWorkout.weightUnit // Preserve original unit
         )
 
         onSave(updatedWorkout)

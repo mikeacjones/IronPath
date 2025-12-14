@@ -135,7 +135,7 @@ class OpenAIProvider: AIProvider {
             userPrompt: userPrompt
         )
 
-        return try AIProviderHelpers.parseWorkoutResponse(response, prompt: userPrompt)
+        return try AIProviderHelpers.parseWorkoutResponse(response, prompt: userPrompt, profile: profile)
     }
 
     func replaceExercise(
