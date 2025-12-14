@@ -9,6 +9,14 @@ struct WeightInputView: View {
     @Binding var showPlateCalculator: Bool
     let onWeightChanged: (Double) -> Void
 
+    private var weightUnit: WeightUnit {
+        // Use active workout unit if available, otherwise use gym profile unit
+        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+            return activeWorkout.weightUnit
+        }
+        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     private var showCalcButton: Bool {
         switch equipment {
         case .barbell, .squat, .legPress, .smithMachine, .cables:
@@ -57,7 +65,7 @@ struct WeightInputView: View {
                             onWeightChanged(weightValue)
                         }
                     }
-                Text("lbs")
+                Text(weightUnit.abbreviation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -77,7 +85,7 @@ struct WeightInputView: View {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 8))
                     if breakdown.freeWeight > 0 {
-                        Text("Pin \(breakdown.pin) + \(formatWeight(breakdown.freeWeight))lb")
+                        Text("Pin \(breakdown.pin) + \(formatWeight(breakdown.freeWeight))\(weightUnit.abbreviation)")
                             .font(.caption2)
                             .fontWeight(.medium)
                     } else {
@@ -136,6 +144,14 @@ struct AddedWeightInputView: View {
     @Binding var weight: String
     let onWeightChanged: (Double?) -> Void
 
+    private var weightUnit: WeightUnit {
+        // Use active workout unit if available, otherwise use gym profile unit
+        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+            return activeWorkout.weightUnit
+        }
+        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     var body: some View {
         HStack(spacing: 4) {
             TextField("Weight", text: $weight)
@@ -149,7 +165,7 @@ struct AddedWeightInputView: View {
                         onWeightChanged(weightValue)
                     }
                 }
-            Text("lbs")
+            Text(weightUnit.abbreviation)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
