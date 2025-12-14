@@ -112,16 +112,21 @@ struct GymEquipmentSettingsView: View {
         }
     }
 
+    private var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     private var dumbbellSummary: String {
+        let unit = weightUnit.abbreviation
         if let dumbbells = settings.availableDumbbells {
             let sorted = dumbbells.sorted()
             if sorted.count <= 5 {
-                return sorted.map { formatWeight($0) }.joined(separator: ", ") + " lbs"
+                return sorted.map { formatWeight($0) }.joined(separator: ", ") + " \(unit)"
             } else {
-                return "\(sorted.count) weights: \(formatWeight(sorted.first ?? 0))-\(formatWeight(sorted.last ?? 0)) lbs"
+                return "\(sorted.count) weights: \(formatWeight(sorted.first ?? 0))-\(formatWeight(sorted.last ?? 0)) \(unit)"
             }
         } else {
-            return "\(formatWeight(settings.dumbbellMinWeight))-\(formatWeight(settings.dumbbellMaxWeight)) lbs (\(formatWeight(settings.dumbbellIncrement)) lb increments)"
+            return "\(formatWeight(settings.dumbbellMinWeight))-\(formatWeight(settings.dumbbellMaxWeight)) \(unit) (\(formatWeight(settings.dumbbellIncrement)) \(unit) increments)"
         }
     }
 

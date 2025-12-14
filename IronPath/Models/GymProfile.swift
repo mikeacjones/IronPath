@@ -395,6 +395,9 @@ final class GymSettings {
     /// Standard plate sizes (without 100lb - not common in most areas)
     static let standardPlates: [AvailablePlate] = kStandardAvailablePlates
 
+    /// Standard kg plate sizes
+    static let standardPlatesKg: [AvailablePlate] = kStandardKgAvailablePlates
+
     /// Standard dumbbell sizes commonly found in gyms (in lbs)
     static let standardDumbbells: [Double] = [
         2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25,
@@ -404,9 +407,22 @@ final class GymSettings {
         145, 150
     ]
 
+    /// Standard dumbbell sizes commonly found in kg gyms
+    static let standardDumbbellsKg: [Double] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+        32, 34, 36, 38, 40, 42, 44, 46, 48, 50,
+        52, 54, 56, 58, 60, 65, 70
+    ]
+
     /// Common dumbbell sizes for hotel/limited gyms (in lbs)
     static let limitedDumbbells: [Double] = [
         5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+    ]
+
+    /// Common dumbbell sizes for hotel/limited kg gyms
+    static let limitedDumbbellsKg: [Double] = [
+        2, 4, 6, 8, 10, 12, 14, 16, 18, 20
     ]
 
     private var isLoading = true  // Start true to prevent didSet triggers during init
