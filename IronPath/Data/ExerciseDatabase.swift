@@ -40,7 +40,8 @@ final class ExerciseDatabase {
             formTips: "Don't let the dumbbells drift too far apart at the bottom. Control the descent.",
             videoURL: "https://www.youtube.com/watch?v=VmB1G1K7v94",
             movementPattern: .horizontalPush
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Incline Dumbbell Press",
             alternateNames: ["Incline DB Press", "Incline Press", "Upper Chest Press"],
@@ -52,7 +53,8 @@ final class ExerciseDatabase {
             formTips: "Focus on the upper chest. Don't set the incline too high or shoulders take over.",
             videoURL: "https://www.youtube.com/watch?v=8iPEnn-ltC8",
             movementPattern: .horizontalPush
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Cable Flyes",
             alternateNames: ["Cable Fly", "Cable Crossover", "Standing Cable Fly"],
@@ -88,7 +90,8 @@ final class ExerciseDatabase {
             formTips: "Don't go too deep - stop when you feel a stretch. Keep the motion controlled.",
             videoURL: "https://www.youtube.com/watch?v=eozdVDA78K0",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Decline Bench Press",
             alternateNames: ["Decline Barbell Press", "Decline Press", "Lower Chest Press"],
@@ -285,7 +288,8 @@ final class ExerciseDatabase {
             formTips: "Eliminates lower back strain. Focus on squeezing shoulder blades.",
             videoURL: "https://www.youtube.com/watch?v=H75im9fAUMc",
             movementPattern: .horizontalPull
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Straight Arm Pulldown",
             primaryMuscleGroups: [.back],
@@ -329,7 +333,8 @@ final class ExerciseDatabase {
             formTips: "Allows more natural arm position than barbell. Hold at top.",
             videoURL: "https://www.youtube.com/watch?v=cJRVVxmytaM",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Rack Pulls",
             primaryMuscleGroups: [.back, .traps],
@@ -381,7 +386,8 @@ final class ExerciseDatabase {
             formTips: "Can be done seated or standing. Don't clang the dumbbells at the top.",
             videoURL: "https://www.youtube.com/watch?v=qEwKCR5JCog",
             movementPattern: .verticalPush
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Lateral Raises",
             alternateNames: ["Side Raises", "Lateral Delt Raise", "Side Lateral Raise", "Dumbbell Lateral Raise"],
@@ -393,7 +399,8 @@ final class ExerciseDatabase {
             formTips: "Use lighter weight, control the movement. Slight bend in elbows.",
             videoURL: "https://www.youtube.com/watch?v=3VcKaXpzqRo",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Front Raises",
             alternateNames: ["Front Delt Raise", "Dumbbell Front Raise", "Anterior Delt Raise"],
@@ -405,7 +412,8 @@ final class ExerciseDatabase {
             formTips: "Don't swing. Alternate arms or do both together.",
             videoURL: "https://www.youtube.com/watch?v=-t7fuZ0KhDA",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Rear Delt Flyes",
             alternateNames: ["Reverse Fly", "Bent Over Fly", "Rear Delt Raise", "Posterior Delt Fly"],
@@ -417,7 +425,8 @@ final class ExerciseDatabase {
             formTips: "Keep your back flat. Light weight, high reps work well.",
             videoURL: "https://www.youtube.com/watch?v=EA7u4Q_8HQ0",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Arnold Press",
             alternateNames: ["Arnold Dumbbell Press", "Rotating Shoulder Press"],
@@ -429,7 +438,8 @@ final class ExerciseDatabase {
             formTips: "The rotation targets all three heads of the deltoid.",
             videoURL: "https://www.youtube.com/watch?v=6Z15_WdXmVw",
             movementPattern: .verticalPush
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Seated Military Press",
             primaryMuscleGroups: [.shoulders],
@@ -498,7 +508,8 @@ final class ExerciseDatabase {
             formTips: "Named after Lu Xiaojun. Light weight, full range of motion.",
             videoURL: "https://www.youtube.com/watch?v=HuIPmb_SGes",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Behind the Neck Press",
             primaryMuscleGroups: [.shoulders],
@@ -536,7 +547,8 @@ final class ExerciseDatabase {
             instructions: "Curl dumbbells alternating or together, elbows at sides.",
             formTips: "Supinate (rotate palm up) as you curl for full bicep activation.",
             videoURL: "https://www.youtube.com/watch?v=ykJmrZ5v0Oo",
-            movementPattern: .isolation
+            movementPattern: .isolation,
+            multiplier: 2.0
         ),
         Exercise(
             name: "Hammer Curls",
@@ -549,7 +561,8 @@ final class ExerciseDatabase {
             formTips: "Targets the brachialis and forearms. Keep wrists neutral.",
             videoURL: "https://www.youtube.com/watch?v=zC3nLlEvin4",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Preacher Curls",
             alternateNames: ["Preacher Curl", "Scott Curl", "Preacher Bench Curl"],
@@ -584,7 +597,8 @@ final class ExerciseDatabase {
             formTips: "The stretch at the bottom increases bicep activation.",
             videoURL: "https://www.youtube.com/watch?v=soxrZlIl35U",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "EZ Bar Curl",
             primaryMuscleGroups: [.biceps],
@@ -618,7 +632,8 @@ final class ExerciseDatabase {
             formTips: "Arms hang straight down. Great peak contraction.",
             videoURL: "https://www.youtube.com/watch?v=ke3JGzLiME4",
             movementPattern: .isolation
-        ),
+        ,
+            multiplier: 2.0),
         Exercise(
             name: "Reverse Curl",
             primaryMuscleGroups: [.forearms],
@@ -843,7 +858,8 @@ final class ExerciseDatabase {
             formTips: "Keep torso upright. Front knee doesn't go past toes.",
             videoURL: "https://www.youtube.com/watch?v=QOVaHwm-Q6U",
             movementPattern: .lunge,
-            isUnilateral: true
+            isUnilateral: true,
+            multiplier: 2.0
         ),
         Exercise(
             name: "Lying Leg Curl",
@@ -904,7 +920,8 @@ final class ExerciseDatabase {
             formTips: "Torso upright. Great for leg development and balance.",
             videoURL: "https://www.youtube.com/watch?v=2C-uNgKwPLE",
             movementPattern: .lunge,
-            isUnilateral: true
+            isUnilateral: true,
+            multiplier: 2.0
         ),
         Exercise(
             name: "Hip Thrust",
@@ -1073,7 +1090,8 @@ final class ExerciseDatabase {
             formTips: "Take big steps. Keep torso upright. Great for conditioning.",
             videoURL: "https://www.youtube.com/watch?v=L8fvypPrzzs",
             movementPattern: .lunge,
-            isUnilateral: true
+            isUnilateral: true,
+            multiplier: 2.0
         ),
         Exercise(
             name: "Step-Ups",
@@ -1085,7 +1103,8 @@ final class ExerciseDatabase {
             formTips: "Don't push off back foot. All the work from front leg.",
             videoURL: "https://www.youtube.com/watch?v=WCFCdxzFBa4",
             movementPattern: .lunge,
-            isUnilateral: true
+            isUnilateral: true,
+            multiplier: 2.0
         ),
         Exercise(
             name: "Sissy Squat",
@@ -1118,7 +1137,8 @@ final class ExerciseDatabase {
             instructions: "Hinge at hips with dumbbells, lower along legs.",
             formTips: "Same as barbell RDL but allows more freedom of movement.",
             videoURL: "https://www.youtube.com/watch?v=hQgFixeXdZo",
-            movementPattern: .hipHinge
+            movementPattern: .hipHinge,
+            multiplier: 2.0
         )
     ]
 
