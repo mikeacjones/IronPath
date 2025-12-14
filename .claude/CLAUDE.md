@@ -273,3 +273,154 @@ struct EditorView: View {
 - ViewModels testable via protocol injection
 - Use `MockWorkoutDataManager`, etc. from test files
 - Run: `xcodebuild test -scheme IronPath -destination 'platform=iOS Simulator,name=iPhone 17'`
+
+---
+
+## Complete File Inventory
+
+### Root
+- `IronPathApp.swift` - App entry point, environment injection
+- `ContentView.swift` - Root view, onboarding vs main app routing
+
+### Data/
+- `ExerciseDatabase.swift` - Built-in exercise library (300+ exercises)
+
+### Models/
+- `Workout.swift` - Workout, WorkoutExercise, ExerciseSet, SetType
+- `Exercise.swift` - Exercise, MuscleGroup, Equipment enums
+- `UserProfile.swift` - UserProfile, WorkoutPreferences, FitnessGoal
+- `GymProfile.swift` - GymProfile, equipment availability per gym
+- `ExerciseGroup.swift` - Supersets, circuits, giant sets grouping
+- `AdvancedSetTypes.swift` - Drop sets, rest-pause, warmup set configs
+- `CableMachineConfig.swift` - Cable machine weight stack settings
+- `CustomEquipment.swift` - User-defined equipment types
+- `ExercisePreference.swift` - Per-exercise user preferences
+- `ExerciseSimilarity.swift` - Exercise similarity scoring model
+- `MovementPattern.swift` - Movement pattern classifications
+- `WorkoutType.swift` - Workout type definitions
+
+### Protocols/
+- `DataManagerProtocols.swift` - ALL DI protocols (WorkoutDataManaging, RestTimerManaging, etc.)
+
+### Services/
+- `DependencyContainer.swift` - Central DI container
+- `WorkoutDataManager.swift` - Workout CRUD, history persistence
+- `RestTimerManager.swift` - Global rest timer with timerTick heartbeat
+- `ActiveWorkoutManager.swift` - In-progress workout state persistence
+- `PendingWorkoutManager.swift` - Generated workout before starting
+- `EquipmentManager.swift` - Equipment catalog (standard + custom)
+- `GymProfileManager.swift` - Multi-gym profile management (not in file list but referenced)
+- `ExercisePreferenceManager.swift` - User exercise preferences
+- `CustomEquipmentStore.swift` - Custom equipment persistence
+- `CustomExerciseStore.swift` - Custom exercise persistence
+- `ExerciseSimilarityService.swift` - Find similar exercises
+- `ExerciseSimilarityCalculator.swift` - Similarity scoring logic
+- `CloudSyncManager.swift` - iCloud sync
+- `HealthKitManager.swift` - HealthKit integration
+- `AppSettings.swift` - User app preferences
+
+### Services/AIProviders/
+- `AIProviderManager.swift` - AI provider selection/configuration
+- `AIProvider.swift` - Protocol for AI providers
+- `AnthropicProvider.swift` - Claude API integration
+- `OpenAIProvider.swift` - OpenAI API integration
+- `AIModels.swift` - AI request/response models
+- `AITools.swift` - Tool definitions for AI
+- `AIToolParser.swift` - Parse AI tool calls
+- `AIProviderHelpers.swift` - Shared AI utilities
+- `AgentModels.swift` - Agent-based generation models
+- `AgentToolExecutor.swift` - Execute agent tool calls
+- `AgentWorkoutBuilder.swift` - Build workouts from agent output
+- `WorkoutAgentTools.swift` - Workout-specific agent tools
+
+### Utilities/
+- `AppLogger.swift` - OSLog-based logging
+- `APIKeyManager.swift` - Secure API key storage
+- `APIDebugManager.swift` - API call debugging
+- `ModelConfigManager.swift` - AI model configuration
+
+### ViewModels/
+- `ActiveWorkoutViewModel.swift` - Live workout logic
+- `WorkoutEditorViewModel.swift` - Add/remove/reorder exercises
+- `ExerciseDetailViewModel.swift` - Exercise editing in sheet
+- `ExerciseReplacementViewModel.swift` - Exercise swap logic
+- `HistoryViewModel.swift` - History view logic
+
+### Views/ (Root)
+- `MainTabView.swift` - Tab bar navigation
+- `OnboardingView.swift` - Onboarding flow container
+- `ExerciseLibraryView.swift` - Browse all exercises
+- `APIDebugLogView.swift` - Debug API calls
+
+### Views/ActiveWorkout/
+- `ActiveWorkoutView.swift` - Main live workout screen
+- `AdvancedSetViews.swift` - Advanced set row view
+- `StandardWarmupSetViews.swift` - Standard/warmup set UI
+- `DropSetViews.swift` - Drop set UI
+- `RestPauseSetViews.swift` - Rest-pause set UI
+- `SetInputComponents.swift` - Weight/rep input fields
+
+### Views/ActiveWorkout/Components/
+- `SetRowView.swift` - Basic set row
+- `ExerciseCardComponents.swift` - Exercise card in workout
+- `RestTimerComponents.swift` - RestTimerView, GroupRestTimerView
+- `RestTimeEditorSheet.swift` - Edit rest duration
+- `RestTimerGlobalViews.swift` - GlobalRestTimerBar, RestCompleteBanner, containers
+- `WorkoutTimerHeader.swift` - Workout duration header
+
+### Views/ActiveWorkout/Calculators/
+- `PlateCalculatorView.swift` - Barbell plate calculator
+- `PlateEditorViews.swift` - Edit available plates
+- `CableWeightCalculatorView.swift` - Cable stack calculator
+
+### Views/ActiveWorkout/Sheets/
+- `WorkoutCompletionSummaryView.swift` - Post-workout summary
+- `ExerciseReplacementSheet.swift` - Swap exercise UI
+
+### Views/Components/ (Shared)
+- `ExerciseDetailSheet.swift` - Edit exercise sets (used everywhere)
+- `ExerciseDetailComponents.swift` - SetTypePicker, ExerciseHistorySection
+- `AddExerciseSheet.swift` - Add exercise from library
+- `ExerciseBrowserView.swift` - Browse/filter exercises
+- `ExerciseCards.swift` - Exercise display cards
+- `ReorderableExerciseList.swift` - Drag-to-reorder exercises
+- `ExerciseGroupSheets.swift` - Create superset/circuit sheets
+- `SupersetGroupViews.swift` - Superset group display
+- `EquipmentSelectionComponents.swift` - Equipment picker components
+- `SharedComponents.swift` - Misc shared UI
+
+### Views/Equipment/
+- `EquipmentManagerView.swift` - Manage custom equipment
+- `AddCustomEquipmentView.swift` - Add new equipment
+- `ExerciseSelectionView.swift` - Select exercises for equipment
+
+### Views/History/
+- `HistoryView.swift` - Main history screen
+- `HistoryComponents.swift` - Calendar, stats, cards
+- `WorkoutHistoryDetailView.swift` - Single workout detail
+- `AddHistoricalWorkoutView.swift` - Log past workout
+- `EditHistoricalWorkoutView.swift` - Edit past workout
+
+### Views/Onboarding/
+- `OnboardingStepViews.swift` - Welcome, name, goals steps
+- `OnboardingEquipmentViews.swift` - Equipment selection
+- `OnboardingTrainingViews.swift` - Training preferences
+
+### Views/Profile/
+- `ProfileView.swift` - Main profile/settings screen
+- `ProfileSettingsComponents.swift` - Settings sections (AI, notifications, data)
+- `EditProfileView.swift` - Edit user profile
+- `GymProfileViews.swift` - Gym profile list/editor
+- `GymEquipmentSettingsView.swift` - Equipment settings
+- `CableEquipmentViews.swift` - Cable machine config
+- `DumbbellConfigurationView.swift` - Dumbbell availability
+- `AIConfigurationView.swift` - AI provider setup
+
+### Views/Progress/
+- `ProgressView.swift` - Progress tracking (placeholder)
+
+### Views/Workout/
+- `WorkoutView.swift` - Pre-workout options
+- `WorkoutSetupView.swift` - Configure workout generation
+- `WorkoutDetailView.swift` - Review generated workout
+- `WorkoutGenerationLoadingView.swift` - AI generation progress
