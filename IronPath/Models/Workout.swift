@@ -25,7 +25,7 @@ struct Workout: Codable, Identifiable, Hashable {
 
     var totalVolume: Double {
         exercises.reduce(0) { total, exercise in
-            total + exercise.totalVolume
+            total + (exercise.totalVolume * exercise.exercise.multiplier)
         }
     }
 
@@ -72,9 +72,10 @@ struct WorkoutExercise: Codable, Identifiable, Hashable {
     var isTimedMode: Bool // Whether this exercise instance is in timed mode
 
     var totalVolume: Double {
-        sets.reduce(0) { total, set in
+        let baseVolume = sets.reduce(0) { total, set in
             total + set.totalVolume
         }
+        return baseVolume * exercise.multiplier
     }
 
     var isCompleted: Bool {

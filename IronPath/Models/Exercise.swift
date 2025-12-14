@@ -18,6 +18,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     var movementPattern: MovementPattern? // Classification for similarity matching
     var isUnilateral: Bool // Single-arm/leg exercises (e.g., single-arm rows, lunges)
     var supportsTiming: Bool // Can be performed as timed exercise (e.g., planks, ball slams)
+    var multiplier: Double // Weight multiplier (2.0 for dumbbells = per-dumbbell weight, 1.0 for barbell)
 
     init(
         id: UUID = UUID(),
@@ -35,7 +36,8 @@ struct Exercise: Codable, Identifiable, Hashable {
         customEquipmentId: UUID? = nil,
         movementPattern: MovementPattern? = nil,
         isUnilateral: Bool = false,
-        supportsTiming: Bool = false
+        supportsTiming: Bool = false,
+        multiplier: Double = 1.0
     ) {
         self.id = id
         self.name = name
@@ -53,6 +55,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         self.movementPattern = movementPattern
         self.isUnilateral = isUnilateral
         self.supportsTiming = supportsTiming
+        self.multiplier = multiplier
     }
 
     /// Whether this is a compound (multi-joint) movement
@@ -101,6 +104,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         case id, name, alternateNames, primaryMuscleGroups, secondaryMuscleGroups
         case equipment, specificMachine, difficulty, instructions, formTips
         case videoURL, isCustom, customEquipmentId, movementPattern, isUnilateral, supportsTiming
+        case multiplier
     }
 
     init(from decoder: Decoder) throws {
@@ -122,6 +126,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         movementPattern = try container.decodeIfPresent(MovementPattern.self, forKey: .movementPattern)
         isUnilateral = try container.decodeIfPresent(Bool.self, forKey: .isUnilateral) ?? false
         supportsTiming = try container.decodeIfPresent(Bool.self, forKey: .supportsTiming) ?? false
+        multiplier = try container.decodeIfPresent(Double.self, forKey: .multiplier) ?? 1.0
     }
 }
 
