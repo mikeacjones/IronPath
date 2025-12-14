@@ -30,12 +30,22 @@ struct HistoryView: View {
             .navigationTitle("History")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        viewModel.showingAddWorkout = true
+                    Menu {
+                        Button {
+                            viewModel.showingAddWorkout = true
+                        } label: {
+                            Label("Add Workout", systemImage: "plus")
+                        }
+
+                        Button {
+                            viewModel.showingImportWizard = true
+                        } label: {
+                            Label("Import from FitBod", systemImage: "square.and.arrow.down")
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityIdentifier("add_historical_workout_button")
+                    .accessibilityIdentifier("add_workout_menu")
                 }
             }
             .navigationDestination(item: $viewModel.selectedWorkout) { workout in
@@ -53,6 +63,9 @@ struct HistoryView: View {
                 AddHistoricalWorkoutView {
                     viewModel.loadWorkouts()
                 }
+            }
+            .sheet(isPresented: $viewModel.showingImportWizard) {
+                ImportWizardView()
             }
             .alert("Delete Workout?", isPresented: $viewModel.showingDeleteConfirmation, presenting: viewModel.workoutToDelete) { workout in
                 Button("Cancel", role: .cancel) {
