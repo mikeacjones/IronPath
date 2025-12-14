@@ -58,6 +58,12 @@ final class DependencyContainer {
     /// Exercise database
     let exerciseDatabase: ExerciseDatabaseProviding
 
+    /// Exercise matcher for import
+    let exerciseMatcher: ExerciseMatching
+
+    /// Import manager for workout imports
+    let importManager: ImportManaging
+
     // MARK: - Initialization
 
     /// Create container with production dependencies (default)
@@ -77,6 +83,8 @@ final class DependencyContainer {
         self.customEquipmentStore = CustomEquipmentStore.shared
         self.customExerciseStore = CustomExerciseStore.shared
         self.exerciseDatabase = ExerciseDatabase.shared
+        self.exerciseMatcher = ExerciseMatcher()
+        self.importManager = ImportManager()
     }
 
     /// Create container with custom dependencies (for testing)
@@ -95,7 +103,9 @@ final class DependencyContainer {
         equipmentManager: EquipmentManaging,
         customEquipmentStore: CustomEquipmentStoring,
         customExerciseStore: CustomExerciseStoring,
-        exerciseDatabase: ExerciseDatabaseProviding
+        exerciseDatabase: ExerciseDatabaseProviding,
+        exerciseMatcher: ExerciseMatching,
+        importManager: ImportManaging
     ) {
         self.workoutDataManager = workoutDataManager
         self.activeWorkoutManager = activeWorkoutManager
@@ -112,6 +122,8 @@ final class DependencyContainer {
         self.customEquipmentStore = customEquipmentStore
         self.customExerciseStore = customExerciseStore
         self.exerciseDatabase = exerciseDatabase
+        self.exerciseMatcher = exerciseMatcher
+        self.importManager = importManager
     }
 
     // MARK: - ViewModel Factory Methods
