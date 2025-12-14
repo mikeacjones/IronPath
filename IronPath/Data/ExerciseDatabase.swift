@@ -1412,6 +1412,17 @@ final class ExerciseDatabase {
             movementPattern: .verticalPush
         ),
         Exercise(
+            name: "Medicine Ball Chest Slam",
+            alternateNames: ["Chest Slam", "Med Ball Chest Slam", "Front Slam"],
+            primaryMuscleGroups: [.chest, .abs],
+            secondaryMuscleGroups: [.shoulders, .obliques],
+            equipment: .medicineBall,
+            difficulty: .beginner,
+            instructions: "Hold medicine ball at chest level with arms bent. Explosively slam the ball down to the ground in front of you, extending through your chest and core. Catch the ball on the bounce and return to chest position.",
+            formTips: "Drive through your chest and abs as you slam. Keep your core engaged throughout. This variation emphasizes chest and upper body power more than the overhead version. Great for building explosive pressing strength.",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
             name: "Medicine Ball Chest Pass",
             alternateNames: ["Ball Chest Throw", "Med Ball Pass", "Chest Push"],
             primaryMuscleGroups: [.chest],
