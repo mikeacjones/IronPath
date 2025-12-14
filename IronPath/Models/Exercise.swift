@@ -17,6 +17,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     var customEquipmentId: UUID? // Reference to CustomEquipment if using custom equipment
     var movementPattern: MovementPattern? // Classification for similarity matching
     var isUnilateral: Bool // Single-arm/leg exercises (e.g., single-arm rows, lunges)
+    var supportsTiming: Bool // Can be performed as timed exercise (e.g., planks, ball slams)
 
     init(
         id: UUID = UUID(),
@@ -33,7 +34,8 @@ struct Exercise: Codable, Identifiable, Hashable {
         isCustom: Bool = false,
         customEquipmentId: UUID? = nil,
         movementPattern: MovementPattern? = nil,
-        isUnilateral: Bool = false
+        isUnilateral: Bool = false,
+        supportsTiming: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -50,6 +52,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         self.customEquipmentId = customEquipmentId
         self.movementPattern = movementPattern
         self.isUnilateral = isUnilateral
+        self.supportsTiming = supportsTiming
     }
 
     /// Whether this is a compound (multi-joint) movement
@@ -97,7 +100,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case id, name, alternateNames, primaryMuscleGroups, secondaryMuscleGroups
         case equipment, specificMachine, difficulty, instructions, formTips
-        case videoURL, isCustom, customEquipmentId, movementPattern, isUnilateral
+        case videoURL, isCustom, customEquipmentId, movementPattern, isUnilateral, supportsTiming
     }
 
     init(from decoder: Decoder) throws {
@@ -118,6 +121,7 @@ struct Exercise: Codable, Identifiable, Hashable {
         // New properties - default to nil/false for backward compatibility
         movementPattern = try container.decodeIfPresent(MovementPattern.self, forKey: .movementPattern)
         isUnilateral = try container.decodeIfPresent(Bool.self, forKey: .isUnilateral) ?? false
+        supportsTiming = try container.decodeIfPresent(Bool.self, forKey: .supportsTiming) ?? false
     }
 }
 

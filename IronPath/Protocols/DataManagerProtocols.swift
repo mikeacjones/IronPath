@@ -194,6 +194,60 @@ protocol RestTimerManaging: AnyObject, Sendable {
     func stopTimer()
 }
 
+// MARK: - Exercise Timer Managing
+
+/// Protocol for managing timed exercise countdown and timer
+@MainActor
+protocol ExerciseTimerManaging: AnyObject, Sendable {
+    /// Whether a timer is currently active
+    var isActive: Bool { get }
+
+    /// Whether we're in countdown phase (3-2-1)
+    var isCountdown: Bool { get }
+
+    /// Countdown value (3, 2, 1)
+    var countdownRemaining: Int { get }
+
+    /// Exercise being timed
+    var exerciseName: String { get }
+
+    /// Set number being timed
+    var setNumber: Int { get }
+
+    /// Elapsed time since timer started
+    var elapsedTime: TimeInterval { get }
+
+    /// Formatted elapsed time (MM:SS)
+    var formattedElapsedTime: String { get }
+
+    /// Remaining time until target
+    var remainingTime: TimeInterval { get }
+
+    /// Progress (0.0 to 1.0+)
+    var progress: Double { get }
+
+    /// Start a 3-2-1 countdown
+    func startCountdown(exerciseName: String, setNumber: Int, onComplete: @escaping () -> Void)
+
+    /// Skip countdown and start timer immediately
+    func skipCountdown()
+
+    /// Start the main exercise timer
+    func startExerciseTimer(targetDuration: TimeInterval, onComplete: ((TimeInterval) -> Void)?)
+
+    /// Stop the timer and return final duration
+    func stopTimer() -> TimeInterval?
+
+    /// Pause the timer
+    func pauseTimer()
+
+    /// Resume the timer
+    func resumeTimer()
+
+    /// Cancel the timer without returning duration
+    func cancelTimer()
+}
+
 // MARK: - AI Provider Managing
 
 /// Protocol for managing AI provider access
@@ -374,6 +428,7 @@ extension PendingWorkoutManager: PendingWorkoutManaging {}
 extension APIKeyManager: APIKeyManaging {}
 extension GymProfileManager: GymProfileManaging {}
 extension RestTimerManager: RestTimerManaging {}
+extension ExerciseTimerManager: ExerciseTimerManaging {}
 extension AIProviderManager: AIProviderManaging {}
 extension ExerciseSimilarityService: ExerciseSimilarityServicing {}
 extension AppSettings: AppSettingsProviding {}

@@ -12,6 +12,8 @@ struct AdvancedSetRowView: View {
     let onWeightChanged: ((Int, Double) -> Void)?
     let onRepsChanged: ((Int, Int) -> Void)?
     let onRestPeriodChanged: ((Int, TimeInterval) -> Void)?
+    let onDurationChanged: ((Int, TimeInterval) -> Void)?
+    let onAddedWeightChanged: ((Int, Double?) -> Void)?
     let suppressRestTimer: Bool
     let isLastSet: Bool
     let onSetCompleted: (() -> Void)?
@@ -19,6 +21,7 @@ struct AdvancedSetRowView: View {
     let isPendingWorkout: Bool
     let workingSetNumber: Int?
     let previousSetWeight: Double?
+    let isFirstIncompleteSet: Bool
 
     @State private var weight: String
     @State private var reps: String
@@ -27,6 +30,7 @@ struct AdvancedSetRowView: View {
     @State private var showDropSetEditor: Bool = false
     @State private var showRestPauseEditor: Bool = false
     @State private var restTimerManager = RestTimerManager.shared
+    @State private var exerciseTimerManager = ExerciseTimerManager.shared
 
     init(
         set: ExerciseSet,
@@ -37,13 +41,16 @@ struct AdvancedSetRowView: View {
         onWeightChanged: ((Int, Double) -> Void)? = nil,
         onRepsChanged: ((Int, Int) -> Void)? = nil,
         onRestPeriodChanged: ((Int, TimeInterval) -> Void)? = nil,
+        onDurationChanged: ((Int, TimeInterval) -> Void)? = nil,
+        onAddedWeightChanged: ((Int, Double?) -> Void)? = nil,
         suppressRestTimer: Bool = false,
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
         isPendingWorkout: Bool = false,
         workingSetNumber: Int? = nil,
-        previousSetWeight: Double? = nil
+        previousSetWeight: Double? = nil,
+        isFirstIncompleteSet: Bool = false
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -53,6 +60,8 @@ struct AdvancedSetRowView: View {
         self.onWeightChanged = onWeightChanged
         self.onRepsChanged = onRepsChanged
         self.onRestPeriodChanged = onRestPeriodChanged
+        self.onDurationChanged = onDurationChanged
+        self.onAddedWeightChanged = onAddedWeightChanged
         self.suppressRestTimer = suppressRestTimer
         self.isLastSet = isLastSet
         self.onSetCompleted = onSetCompleted
@@ -60,6 +69,7 @@ struct AdvancedSetRowView: View {
         self.isPendingWorkout = isPendingWorkout
         self.workingSetNumber = workingSetNumber
         self.previousSetWeight = previousSetWeight
+        self.isFirstIncompleteSet = isFirstIncompleteSet
 
         let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
             for: exerciseName,
@@ -75,6 +85,24 @@ struct AdvancedSetRowView: View {
         restTimerManager.isActive &&
         restTimerManager.exerciseName == exerciseName &&
         restTimerManager.setNumber == set.setNumber
+    }
+
+    private var shouldShowExerciseTimerForThisSet: Bool {
+        guard self.set.setType == .timed &&
+              !self.set.isCompleted &&
+              isLiveWorkout &&
+              !isPendingWorkout else {
+            return false
+        }
+
+        // Only show for this specific set when timer is active
+        if exerciseTimerManager.isActive {
+            return exerciseTimerManager.exerciseName == self.exerciseName &&
+                   exerciseTimerManager.setNumber == self.set.setNumber
+        }
+
+        // Show for inactive timer (start button) only if this is the first incomplete set
+        return isFirstIncompleteSet
     }
 
     var body: some View {
@@ -146,6 +174,22 @@ struct AdvancedSetRowView: View {
                     isLiveWorkout: isLiveWorkout,
                     isPendingWorkout: isPendingWorkout
                 )
+
+            case .timed:
+                TimedSetRow(
+                    set: set,
+                    setIndex: setIndex,
+                    exerciseName: exerciseName,
+                    equipment: equipment,
+                    onUpdate: onUpdate,
+                    onDurationChanged: onDurationChanged,
+                    onAddedWeightChanged: onAddedWeightChanged,
+                    suppressRestTimer: suppressRestTimer,
+                    isLastSet: isLastSet,
+                    onSetCompleted: onSetCompleted,
+                    isLiveWorkout: isLiveWorkout,
+                    isPendingWorkout: isPendingWorkout
+                )
             }
 
             if isRestTimerActiveForThisSet {
@@ -158,6 +202,18 @@ struct AdvancedSetRowView: View {
                     },
                     onRestTimeChanged: { newDuration in
                         onRestPeriodChanged?(setIndex, newDuration)
+                    }
+                )
+            }
+
+            if shouldShowExerciseTimerForThisSet {
+                ExerciseTimerView(
+                    timerManager: exerciseTimerManager,
+                    exerciseName: exerciseName,
+                    setNumber: set.setNumber,
+                    targetDuration: set.timedSetConfig?.targetDuration ?? 30,
+                    onTimerComplete: { duration in
+                        completeTimedSet(withDuration: duration)
                     }
                 )
             }
@@ -193,7 +249,32 @@ struct AdvancedSetRowView: View {
         }
     }
 
+    // MARK: - Helper Methods
+
+    private func completeTimedSet(withDuration duration: TimeInterval) {
+        var updatedSet = set
+        updatedSet.timedSetConfig?.actualDuration = duration
+        updatedSet.completedAt = Date()
+        isCompleted = true
+        onUpdate(updatedSet)
+
+        // Start rest timer if applicable
+        if !suppressRestTimer && !isLastSet {
+            restTimerManager.startTimer(
+                duration: set.restPeriod,
+                exerciseName: exerciseName,
+                setNumber: set.setNumber
+            )
+        }
+
+        // Call completion callback
+        onSetCompleted?()
+    }
+
     private var borderColor: Color {
+        if shouldShowExerciseTimerForThisSet && exerciseTimerManager.isActive {
+            return .cyan
+        }
         if isRestTimerActiveForThisSet {
             return .blue
         }
@@ -204,6 +285,6 @@ struct AdvancedSetRowView: View {
     }
 
     private var borderWidth: CGFloat {
-        isRestTimerActiveForThisSet ? 2 : 1
+        (isRestTimerActiveForThisSet || (shouldShowExerciseTimerForThisSet && exerciseTimerManager.isActive)) ? 2 : 1
     }
 }

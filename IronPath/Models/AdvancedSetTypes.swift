@@ -8,6 +8,7 @@ enum SetType: String, Codable, CaseIterable, Hashable {
     case warmup = "Warmup"
     case dropSet = "Drop Set"
     case restPause = "Rest-Pause"
+    case timed = "Timed"
 
     var displayName: String { rawValue }
 
@@ -17,6 +18,7 @@ enum SetType: String, Codable, CaseIterable, Hashable {
         case .warmup: return "W"
         case .dropSet: return "DROP"
         case .restPause: return "RP"
+        case .timed: return "TIME"
         }
     }
 
@@ -26,6 +28,7 @@ enum SetType: String, Codable, CaseIterable, Hashable {
         case .warmup: return "flame"
         case .dropSet: return "arrow.down.circle.fill"
         case .restPause: return "pause.circle.fill"
+        case .timed: return "timer"
         }
     }
 
@@ -39,6 +42,8 @@ enum SetType: String, Codable, CaseIterable, Hashable {
             return "Reduce weight immediately after failure and continue"
         case .restPause:
             return "Brief rest (10-20s) then continue with same weight"
+        case .timed:
+            return "Perform exercise for a target duration instead of reps"
         }
     }
 
@@ -48,6 +53,7 @@ enum SetType: String, Codable, CaseIterable, Hashable {
         case .warmup: return "orange"
         case .dropSet: return "purple"
         case .restPause: return "green"
+        case .timed: return "cyan"
         }
     }
 }
@@ -225,6 +231,26 @@ struct RestPauseMiniSet: Codable, Identifiable, Hashable {
     }
 }
 
+// MARK: - Timed Set Configuration
+
+/// Configuration for a timed set (duration-based exercises like planks)
+struct TimedSetConfig: Codable, Hashable {
+    /// Target duration in seconds
+    var targetDuration: TimeInterval
+
+    /// Actual duration achieved in seconds
+    var actualDuration: TimeInterval?
+
+    /// Added weight for weighted variations (e.g., weighted plank)
+    var addedWeight: Double?
+
+    init(targetDuration: TimeInterval, actualDuration: TimeInterval? = nil, addedWeight: Double? = nil) {
+        self.targetDuration = targetDuration
+        self.actualDuration = actualDuration
+        self.addedWeight = addedWeight
+    }
+}
+
 // MARK: - Helper Extensions
 
 extension ExerciseSet {
@@ -352,6 +378,25 @@ extension ExerciseSet {
             targetReps: targetReps,
             weight: weight,
             restPeriod: restPeriod
+        )
+    }
+
+    /// Create a timed set
+    static func createTimedSet(
+        setNumber: Int,
+        targetDuration: TimeInterval = 30,
+        addedWeight: Double? = nil,
+        restPeriod: TimeInterval = 90
+    ) -> ExerciseSet {
+        ExerciseSet(
+            setNumber: setNumber,
+            setType: .timed,
+            targetReps: 0, // Not used for timed sets
+            restPeriod: restPeriod,
+            timedSetConfig: TimedSetConfig(
+                targetDuration: targetDuration,
+                addedWeight: addedWeight
+            )
         )
     }
 }

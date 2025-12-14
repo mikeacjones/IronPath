@@ -1134,7 +1134,8 @@ final class ExerciseDatabase {
             instructions: "Hold push-up position on forearms, body straight.",
             formTips: "Don't let hips sag or pike up. Squeeze glutes and core.",
             videoURL: "https://www.youtube.com/watch?v=ASdvN_XEl_c",
-            movementPattern: .isometric
+            movementPattern: .isometric,
+            supportsTiming: true
         ),
         Exercise(
             name: "Crunches",
@@ -1233,7 +1234,8 @@ final class ExerciseDatabase {
             instructions: "Support body on forearm and feet, hips off ground.",
             formTips: "Keep body in straight line. Don't let hips sag.",
             videoURL: "https://www.youtube.com/watch?v=K2VljzCC16g",
-            movementPattern: .isometric
+            movementPattern: .isometric,
+            supportsTiming: true
         ),
         Exercise(
             name: "Mountain Climbers",
@@ -1409,7 +1411,8 @@ final class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold medicine ball overhead with arms extended. Explosively throw the ball down to the ground, bending at the hips. Catch the ball on the bounce and repeat.",
             formTips: "Use your whole body - this is not just an arm movement. Engage your core throughout. Let the ball bounce back up naturally. Great for power development and stress relief.",
-            movementPattern: .verticalPush
+            movementPattern: .verticalPush,
+            supportsTiming: true
         ),
         Exercise(
             name: "Medicine Ball Chest Slam",
@@ -1420,7 +1423,8 @@ final class ExerciseDatabase {
             difficulty: .beginner,
             instructions: "Hold medicine ball at chest level with arms bent. Explosively slam the ball down to the ground in front of you, extending through your chest and core. Catch the ball on the bounce and return to chest position.",
             formTips: "Drive through your chest and abs as you slam. Keep your core engaged throughout. This variation emphasizes chest and upper body power more than the overhead version. Great for building explosive pressing strength.",
-            movementPattern: .horizontalPush
+            movementPattern: .horizontalPush,
+            supportsTiming: true
         ),
         Exercise(
             name: "Medicine Ball Chest Pass",
@@ -1544,7 +1548,8 @@ final class ExerciseDatabase {
             difficulty: .advanced,
             instructions: "Start in plank position with one hand on medicine ball. Roll the ball to your other hand while maintaining plank position. Continue rolling ball side to side.",
             formTips: "Keep your core tight and hips level - don't let them rotate. The instability makes this extremely challenging. Move slowly and with control. Great for core stability and anti-rotation strength.",
-            movementPattern: .isometric
+            movementPattern: .isometric,
+            supportsTiming: true
         )
     ]
 

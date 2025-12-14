@@ -184,6 +184,16 @@ final class ExerciseDetailViewModel {
                 pauseDuration: 15
             )
             exercise.sets.append(newSet)
+        case .timed:
+            // Get previous timed set duration if available, otherwise use 30 seconds default
+            let previousDuration = lastSet?.timedSetConfig?.targetDuration ?? 30
+            newSet = ExerciseSet.createTimedSet(
+                setNumber: 0, // Will be renumbered
+                targetDuration: previousDuration,
+                addedWeight: lastSet?.timedSetConfig?.addedWeight,
+                restPeriod: lastSet?.restPeriod ?? 90
+            )
+            exercise.sets.append(newSet)
         }
 
         renumberSets()
@@ -238,6 +248,24 @@ final class ExerciseDetailViewModel {
         for i in (setIndex + 1)..<exercise.sets.count {
             if !exercise.sets[i].isCompleted && exercise.sets[i].setType == .standard {
                 exercise.sets[i].restPeriod = newRestPeriod
+            }
+        }
+    }
+
+    /// Propagate duration change to subsequent incomplete timed sets
+    func propagateDuration(from setIndex: Int, newDuration: TimeInterval) {
+        for i in (setIndex + 1)..<exercise.sets.count {
+            if !exercise.sets[i].isCompleted && exercise.sets[i].setType == .timed {
+                exercise.sets[i].timedSetConfig?.targetDuration = newDuration
+            }
+        }
+    }
+
+    /// Propagate added weight change to subsequent incomplete timed sets
+    func propagateAddedWeight(from setIndex: Int, newWeight: Double?) {
+        for i in (setIndex + 1)..<exercise.sets.count {
+            if !exercise.sets[i].isCompleted && exercise.sets[i].setType == .timed {
+                exercise.sets[i].timedSetConfig?.addedWeight = newWeight
             }
         }
     }
@@ -307,5 +335,45 @@ final class ExerciseDetailViewModel {
     /// Whether rest timer should be suppressed for a set
     var suppressRestTimer: Bool {
         !isLiveWorkout || isPendingWorkout || isInSuperset
+    }
+
+    // MARK: - Timed Mode Support
+
+    /// Whether this exercise is currently in timed mode
+    var isTimedMode: Bool {
+        get { exercise.isTimedMode }
+        set { toggleMode(to: newValue) }
+    }
+
+    /// Toggle between reps and timed mode
+    func toggleMode(to timedMode: Bool) {
+        guard exercise.exercise.supportsTiming else { return }
+        exercise.isTimedMode = timedMode
+        convertSetsForMode(timedMode: timedMode)
+    }
+
+    /// Convert sets between standard and timed modes
+    private func convertSetsForMode(timedMode: Bool) {
+        for i in exercise.sets.indices {
+            let set = exercise.sets[i]
+
+            // Only convert incomplete standard or timed sets
+            guard !set.isCompleted else { continue }
+            guard set.setType == .standard || set.setType == .timed else { continue }
+
+            if timedMode && set.setType == .standard {
+                // Convert to timed: suggest duration based on reps (3 seconds per rep)
+                let suggestedDuration = Double(set.targetReps) * 3.0
+                exercise.sets[i].setType = .timed
+                exercise.sets[i].timedSetConfig = TimedSetConfig(targetDuration: suggestedDuration)
+            } else if !timedMode && set.setType == .timed {
+                // Convert to reps: suggest 10 reps as default
+                exercise.sets[i].setType = .standard
+                exercise.sets[i].targetReps = 10
+                exercise.sets[i].timedSetConfig = nil
+            }
+        }
+
+        renumberSets()
     }
 }
