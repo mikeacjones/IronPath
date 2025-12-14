@@ -312,12 +312,13 @@ final class ExerciseDetailViewModel {
 
     /// Get previous set weight for plate calculator comparison
     func previousSetWeight(forSetIndex index: Int) -> Double? {
-        guard index > 0 else { return nil }
+        guard index > 0, index <= exercise.sets.count else { return nil }
         return exercise.sets[index - 1].weight
     }
 
     /// Get working set number (excludes warmups from count)
     func workingSetNumber(forSetIndex index: Int) -> Int? {
+        guard index >= 0, index < exercise.sets.count else { return nil }
         let set = exercise.sets[index]
         guard set.setType != .warmup else { return nil }
         // Count non-warmup sets before this one, then add 1
@@ -329,7 +330,8 @@ final class ExerciseDetailViewModel {
 
     /// Check if a set is the last set
     func isLastSet(index: Int) -> Bool {
-        index == exercise.sets.count - 1
+        guard index >= 0, index < exercise.sets.count else { return false }
+        return index == exercise.sets.count - 1
     }
 
     /// Whether rest timer should be suppressed for a set
