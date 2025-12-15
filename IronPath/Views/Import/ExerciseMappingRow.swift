@@ -10,6 +10,7 @@ struct ExerciseMappingRow: View {
 
     @State private var suggestions: [ExerciseMatch] = []
     @State private var showingExercisePicker = false
+    @State private var showingCustomExerciseCreator = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -50,6 +51,15 @@ struct ExerciseMappingRow: View {
                 onSelect: { exercise in
                     session.addMapping(from: unmappedExercise.name, to: exercise)
                     showingExercisePicker = false
+                }
+            )
+        }
+        .sheet(isPresented: $showingCustomExerciseCreator) {
+            CustomExerciseCreatorSheet(
+                suggestedName: unmappedExercise.name,
+                onSave: { exercise in
+                    session.addMapping(from: unmappedExercise.name, to: exercise)
+                    showingCustomExerciseCreator = false
                 }
             )
         }
@@ -131,15 +141,26 @@ struct ExerciseMappingRow: View {
                 .buttonStyle(.plain)
             }
 
-            // Browse all exercises button
-            Button {
-                showingExercisePicker = true
-            } label: {
-                Label("Browse All Exercises", systemImage: "magnifyingglass")
-                    .font(.caption)
+            // Action buttons
+            HStack(spacing: 8) {
+                Button {
+                    showingExercisePicker = true
+                } label: {
+                    Label("Browse All Exercises", systemImage: "magnifyingglass")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button {
+                    showingCustomExerciseCreator = true
+                } label: {
+                    Label("Create Custom Exercise", systemImage: "plus.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
     }
 
@@ -149,13 +170,23 @@ struct ExerciseMappingRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Button {
-                showingExercisePicker = true
-            } label: {
-                Label("Browse Exercises", systemImage: "magnifyingglass")
+            HStack(spacing: 8) {
+                Button {
+                    showingExercisePicker = true
+                } label: {
+                    Label("Browse Exercises", systemImage: "magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button {
+                    showingCustomExerciseCreator = true
+                } label: {
+                    Label("Create Custom", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
         .padding()
         .background(Color(.systemGray6))
@@ -278,6 +309,140 @@ private struct ExercisePickerSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Custom Exercise Creator Sheet
+
+/// Sheet for creating a custom exercise during import mapping
+private struct CustomExerciseCreatorSheet: View {
+    let suggestedName: String
+    let onSave: (Exercise) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String
+    @State private var selectedEquipment: Equipment = .barbell
+    @State private var selectedPrimaryMuscles: Set<MuscleGroup> = []
+    @State private var selectedSecondaryMuscles: Set<MuscleGroup> = []
+
+    init(suggestedName: String, onSave: @escaping (Exercise) -> Void) {
+        self.suggestedName = suggestedName
+        self.onSave = onSave
+        _name = State(initialValue: suggestedName)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Exercise Name") {
+                    TextField("Name", text: $name)
+                }
+
+                Section("Equipment") {
+                    Picker("Equipment Type", selection: $selectedEquipment) {
+                        ForEach(Equipment.allCases, id: \.self) { equipment in
+                            Text(equipment.rawValue).tag(equipment)
+                        }
+                    }
+                }
+
+                Section("Primary Muscles") {
+                    ForEach(MuscleGroup.allCases, id: \.self) { muscle in
+                        Button {
+                            toggleMuscle(muscle, in: .primary)
+                        } label: {
+                            HStack {
+                                Text(muscle.rawValue)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selectedPrimaryMuscles.contains(muscle) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section("Secondary Muscles (Optional)") {
+                    ForEach(MuscleGroup.allCases, id: \.self) { muscle in
+                        Button {
+                            toggleMuscle(muscle, in: .secondary)
+                        } label: {
+                            HStack {
+                                Text(muscle.rawValue)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if selectedSecondaryMuscles.contains(muscle) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                        .disabled(selectedPrimaryMuscles.contains(muscle))
+                    }
+                }
+            }
+            .navigationTitle("Create Custom Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveExercise()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && !selectedPrimaryMuscles.isEmpty
+    }
+
+    private enum MuscleSelection {
+        case primary
+        case secondary
+    }
+
+    private func toggleMuscle(_ muscle: MuscleGroup, in selection: MuscleSelection) {
+        switch selection {
+        case .primary:
+            if selectedPrimaryMuscles.contains(muscle) {
+                selectedPrimaryMuscles.remove(muscle)
+            } else {
+                selectedPrimaryMuscles.insert(muscle)
+                selectedSecondaryMuscles.remove(muscle) // Can't be both
+            }
+        case .secondary:
+            if selectedSecondaryMuscles.contains(muscle) {
+                selectedSecondaryMuscles.remove(muscle)
+            } else {
+                selectedSecondaryMuscles.insert(muscle)
+            }
+        }
+    }
+
+    private func saveExercise() {
+        let exercise = Exercise(
+            name: name.trimmingCharacters(in: .whitespaces),
+            primaryMuscleGroups: selectedPrimaryMuscles,
+            secondaryMuscleGroups: selectedSecondaryMuscles,
+            equipment: selectedEquipment,
+            isCustom: true
+        )
+
+        // Save to custom exercise store
+        CustomExerciseStore.shared.addExerciseUnchecked(exercise)
+
+        onSave(exercise)
+        dismiss()
     }
 }
 
