@@ -281,8 +281,23 @@ final class ExerciseDetailViewModel {
     // MARK: - Superset Handling
 
     /// Handle set completion in a superset/circuit context
+    /// Warmup sets do NOT trigger navigation - they're prep work before the superset rotation
     func handleSupersetSetCompletion(forSetIndex setIndex: Int) {
         guard groupInfo != nil else { return }
+        guard setIndex >= 0, setIndex < exercise.sets.count else { return }
+
+        let completedSet = exercise.sets[setIndex]
+
+        // Warmup sets don't trigger navigation - user rests and continues with the same exercise
+        if completedSet.setType == .warmup {
+            // Just save the exercise state, don't navigate
+            if let updateWithoutDismiss = onUpdateWithoutDismiss {
+                updateWithoutDismiss(exercise)
+            } else {
+                onUpdate?(exercise)
+            }
+            return
+        }
 
         // Save current exercise state without dismissing (so navigation works)
         if let updateWithoutDismiss = onUpdateWithoutDismiss {
@@ -312,12 +327,13 @@ final class ExerciseDetailViewModel {
 
     /// Get previous set weight for plate calculator comparison
     func previousSetWeight(forSetIndex index: Int) -> Double? {
-        guard index > 0 else { return nil }
+        guard index > 0, index <= exercise.sets.count else { return nil }
         return exercise.sets[index - 1].weight
     }
 
     /// Get working set number (excludes warmups from count)
     func workingSetNumber(forSetIndex index: Int) -> Int? {
+        guard index >= 0, index < exercise.sets.count else { return nil }
         let set = exercise.sets[index]
         guard set.setType != .warmup else { return nil }
         // Count non-warmup sets before this one, then add 1
@@ -329,12 +345,27 @@ final class ExerciseDetailViewModel {
 
     /// Check if a set is the last set
     func isLastSet(index: Int) -> Bool {
-        index == exercise.sets.count - 1
+        guard index >= 0, index < exercise.sets.count else { return false }
+        return index == exercise.sets.count - 1
     }
 
     /// Whether rest timer should be suppressed for a set
+    /// Note: Warmup sets in supersets still get their rest timer (warmups are prep work, not part of rotation)
+    func suppressRestTimer(for setType: SetType) -> Bool {
+        if !isLiveWorkout || isPendingWorkout {
+            return true
+        }
+        // In supersets, suppress rest timer for working sets (they move to next exercise)
+        // but allow warmup sets to have their rest timer (warmups are done before rotation starts)
+        if isInSuperset && setType != .warmup {
+            return true
+        }
+        return false
+    }
+
+    /// Legacy property for backward compatibility - assumes standard set type
     var suppressRestTimer: Bool {
-        !isLiveWorkout || isPendingWorkout || isInSuperset
+        suppressRestTimer(for: .standard)
     }
 
     // MARK: - Timed Mode Support

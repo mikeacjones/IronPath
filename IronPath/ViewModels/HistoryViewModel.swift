@@ -25,6 +25,9 @@ final class HistoryViewModel {
     /// Whether add workout sheet is showing
     var showingAddWorkout: Bool = false
 
+    /// Whether import wizard is showing
+    var showingImportWizard: Bool = false
+
     /// Workout pending deletion confirmation
     var workoutToDelete: Workout?
 

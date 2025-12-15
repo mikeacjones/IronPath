@@ -9,11 +9,27 @@ struct DumbbellConfigurationView: View {
     @State private var useSpecificDumbbells: Bool
     @State private var selectedDumbbells: Set<Double>
 
+    private var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
+    private var standardDumbbells: [Double] {
+        weightUnit == .kilograms ? GymSettings.standardDumbbellsKg : GymSettings.standardDumbbells
+    }
+
+    private var limitedDumbbells: [Double] {
+        weightUnit == .kilograms ? GymSettings.limitedDumbbellsKg : GymSettings.limitedDumbbells
+    }
+
     init() {
         let settings = GymSettings.shared
         let hasSpecific = settings.availableDumbbells != nil
         _useSpecificDumbbells = State(initialValue: hasSpecific)
-        _selectedDumbbells = State(initialValue: settings.availableDumbbells ?? Set(GymSettings.standardDumbbells.filter { $0 <= settings.dumbbellMaxWeight }))
+
+        // Use the appropriate standard set based on current unit
+        let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        let defaultStandard = unit == .kilograms ? GymSettings.standardDumbbellsKg : GymSettings.standardDumbbells
+        _selectedDumbbells = State(initialValue: settings.availableDumbbells ?? Set(defaultStandard.filter { $0 <= settings.dumbbellMaxWeight }))
     }
 
     var body: some View {
@@ -43,15 +59,16 @@ struct DumbbellConfigurationView: View {
 
                     Section {
                         Button("Select All Standard Sizes") {
-                            selectedDumbbells = Set(GymSettings.standardDumbbells)
+                            selectedDumbbells = Set(standardDumbbells)
                         }
 
-                        Button("Select Common Sizes (5 lb increments)") {
-                            selectedDumbbells = Set(GymSettings.standardDumbbells.filter { $0.truncatingRemainder(dividingBy: 5) == 0 })
+                        Button(weightUnit == .kilograms ? "Select Common Sizes (2 kg increments)" : "Select Common Sizes (5 lb increments)") {
+                            let increment: Double = weightUnit == .kilograms ? 2 : 5
+                            selectedDumbbells = Set(standardDumbbells.filter { $0.truncatingRemainder(dividingBy: increment) == 0 })
                         }
 
                         Button("Select Hotel Gym Sizes") {
-                            selectedDumbbells = Set(GymSettings.limitedDumbbells)
+                            selectedDumbbells = Set(limitedDumbbells)
                         }
 
                         Button("Clear All", role: .destructive) {
@@ -63,25 +80,25 @@ struct DumbbellConfigurationView: View {
                 } else {
                     // Range-based settings
                     Section {
-                        Stepper("Increment: \(formatWeight(settings.dumbbellIncrement)) lbs",
+                        Stepper("Increment: \(formatWeight(settings.dumbbellIncrement)) \(weightUnit.abbreviation)",
                                 value: $settings.dumbbellIncrement,
-                                in: 2.5...10,
-                                step: 2.5)
+                                in: (weightUnit == .kilograms ? 1...5 : 2.5...10),
+                                step: (weightUnit == .kilograms ? 1 : 2.5))
 
-                        Stepper("Min Weight: \(formatWeight(settings.dumbbellMinWeight)) lbs",
+                        Stepper("Min Weight: \(formatWeight(settings.dumbbellMinWeight)) \(weightUnit.abbreviation)",
                                 value: $settings.dumbbellMinWeight,
-                                in: 0...20,
-                                step: 5)
+                                in: 0...(weightUnit == .kilograms ? 10 : 20),
+                                step: (weightUnit == .kilograms ? 2 : 5))
 
-                        Stepper("Max Weight: \(formatWeight(settings.dumbbellMaxWeight)) lbs",
+                        Stepper("Max Weight: \(formatWeight(settings.dumbbellMaxWeight)) \(weightUnit.abbreviation)",
                                 value: $settings.dumbbellMaxWeight,
-                                in: 50...200,
-                                step: 10)
+                                in: (weightUnit == .kilograms ? 20...90 : 50...200),
+                                step: (weightUnit == .kilograms ? 5 : 10))
                     } header: {
                         Text("Weight Range")
                     } footer: {
                         let weights = stride(from: settings.dumbbellMinWeight, through: settings.dumbbellMaxWeight, by: settings.dumbbellIncrement)
-                        Text("Available: \(weights.map { formatWeight($0) }.joined(separator: ", ")) lbs")
+                        Text("Available: \(weights.map { formatWeight($0) }.joined(separator: ", ")) \(weightUnit.abbreviation)")
                             .font(.caption)
                     }
                 }
@@ -98,7 +115,7 @@ struct DumbbellConfigurationView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text(weights.prefix(20).map { formatWeight($0) }.joined(separator: ", ") + (weights.count > 20 ? "..." : "") + " lbs")
+                            Text(weights.prefix(20).map { formatWeight($0) }.joined(separator: ", ") + (weights.count > 20 ? "..." : "") + " \(weightUnit.abbreviation)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
@@ -140,7 +157,7 @@ struct DumbbellConfigurationView: View {
         LazyVGrid(columns: [
             GridItem(.adaptive(minimum: 70), spacing: 8)
         ], spacing: 8) {
-            ForEach(GymSettings.standardDumbbells, id: \.self) { weight in
+            ForEach(standardDumbbells, id: \.self) { weight in
                 DumbbellChip(
                     weight: weight,
                     isSelected: selectedDumbbells.contains(weight),

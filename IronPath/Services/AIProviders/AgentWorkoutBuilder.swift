@@ -393,7 +393,8 @@ final class AgentWorkoutBuilder {
             exercises: validatedExercises,
             exerciseGroups: exerciseGroups.isEmpty ? nil : exerciseGroups,
             claudeGenerationPrompt: summary ?? "",
-            isDeload: isDeload
+            isDeload: isDeload,
+            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
         )
     }
 

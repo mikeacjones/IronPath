@@ -23,7 +23,7 @@ struct WorkoutHistoryDetailView: View {
                 }
 
                 // Workout summary header
-                WorkoutSummaryHeader(workout: viewModel.workout)
+                WorkoutSummaryHeader(workout: viewModel.workout, unit: viewModel.workout.weightUnit)
 
                 // Exercises
                 VStack(alignment: .leading, spacing: 16) {
@@ -31,7 +31,7 @@ struct WorkoutHistoryDetailView: View {
                         .font(.headline)
 
                     ForEach(viewModel.workout.exercises) { exercise in
-                        WorkoutHistoryExerciseCard(exercise: exercise)
+                        WorkoutHistoryExerciseCard(exercise: exercise, unit: viewModel.workout.weightUnit)
                     }
                 }
             }
@@ -99,6 +99,7 @@ private struct DeloadBanner: View {
 
 private struct WorkoutSummaryHeader: View {
     let workout: Workout
+    let unit: WeightUnit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -125,7 +126,7 @@ private struct WorkoutSummaryHeader: View {
 
                 HistoryStatBadge(
                     icon: "scalemass",
-                    value: formatVolume(workout.totalVolume),
+                    value: formatVolume(workout.totalVolume, unit: unit),
                     label: "Volume"
                 )
 
@@ -144,13 +145,14 @@ private struct WorkoutSummaryHeader: View {
         .cornerRadius(12)
     }
 
-    private func formatVolume(_ volume: Double) -> String {
+    private func formatVolume(_ volume: Double, unit: WeightUnit) -> String {
+        let unitAbbr = unit.abbreviation
         if volume >= 1000000 {
-            return String(format: "%.1fM", volume / 1000000)
+            return String(format: "%.1fM %@", volume / 1000000, unitAbbr)
         } else if volume >= 1000 {
-            return String(format: "%.0fK", volume / 1000)
+            return String(format: "%.0fK %@", volume / 1000, unitAbbr)
         }
-        return String(format: "%.0f", volume)
+        return String(format: "%.0f %@", volume, unitAbbr)
     }
 }
 
@@ -158,6 +160,7 @@ private struct WorkoutSummaryHeader: View {
 
 struct WorkoutHistoryExerciseCard: View {
     let exercise: WorkoutExercise
+    let unit: WeightUnit
 
     private var completedSets: [ExerciseSet] {
         exercise.sets.filter { $0.completedAt != nil }
@@ -184,7 +187,7 @@ struct WorkoutHistoryExerciseCard: View {
             }
 
             // Sets table
-            SetsTableView(sets: exercise.sets)
+            SetsTableView(sets: exercise.sets, unit: unit)
 
             // Notes if any
             if !exercise.notes.isEmpty {
@@ -205,6 +208,7 @@ struct WorkoutHistoryExerciseCard: View {
 
 private struct SetsTableView: View {
     let sets: [ExerciseSet]
+    let unit: WeightUnit
 
     var body: some View {
         VStack(spacing: 0) {
@@ -227,7 +231,7 @@ private struct SetsTableView: View {
 
             // Sets
             ForEach(sets) { set in
-                HistorySetRow(set: set)
+                HistorySetRow(set: set, unit: unit)
 
                 if set.id != sets.last?.id {
                     Divider()
@@ -241,6 +245,7 @@ private struct SetsTableView: View {
 
 private struct HistorySetRow: View {
     let set: ExerciseSet
+    let unit: WeightUnit
 
     var body: some View {
         HStack {
@@ -263,7 +268,7 @@ private struct HistorySetRow: View {
             }
 
             if let weight = set.weight {
-                Text("\(formatHistoryWeight(weight)) lbs")
+                Text(WeightConverter.format(weight, unit: unit))
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .fontWeight(.medium)
             } else {

@@ -3,16 +3,36 @@ import SwiftUI
 struct AddHistoricalWorkoutView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(AppState.self) var appState
+    @Environment(DependencyContainer.self) private var dependencies
     var onSave: () -> Void
 
     @State private var workoutName = ""
     @State private var workoutDate = Date()
     @State private var workoutDuration: TimeInterval = 3600 // 1 hour default
-    @State private var exercises: [WorkoutExercise] = []
+    @State private var editorViewModel: WorkoutEditorViewModel
     @State private var notes = ""
     @State private var isDeload = false
     @State private var showingExerciseSelector = false
-    @State private var editingExerciseIndex: Int?
+    @State private var selectedExercise: WorkoutExercise?
+
+    init(onSave: @escaping () -> Void) {
+        self.onSave = onSave
+        // Initialize with empty workout
+        let emptyWorkout = Workout(
+            name: "",
+            exercises: [],
+            createdAt: Date(),
+            startedAt: Date(),
+            completedAt: Date(),
+            notes: "",
+            isDeload: false
+        )
+        _editorViewModel = State(initialValue: WorkoutEditorViewModel(workout: emptyWorkout))
+    }
+
+    private var exercises: [WorkoutExercise] {
+        editorViewModel.workout.exercises
+    }
 
     var body: some View {
         NavigationStack {
@@ -45,41 +65,20 @@ struct AddHistoricalWorkoutView: View {
                 }
 
                 Section {
-                    ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
-                        Button {
-                            editingExerciseIndex = index
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(exercise.exercise.name)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-
-                                    let completedSets = exercise.sets.filter { $0.actualReps != nil }
-                                    if completedSets.isEmpty {
-                                        Text("No sets recorded")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text(completedSets.map { set in
-                                            if let weight = set.weight {
-                                                return "\(formatWeight(weight))x\(set.actualReps ?? set.targetReps)"
-                                            } else {
-                                                return "\(set.actualReps ?? set.targetReps) reps"
-                                            }
-                                        }.joined(separator: ", "))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .onDelete(perform: deleteExercise)
-                    .onMove(perform: moveExercise)
+                    DraggableExerciseList(
+                        workout: $editorViewModel.workout,
+                        isLiveWorkout: false,
+                        exercisePreferenceManager: dependencies.exercisePreferenceManager,
+                        onExerciseTap: { exercise in
+                            selectedExercise = exercise
+                        },
+                        onExerciseReplace: { _ in },
+                        onExerciseRemove: { exercise in
+                            editorViewModel.initiateRemoval(for: exercise)
+                        },
+                        onSetPreference: { _, _ in },
+                        onAddExerciseToGroup: { _ in }
+                    )
 
                     Button {
                         showingExerciseSelector = true
@@ -116,49 +115,46 @@ struct AddHistoricalWorkoutView: View {
             }
             .sheet(isPresented: $showingExerciseSelector) {
                 AddExerciseSheet(
-                    existingExercises: exercises.map { $0.exercise.name },
+                    existingExercises: editorViewModel.existingExerciseNames,
                     userProfile: appState.userProfile
                 ) { exercise in
-                    let workoutExercise = WorkoutExercise(
-                        exercise: exercise,
-                        sets: [
-                            ExerciseSet(setNumber: 1, targetReps: 10),
-                            ExerciseSet(setNumber: 2, targetReps: 10),
-                            ExerciseSet(setNumber: 3, targetReps: 10)
-                        ],
-                        orderIndex: exercises.count
-                    )
-                    exercises.append(workoutExercise)
-                    editingExerciseIndex = exercises.count - 1
+                    editorViewModel.addExerciseFromLibrary(exercise)
+                    // Automatically open the newly added exercise for editing
+                    if let lastExercise = editorViewModel.workout.exercises.last {
+                        selectedExercise = lastExercise
+                    }
                 }
             }
-            .sheet(item: $editingExerciseIndex) { index in
+            .sheet(item: $selectedExercise) { exercise in
+                // Get current version of exercise from workout (in case it was updated)
+                let currentExercise = editorViewModel.workout.exercises.first { $0.id == exercise.id } ?? exercise
+
                 ExerciseDetailSheet(
-                    exercise: exercises[index],
+                    exercise: currentExercise,
                     onUpdate: { updatedExercise in
-                        exercises[index] = updatedExercise
+                        editorViewModel.updateExercise(updatedExercise)
+                        selectedExercise = nil
                     },
                     isLiveWorkout: false,
+                    isPendingWorkout: true,
                     showVideosOverride: false,
                     showFormTipsOverride: false
                 )
             }
-        }
-    }
-
-    private func deleteExercise(at offsets: IndexSet) {
-        exercises.remove(atOffsets: offsets)
-        // Update order indices
-        for i in 0..<exercises.count {
-            exercises[i].orderIndex = i
-        }
-    }
-
-    private func moveExercise(from source: IndexSet, to destination: Int) {
-        exercises.move(fromOffsets: source, toOffset: destination)
-        // Update order indices
-        for i in 0..<exercises.count {
-            exercises[i].orderIndex = i
+            .alert(
+                "Remove Exercise?",
+                isPresented: $editorViewModel.showRemoveConfirmation,
+                presenting: editorViewModel.exerciseToRemove
+            ) { exercise in
+                Button("Remove", role: .destructive) {
+                    editorViewModel.removeExercise(exercise)
+                }
+                Button("Cancel", role: .cancel) {
+                    editorViewModel.cancelRemoval()
+                }
+            } message: { exercise in
+                Text("Remove \(exercise.exercise.name) from this workout?")
+            }
         }
     }
 
@@ -166,7 +162,7 @@ struct AddHistoricalWorkoutView: View {
         let startTime = workoutDate.addingTimeInterval(-workoutDuration)
 
         // Mark all sets as completed
-        var completedExercises = exercises
+        var completedExercises = editorViewModel.workout.exercises
         for i in 0..<completedExercises.count {
             for j in 0..<completedExercises[i].sets.count {
                 if completedExercises[i].sets[j].actualReps == nil {
@@ -183,19 +179,14 @@ struct AddHistoricalWorkoutView: View {
             startedAt: startTime,
             completedAt: workoutDate,
             notes: notes,
-            isDeload: isDeload
+            isDeload: isDeload,
+            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
         )
 
         WorkoutDataManager.shared.saveWorkout(workout)
         onSave()
         dismiss()
     }
-}
-
-
-// Extension to make Int? conform to Identifiable for sheet presentation
-extension Int: @retroactive Identifiable {
-    public var id: Int { self }
 }
 
 #Preview {

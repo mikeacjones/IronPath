@@ -20,6 +20,7 @@ final class RestTimerManager {
     private let isGroupTimerKey = "rest_timer_is_group"
     private let groupTypeKey = "rest_timer_group_type"
     private let nextExerciseNameKey = "rest_timer_next_exercise"
+    private let userGroupRestDurationKey = "rest_timer_user_group_rest_duration"
 
     var isActive: Bool = false
     var totalDuration: TimeInterval = 0
@@ -36,12 +37,22 @@ final class RestTimerManager {
     var groupType: ExerciseGroupType?
     var nextExerciseName: String?  // Next exercise in superset to do
 
+    /// User-adjusted group rest duration (persists between group timer invocations)
+    /// When user bumps the rest timer (+30s) or edits it, this remembers their preference
+    private var userGroupRestDuration: TimeInterval?
+
     /// The absolute time when the timer should complete
     private var endTime: Date?
     private var timer: Timer?
     private var notificationObserver: NSObjectProtocol?
 
     private init() {
+        // Restore user's preferred group rest duration if available
+        let savedGroupDuration = UserDefaults.standard.double(forKey: userGroupRestDurationKey)
+        if savedGroupDuration > 0 {
+            userGroupRestDuration = savedGroupDuration
+        }
+
         requestNotificationPermission()
         setupAppLifecycleObservers()
         restoreTimerState()
@@ -104,8 +115,12 @@ final class RestTimerManager {
     ) {
         stopTimer()
 
-        self.totalDuration = duration
-        self.endTime = Date().addingTimeInterval(duration)
+        // Use user's preferred duration if they adjusted it during this workout session
+        // This allows bumping the timer (+30s) to persist between superset rounds
+        let effectiveDuration = userGroupRestDuration ?? duration
+
+        self.totalDuration = effectiveDuration
+        self.endTime = Date().addingTimeInterval(effectiveDuration)
         self.exerciseName = exerciseNames.joined(separator: " → ")
         self.setNumber = completedRound
         self.isActive = true
@@ -117,7 +132,7 @@ final class RestTimerManager {
         // Persist state for app restart recovery
         persistTimerState()
 
-        scheduleGroupCompletionNotification(in: duration, groupType: groupType)
+        scheduleGroupCompletionNotification(in: effectiveDuration, groupType: groupType)
         startDisplayTimer()
     }
 
@@ -125,6 +140,12 @@ final class RestTimerManager {
         guard let currentEndTime = endTime else { return }
         endTime = currentEndTime.addingTimeInterval(seconds)
         totalDuration += seconds
+
+        // For group timers, save user's preferred duration for subsequent rounds
+        if isGroupTimer {
+            userGroupRestDuration = totalDuration
+            UserDefaults.standard.set(totalDuration, forKey: userGroupRestDurationKey)
+        }
 
         // Persist updated state
         persistTimerState()
@@ -144,6 +165,12 @@ final class RestTimerManager {
 
         // Set new total duration
         totalDuration = newDuration
+
+        // For group timers, save user's preferred duration for subsequent rounds
+        if isGroupTimer {
+            userGroupRestDuration = newDuration
+            UserDefaults.standard.set(newDuration, forKey: userGroupRestDurationKey)
+        }
 
         // If we've already rested longer than the new duration, keep at least 5 seconds
         let newRemainingTime = max(5, newDuration - elapsedTime)
@@ -173,6 +200,12 @@ final class RestTimerManager {
         groupType = nil
         nextExerciseName = nil
         clearPersistedState()
+    }
+
+    /// Clear user's group rest duration preference (call when workout ends)
+    func clearGroupRestPreference() {
+        userGroupRestDuration = nil
+        UserDefaults.standard.removeObject(forKey: userGroupRestDurationKey)
     }
 
     // MARK: - Persistence

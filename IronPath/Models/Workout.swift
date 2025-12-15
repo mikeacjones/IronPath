@@ -13,6 +13,7 @@ struct Workout: Codable, Identifiable, Hashable {
     var claudeGenerationPrompt: String? // Store the prompt used to generate this workout
     var isDeload: Bool // Whether this is a deload/recovery workout (lighter weights, won't affect progressive overload)
     var estimatedCalories: Int? // AI-estimated calories burned during this workout
+    var weightUnit: WeightUnit // Unit used for all weights in this workout
 
     var duration: TimeInterval? {
         guard let start = startedAt, let completed = completedAt else { return nil }
@@ -25,7 +26,7 @@ struct Workout: Codable, Identifiable, Hashable {
 
     var totalVolume: Double {
         exercises.reduce(0) { total, exercise in
-            total + exercise.totalVolume
+            total + (exercise.totalVolume * exercise.exercise.multiplier)
         }
     }
 
@@ -46,7 +47,8 @@ struct Workout: Codable, Identifiable, Hashable {
         notes: String = "",
         claudeGenerationPrompt: String? = nil,
         isDeload: Bool = false,
-        estimatedCalories: Int? = nil
+        estimatedCalories: Int? = nil,
+        weightUnit: WeightUnit = .pounds
     ) {
         self.id = id
         self.name = name
@@ -59,6 +61,33 @@ struct Workout: Codable, Identifiable, Hashable {
         self.claudeGenerationPrompt = claudeGenerationPrompt
         self.isDeload = isDeload
         self.estimatedCalories = estimatedCalories
+        self.weightUnit = weightUnit
+    }
+
+    // MARK: - Codable (backward compatibility)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, exercises, exerciseGroups
+        case createdAt, startedAt, completedAt, notes
+        case claudeGenerationPrompt, isDeload, estimatedCalories
+        case weightUnit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        exercises = try container.decode([WorkoutExercise].self, forKey: .exercises)
+        exerciseGroups = try container.decodeIfPresent([ExerciseGroup].self, forKey: .exerciseGroups)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        startedAt = try container.decodeIfPresent(Date.self, forKey: .startedAt)
+        completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        claudeGenerationPrompt = try container.decodeIfPresent(String.self, forKey: .claudeGenerationPrompt)
+        isDeload = try container.decodeIfPresent(Bool.self, forKey: .isDeload) ?? false
+        estimatedCalories = try container.decodeIfPresent(Int.self, forKey: .estimatedCalories)
+        // Migration: Default to pounds for existing workouts without weightUnit
+        weightUnit = try container.decodeIfPresent(WeightUnit.self, forKey: .weightUnit) ?? .pounds
     }
 }
 
@@ -72,9 +101,10 @@ struct WorkoutExercise: Codable, Identifiable, Hashable {
     var isTimedMode: Bool // Whether this exercise instance is in timed mode
 
     var totalVolume: Double {
-        sets.reduce(0) { total, set in
+        let baseVolume = sets.reduce(0) { total, set in
             total + set.totalVolume
         }
+        return baseVolume * exercise.multiplier
     }
 
     var isCompleted: Bool {

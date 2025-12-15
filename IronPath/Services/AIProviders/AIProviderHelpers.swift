@@ -588,7 +588,7 @@ enum AIProviderHelpers {
     // MARK: - Response Parsing
 
     /// Parse workout response from JSON string
-    static func parseWorkoutResponse(_ response: String, prompt: String) throws -> Workout {
+    static func parseWorkoutResponse(_ response: String, prompt: String, profile: UserProfile) throws -> Workout {
         // Extract JSON from response (handle markdown code blocks)
         var jsonString = response
         if let jsonStart = response.firstIndex(of: "{"),
@@ -611,7 +611,7 @@ enum AIProviderHelpers {
             throw AIProviderError.parseError(detail: "JSON decode failed: \(error.localizedDescription)")
         }
 
-        var workout = try buildWorkout(from: workoutJSON, prompt: prompt)
+        var workout = try buildWorkout(from: workoutJSON, prompt: prompt, profile: profile)
 
         // Validate and snap all weights to available equipment
         validateAndSnapWeights(in: &workout)
@@ -620,7 +620,7 @@ enum AIProviderHelpers {
     }
 
     /// Build Workout model from parsed JSON
-    static func buildWorkout(from workoutJSON: WorkoutJSON, prompt: String) throws -> Workout {
+    static func buildWorkout(from workoutJSON: WorkoutJSON, prompt: String, profile: UserProfile) throws -> Workout {
         let exercises = workoutJSON.exercises.enumerated().map { index, exerciseJSON in
             let equipment = Equipment.fromString(exerciseJSON.equipment)
             let primaryMuscles = Set(exerciseJSON.primaryMuscles.compactMap { MuscleGroup(rawValue: $0) })
@@ -732,7 +732,8 @@ enum AIProviderHelpers {
             exercises: exercises,
             exerciseGroups: exerciseGroups,
             claudeGenerationPrompt: prompt,
-            isDeload: workoutJSON.isDeload ?? false
+            isDeload: workoutJSON.isDeload ?? false,
+            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
         )
     }
 

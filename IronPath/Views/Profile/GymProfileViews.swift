@@ -59,11 +59,13 @@ struct GymProfileEditorView: View {
     @Environment(\.dismiss) var dismiss
     @State private var name: String = ""
     @State private var selectedIcon: String = "dumbbell.fill"
+    @State private var preferredWeightUnit: WeightUnit = .pounds
     @State private var selectedEquipment: Set<Equipment> = Set(Equipment.allCases)
     @State private var selectedMachines: Set<SpecificMachine> = Set(SpecificMachine.allCases)
     @State private var dumbbellMaxWeight: Double = 120.0
     @State private var showingDeleteConfirmation = false
     @State private var showingMachineSelection = false
+    @State private var showUnitChangeWarning = false
 
     private let icons = [
         "dumbbell.fill",
@@ -103,6 +105,18 @@ struct GymProfileEditorView: View {
                         }
                     }
                     .padding(.vertical, 8)
+                }
+
+                Section {
+                    Picker("Weight Unit", selection: $preferredWeightUnit) {
+                        Text("Pounds (lbs)").tag(WeightUnit.pounds)
+                        Text("Kilograms (kg)").tag(WeightUnit.kilograms)
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Weight Unit")
+                } footer: {
+                    Text("All new workouts will use this unit. Historical workouts display in their original unit.")
                 }
 
                 Section {
@@ -169,6 +183,7 @@ struct GymProfileEditorView: View {
                 if let profile = profile {
                     name = profile.name
                     selectedIcon = profile.icon
+                    preferredWeightUnit = profile.preferredWeightUnit
                     selectedEquipment = profile.availableEquipment
                     selectedMachines = profile.availableMachines
                     dumbbellMaxWeight = profile.dumbbellMaxWeight
@@ -198,12 +213,14 @@ struct GymProfileEditorView: View {
             name: name,
             icon: selectedIcon,
             availableEquipment: selectedEquipment,
+            preferredWeightUnit: preferredWeightUnit,
             availableMachines: selectedMachines,
             defaultCableConfig: .defaultConfig
         )
 
         updatedProfile.name = name
         updatedProfile.icon = selectedIcon
+        updatedProfile.preferredWeightUnit = preferredWeightUnit
         updatedProfile.availableEquipment = selectedEquipment
         updatedProfile.availableMachines = selectedMachines
         updatedProfile.dumbbellMaxWeight = dumbbellMaxWeight

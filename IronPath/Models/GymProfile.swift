@@ -23,6 +23,10 @@ struct AvailablePlate: Codable, Hashable, Identifiable {
 private let kStandardPlates: [Double] = [45, 35, 25, 10, 5, 2.5]
 private let kStandardAvailablePlates: [AvailablePlate] = kStandardPlates.map { AvailablePlate(weight: $0, count: 0) }
 
+// Standard kg plate sizes
+private let kStandardKgPlates: [Double] = [25, 20, 15, 10, 5, 2.5, 1.25]
+private let kStandardKgAvailablePlates: [AvailablePlate] = kStandardKgPlates.map { AvailablePlate(weight: $0, count: 0) }
+
 // MARK: - Gym Profile
 
 /// Represents a gym location with specific equipment and settings
@@ -31,6 +35,9 @@ struct GymProfile: Codable, Identifiable, Equatable {
     var name: String
     var icon: String = "dumbbell.fill"
     var availableEquipment: Set<Equipment>
+
+    // Weight unit preference (lbs vs kg)
+    var preferredWeightUnit: WeightUnit = .pounds
 
     // Specific machines (Other Machines submenu)
     var availableMachines: Set<SpecificMachine> = []
@@ -62,6 +69,7 @@ struct GymProfile: Codable, Identifiable, Equatable {
         name: String,
         icon: String = "dumbbell.fill",
         availableEquipment: Set<Equipment>,
+        preferredWeightUnit: WeightUnit = .pounds,
         availableMachines: Set<SpecificMachine> = [],
         defaultCableConfig: CableMachineConfig,
         cableMachineConfigs: [String: CableMachineConfig] = [:],
@@ -80,6 +88,7 @@ struct GymProfile: Codable, Identifiable, Equatable {
         self.name = name
         self.icon = icon
         self.availableEquipment = availableEquipment
+        self.preferredWeightUnit = preferredWeightUnit
         self.availableMachines = availableMachines
         self.defaultCableConfig = defaultCableConfig
         self.cableMachineConfigs = cableMachineConfigs
@@ -128,6 +137,7 @@ struct GymProfile: Codable, Identifiable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "dumbbell.fill"
         availableEquipment = try container.decode(Set<Equipment>.self, forKey: .availableEquipment)
+        preferredWeightUnit = try container.decodeIfPresent(WeightUnit.self, forKey: .preferredWeightUnit) ?? .pounds
         availableMachines = try container.decodeIfPresent(Set<SpecificMachine>.self, forKey: .availableMachines) ?? []
         defaultCableConfig = try container.decode(CableMachineConfig.self, forKey: .defaultCableConfig)
         cableMachineConfigs = try container.decodeIfPresent([String: CableMachineConfig].self, forKey: .cableMachineConfigs) ?? [:]
@@ -385,6 +395,9 @@ final class GymSettings {
     /// Standard plate sizes (without 100lb - not common in most areas)
     static let standardPlates: [AvailablePlate] = kStandardAvailablePlates
 
+    /// Standard kg plate sizes
+    static let standardPlatesKg: [AvailablePlate] = kStandardKgAvailablePlates
+
     /// Standard dumbbell sizes commonly found in gyms (in lbs)
     static let standardDumbbells: [Double] = [
         2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25,
@@ -394,9 +407,22 @@ final class GymSettings {
         145, 150
     ]
 
+    /// Standard dumbbell sizes commonly found in kg gyms
+    static let standardDumbbellsKg: [Double] = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+        32, 34, 36, 38, 40, 42, 44, 46, 48, 50,
+        52, 54, 56, 58, 60, 65, 70
+    ]
+
     /// Common dumbbell sizes for hotel/limited gyms (in lbs)
     static let limitedDumbbells: [Double] = [
         5, 10, 15, 20, 25, 30, 35, 40, 45, 50
+    ]
+
+    /// Common dumbbell sizes for hotel/limited kg gyms
+    static let limitedDumbbellsKg: [Double] = [
+        2, 4, 6, 8, 10, 12, 14, 16, 18, 20
     ]
 
     private var isLoading = true  // Start true to prevent didSet triggers during init

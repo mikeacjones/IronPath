@@ -196,7 +196,10 @@ struct ExerciseDetailSheet: View {
     }
 
     private var setsList: some View {
-        ForEach(Array(viewModel.exercise.sets.enumerated()), id: \.element.id) { setIndex, set in
+        ForEach(viewModel.exercise.sets) { set in
+            // Compute the index dynamically to avoid stale indices after deletion
+            let setIndex = viewModel.exercise.sets.firstIndex(where: { $0.id == set.id }) ?? 0
+
             HStack(alignment: .top, spacing: 8) {
                 AdvancedSetRowView(
                     set: set,
@@ -221,7 +224,7 @@ struct ExerciseDetailSheet: View {
                     onAddedWeightChanged: { changedSetIndex, newWeight in
                         viewModel.propagateAddedWeight(from: changedSetIndex, newWeight: newWeight)
                     },
-                    suppressRestTimer: viewModel.suppressRestTimer,
+                    suppressRestTimer: viewModel.suppressRestTimer(for: set.setType),
                     isLastSet: viewModel.isLastSet(index: setIndex),
                     onSetCompleted: (viewModel.isLiveWorkout && viewModel.isInSuperset) ? {
                         viewModel.handleSupersetSetCompletion(forSetIndex: setIndex)
