@@ -11,7 +11,7 @@ final class ExerciseDatabase {
     lazy var exercises: [Exercise] = {
         return chestExercises + backExercises + shoulderExercises + bicepExercises +
                tricepExercises + legExercises + coreExercises + trapBarExercises +
-               medicineBallExercises
+               medicineBallExercises + kettlebellExercises
     }()
 
     // MARK: - Chest Exercises
@@ -143,7 +143,7 @@ final class ExerciseDatabase {
         ),
         Exercise(
             name: "Machine Chest Press",
-            alternateNames: ["Chest Press Machine", "Seated Chest Press", "Hammer Strength Chest Press"],
+            alternateNames: ["Chest Press Machine", "Seated Chest Press"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [.triceps, .shoulders],
             equipment: .bodyweightOnly,
@@ -152,6 +152,30 @@ final class ExerciseDatabase {
             instructions: "Sit at machine, press handles forward until arms are extended.",
             formTips: "Good for beginners or burnout sets. Keep back against pad.",
             videoURL: "https://www.youtube.com/watch?v=xUm0BiZCWlQ",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Hammer Strength Chest Press",
+            alternateNames: ["Hammerstrength Chest Press", "Plate Loaded Chest Press"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [.triceps, .shoulders],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Sit at Hammer Strength machine, press handles forward independently or together.",
+            formTips: "Plate loaded machine allows independent arm movement. Great for addressing imbalances.",
+            videoURL: "https://www.youtube.com/watch?v=SC7RgPr4B2E",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Hammer Strength Incline Press",
+            alternateNames: ["Hammerstrength Incline Chest Press", "HS Incline Press"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [.shoulders, .triceps],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Sit at incline Hammer Strength machine, press handles upward and forward.",
+            formTips: "Targets upper chest. Independent handles allow unilateral training.",
+            videoURL: "https://www.youtube.com/watch?v=KW9fF6BVZL0",
             movementPattern: .horizontalPush
         ),
         Exercise(
@@ -194,6 +218,18 @@ final class ExerciseDatabase {
             instructions: "Hang from bar with overhand grip, pull up until chin clears bar.",
             formTips: "Initiate the pull with your back, not your arms. Avoid swinging.",
             videoURL: "https://www.youtube.com/watch?v=eGo4IYlbE5g",
+            movementPattern: .verticalPull
+        ),
+        Exercise(
+            name: "Assisted Pull-Up Machine",
+            alternateNames: ["Assisted Pullup", "Machine Pull-Up", "Assisted Chin-Up"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Kneel on assistance pad, grip handles overhead, pull yourself up with machine assistance.",
+            formTips: "Great for building up to unassisted pull-ups. Focus on form over weight.",
+            videoURL: "https://www.youtube.com/watch?v=_71Ehm96cZw",
             movementPattern: .verticalPull
         ),
         Exercise(
@@ -243,6 +279,18 @@ final class ExerciseDatabase {
             instructions: "Sit at cable row, pull handle to stomach while keeping back straight.",
             formTips: "Don't lean too far back. Squeeze your shoulder blades at the end.",
             videoURL: "https://www.youtube.com/watch?v=GZbfZ033f74",
+            movementPattern: .horizontalPull
+        ),
+        Exercise(
+            name: "Hammer Strength Row",
+            alternateNames: ["Hammerstrength Row", "HS Row", "Plate Loaded Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Sit at Hammer Strength row machine, pull handles toward torso independently or together.",
+            formTips: "Plate loaded machine. Great for heavy rowing with stable platform. Keep chest against pad.",
+            videoURL: "https://www.youtube.com/watch?v=8MKGArS7w5E",
             movementPattern: .horizontalPull
         ),
         Exercise(
@@ -598,6 +646,18 @@ final class ExerciseDatabase {
             instructions: "Sit at shoulder press machine, press handles overhead.",
             formTips: "Good for beginners. Keeps you in a fixed path.",
             videoURL: "https://www.youtube.com/watch?v=Wqq43dKW1TU",
+            movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Hammer Strength Shoulder Press",
+            alternateNames: ["Hammerstrength Shoulder Press", "HS Shoulder Press", "Plate Loaded Shoulder Press"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.triceps],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Sit at Hammer Strength shoulder press, press handles overhead independently or together.",
+            formTips: "Plate loaded machine. Independent handles allow unilateral work and addressing imbalances.",
+            videoURL: "https://www.youtube.com/watch?v=DviLfqbFaMw",
             movementPattern: .verticalPush
         ),
         Exercise(
@@ -1085,6 +1145,18 @@ final class ExerciseDatabase {
             instructions: "Sit in leg press machine, lower weight, press back up.",
             formTips: "Don't lock out knees completely. Keep lower back pressed into seat.",
             videoURL: "https://www.youtube.com/watch?v=IZxyjW7MPJQ",
+            movementPattern: .squat
+        ),
+        Exercise(
+            name: "Hammer Strength V-Squat",
+            alternateNames: ["Hammerstrength V-Squat", "HS V-Squat", "Plate Loaded Squat"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Stand on platform of Hammer Strength V-Squat, shoulders under pads, squat down and drive through heels to stand.",
+            formTips: "Plate loaded squat machine. Great alternative to barbell squat with less spinal loading.",
+            videoURL: "https://www.youtube.com/watch?v=AhGqPz7hY3Y",
             movementPattern: .squat
         ),
         Exercise(
@@ -1750,6 +1822,71 @@ final class ExerciseDatabase {
             formTips: "Great core strengthener. Start with light weight. Helps with overhead stability.",
             videoURL: "https://www.youtube.com/watch?v=wGjU8jt8h0k",
             movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Mountain Climbers",
+            alternateNames: ["Running Planks", "Mountain Climber"],
+            primaryMuscleGroups: [.abs],
+            secondaryMuscleGroups: [.shoulders, .quads],
+            equipment: .bodyweightOnly,
+            difficulty: .beginner,
+            instructions: "Start in plank position, alternate bringing knees to chest in running motion.",
+            formTips: "Great cardio and core exercise. Keep hips low. Can be done for time or reps.",
+            videoURL: "https://www.youtube.com/watch?v=nmwgirgXLYM",
+            movementPattern: .isolation,
+            supportsTiming: true
+        ),
+        Exercise(
+            name: "Running",
+            alternateNames: ["Treadmill Running", "Outdoor Running", "Cardio Running"],
+            primaryMuscleGroups: [.quads, .hamstrings, .calves],
+            secondaryMuscleGroups: [.glutes],
+            equipment: .bodyweightOnly,
+            difficulty: .beginner,
+            instructions: "Run at steady pace or intervals for cardiovascular fitness.",
+            formTips: "Great for cardiovascular health. Track time and distance. Vary pace for intervals.",
+            videoURL: "https://www.youtube.com/watch?v=brFHyOtTwH",
+            movementPattern: .isolation,
+            supportsTiming: true
+        ),
+        Exercise(
+            name: "Cycling",
+            alternateNames: ["Stationary Bike", "Spin Bike", "Bike", "Indoor Cycling"],
+            primaryMuscleGroups: [.quads],
+            secondaryMuscleGroups: [.hamstrings, .calves, .glutes],
+            equipment: .bodyweightOnly,
+            difficulty: .beginner,
+            instructions: "Pedal on stationary or outdoor bike for cardiovascular fitness.",
+            formTips: "Low impact cardio option. Adjust resistance for intensity. Good for active recovery.",
+            videoURL: "https://www.youtube.com/watch?v=KGb4yEFEGG8",
+            movementPattern: .isolation,
+            supportsTiming: true
+        ),
+        Exercise(
+            name: "Jump Rope",
+            alternateNames: ["Jumping Rope", "Rope Skipping", "Speed Rope"],
+            primaryMuscleGroups: [.calves],
+            secondaryMuscleGroups: [.shoulders, .forearms],
+            equipment: .bodyweightOnly,
+            difficulty: .beginner,
+            instructions: "Jump over rope as it passes under feet in continuous motion.",
+            formTips: "Excellent cardio and coordination exercise. Stay on balls of feet. Great for conditioning.",
+            videoURL: "https://www.youtube.com/watch?v=hCKITyDe0zk",
+            movementPattern: .isolation,
+            supportsTiming: true
+        ),
+        Exercise(
+            name: "Battle Ropes",
+            alternateNames: ["Heavy Ropes", "Training Ropes", "Battling Ropes"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.abs, .back, .forearms],
+            equipment: .bodyweightOnly,
+            difficulty: .intermediate,
+            instructions: "Hold rope ends, create waves by alternating or slamming ropes with power.",
+            formTips: "Intense full-body cardio. Maintain athletic stance. Great for conditioning and power.",
+            videoURL: "https://www.youtube.com/watch?v=6_1VNj-u4O0",
+            movementPattern: .isolation,
+            supportsTiming: true
         )
     ]
 
@@ -1998,6 +2135,87 @@ final class ExerciseDatabase {
             formTips: "Keep your core tight and hips level - don't let them rotate. The instability makes this extremely challenging. Move slowly and with control. Great for core stability and anti-rotation strength.",
             movementPattern: .isometric,
             supportsTiming: true
+        )
+    ]
+
+    // MARK: - Kettlebell Exercises
+
+    let kettlebellExercises: [Exercise] = [
+        Exercise(
+            name: "Kettlebell Swing",
+            alternateNames: ["KB Swing", "Two Arm Kettlebell Swing", "Russian Swing"],
+            primaryMuscleGroups: [.glutes, .hamstrings],
+            secondaryMuscleGroups: [.lowerBack, .shoulders, .abs],
+            equipment: .kettlebells,
+            difficulty: .intermediate,
+            instructions: "Stand with feet shoulder-width apart, hinge at hips and swing kettlebell between legs, explosively drive hips forward to swing kettlebell to chest height.",
+            formTips: "Power comes from hip drive, not arms. Keep back flat. Excellent for posterior chain and conditioning.",
+            videoURL: "https://www.youtube.com/watch?v=YSxHifyI6s8",
+            movementPattern: .hipHinge
+        ),
+        Exercise(
+            name: "Farmer's Walk",
+            alternateNames: ["Farmers Carry", "Farmer Carry", "Heavy Carry"],
+            primaryMuscleGroups: [.forearms, .traps],
+            secondaryMuscleGroups: [.abs, .shoulders, .glutes],
+            equipment: .kettlebells,
+            difficulty: .beginner,
+            instructions: "Hold heavy kettlebells or dumbbells at sides, walk forward maintaining upright posture.",
+            formTips: "Keep shoulders back and core tight. Great for grip strength and full body stability. Can use dumbbells, kettlebells, or farmer's walk handles.",
+            videoURL: "https://www.youtube.com/watch?v=rt17lmnaLSM",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Kettlebell Goblet Squat",
+            alternateNames: ["KB Goblet Squat", "Kettlebell Front Squat"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.abs],
+            equipment: .kettlebells,
+            difficulty: .beginner,
+            instructions: "Hold kettlebell at chest by horns, squat down between legs keeping chest up.",
+            formTips: "Same as dumbbell goblet squat. Kettlebell variation is very popular. Elbows track inside knees.",
+            videoURL: "https://www.youtube.com/watch?v=HTGOI3x0jfA",
+            movementPattern: .squat
+        ),
+        Exercise(
+            name: "Kettlebell Turkish Get-Up",
+            alternateNames: ["Turkish Get Up", "TGU", "KB Get-Up"],
+            primaryMuscleGroups: [.shoulders, .abs],
+            secondaryMuscleGroups: [.quads, .glutes],
+            equipment: .kettlebells,
+            difficulty: .advanced,
+            instructions: "Lie on back holding kettlebell overhead with one arm, stand up while keeping kettlebell overhead, reverse to return to lying position.",
+            formTips: "Complex movement requiring strength, mobility, and coordination. Break into steps and master each. Excellent full-body exercise.",
+            videoURL: "https://www.youtube.com/watch?v=1SPuRN_7nfo",
+            movementPattern: .squat,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Kettlebell Snatch",
+            alternateNames: ["KB Snatch", "One Arm Snatch"],
+            primaryMuscleGroups: [.shoulders, .glutes, .hamstrings],
+            secondaryMuscleGroups: [.abs, .traps, .forearms],
+            equipment: .kettlebells,
+            difficulty: .advanced,
+            instructions: "Swing kettlebell between legs, explosively drive hips and pull kettlebell overhead in one motion.",
+            formTips: "Advanced explosive movement. Master the swing first. Power comes from hips. Great for conditioning.",
+            videoURL: "https://www.youtube.com/watch?v=x9jDwKFWjhM",
+            movementPattern: .verticalPull,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Kettlebell Clean",
+            alternateNames: ["KB Clean", "Single Arm Clean"],
+            primaryMuscleGroups: [.shoulders, .glutes, .hamstrings],
+            secondaryMuscleGroups: [.abs, .forearms],
+            equipment: .kettlebells,
+            difficulty: .intermediate,
+            instructions: "Swing kettlebell from ground to rack position at shoulder in one fluid motion.",
+            formTips: "The bell should rotate around your wrist, not bang it. Keep close to body. Foundation for many KB movements.",
+            videoURL: "https://www.youtube.com/watch?v=5gq09nNmJmE",
+            movementPattern: .verticalPull,
+            isUnilateral: true
         )
     ]
 
