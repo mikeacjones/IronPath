@@ -1726,6 +1726,30 @@ final class ExerciseDatabase {
             formTips: "Made famous by Bruce Lee. Very advanced exercise.",
             videoURL: "https://www.youtube.com/watch?v=moyFIvRrS0s",
             movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Decline Crunch",
+            alternateNames: ["Decline Sit-up", "Decline Bench Crunch"],
+            primaryMuscleGroups: [.abs],
+            secondaryMuscleGroups: [],
+            equipment: .bench,
+            difficulty: .intermediate,
+            instructions: "Lie on decline bench, hands behind head, crunch up bringing shoulders toward hips.",
+            formTips: "Increased difficulty due to decline angle. Focus on ab contraction.",
+            videoURL: "https://www.youtube.com/watch?v=NI-5mgqMjGo",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Overhead Weighted Sit Up",
+            alternateNames: ["Weighted Overhead Sit-up", "Plate Overhead Sit-up"],
+            primaryMuscleGroups: [.abs],
+            secondaryMuscleGroups: [.shoulders],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Lie on back holding weight overhead, perform sit-up keeping weight overhead throughout.",
+            formTips: "Great core strengthener. Start with light weight. Helps with overhead stability.",
+            videoURL: "https://www.youtube.com/watch?v=wGjU8jt8h0k",
+            movementPattern: .isolation
         )
     ]
 
