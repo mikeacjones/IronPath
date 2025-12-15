@@ -118,7 +118,7 @@ final class ExerciseDatabase {
         ),
         Exercise(
             name: "Pec Deck",
-            alternateNames: ["Pec Fly Machine", "Butterfly Machine", "Chest Fly Machine"],
+            alternateNames: ["Pec Fly Machine", "Butterfly Machine", "Chest Fly Machine", "Machine Fly"],
             primaryMuscleGroups: [.chest],
             secondaryMuscleGroups: [],
             equipment: .bodyweightOnly,
@@ -152,6 +152,31 @@ final class ExerciseDatabase {
             instructions: "Sit at machine, press handles forward until arms are extended.",
             formTips: "Good for beginners or burnout sets. Keep back against pad.",
             videoURL: "https://www.youtube.com/watch?v=xUm0BiZCWlQ",
+            movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Dumbbell Incline Fly",
+            alternateNames: ["Incline DB Fly", "Incline Flyes", "Incline Dumbbell Flyes"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Lie on incline bench, extend arms above chest, lower dumbbells out to sides with slight elbow bend.",
+            formTips: "Focus on upper chest stretch. Control the weight and don't go too deep.",
+            videoURL: "https://www.youtube.com/watch?v=0G2_XV7slIg",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Cable Chest Press",
+            alternateNames: ["Cable Press", "Standing Cable Press", "Cable Bench Press"],
+            primaryMuscleGroups: [.chest],
+            secondaryMuscleGroups: [.triceps, .shoulders],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Stand between cable towers, press handles forward from chest level.",
+            formTips: "Keep core engaged. Great for constant tension throughout the movement.",
+            videoURL: "https://www.youtube.com/watch?v=bGFHqOHeNoI",
             movementPattern: .horizontalPush
         )
     ]
@@ -357,6 +382,95 @@ final class ExerciseDatabase {
             videoURL: "https://www.youtube.com/watch?v=xQhni67uBqs",
             movementPattern: .horizontalPull,
             isUnilateral: true
+        ),
+        Exercise(
+            name: "Landmine Row",
+            alternateNames: ["T-Bar Landmine Row", "Barbell Landmine Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Stand over barbell in landmine, hinge at hips and row the barbell towards chest.",
+            formTips: "Keep back straight and core tight. Great for thick back development.",
+            videoURL: "https://www.youtube.com/watch?v=ZXIEQ75rN8A",
+            movementPattern: .horizontalPull
+        ),
+        Exercise(
+            name: "Renegade Row",
+            alternateNames: ["Plank Row", "Pushup Position Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.abs, .shoulders],
+            equipment: .dumbbells,
+            difficulty: .advanced,
+            instructions: "In pushup position with hands on dumbbells, row one dumbbell to ribcage while stabilizing with other arm.",
+            formTips: "Minimize hip rotation. Great for core stability and back strength.",
+            videoURL: "https://www.youtube.com/watch?v=wN6RMHiN_Zs",
+            movementPattern: .horizontalPull,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Reverse Cable Crossover",
+            alternateNames: ["Rear Delt Cable Fly", "Reverse Cable Fly"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.shoulders],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Stand between cable towers, cross cables and pull handles out to sides.",
+            formTips: "Focus on squeezing shoulder blades together. Targets rear delts and upper back.",
+            videoURL: "https://www.youtube.com/watch?v=HJrD3_IfmYo",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Incline Dumbbell Row",
+            alternateNames: ["Chest Supported Row", "Incline DB Row", "Incline Bench Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Lie chest-down on incline bench, row dumbbells to sides of torso.",
+            formTips: "Removes lower back from equation. Great for isolating back muscles.",
+            videoURL: "https://www.youtube.com/watch?v=pYAj6Lt24Nw",
+            movementPattern: .horizontalPull,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Shotgun Row",
+            alternateNames: ["Single Arm Cable Row", "Staggered Cable Row"],
+            primaryMuscleGroups: [.back],
+            secondaryMuscleGroups: [.biceps],
+            equipment: .cables,
+            difficulty: .intermediate,
+            instructions: "Stand in staggered stance, pull cable with one arm towards ribs in a pulling motion.",
+            formTips: "Great for rotational athletes. Engage obliques for stability.",
+            videoURL: "https://www.youtube.com/watch?v=JKBJKmQ6OiU",
+            movementPattern: .horizontalPull,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Dumbbell Rear Delt Fly",
+            alternateNames: ["Bent Over Rear Delt Fly", "Reverse Dumbbell Fly", "Dumbbell Back Fly"],
+            primaryMuscleGroups: [.back, .shoulders],
+            secondaryMuscleGroups: [],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Bend over at hips, raise dumbbells out to sides with slight elbow bend.",
+            formTips: "Focus on rear delts. Don't use momentum.",
+            videoURL: "https://www.youtube.com/watch?v=rEp4Vs7R0Y0",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Bird Dog Row",
+            alternateNames: ["Bird Dog Dumbbell Row"],
+            primaryMuscleGroups: [.back, .abs],
+            secondaryMuscleGroups: [.biceps, .glutes],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "From bird dog position (opposite arm and leg extended), row dumbbell with working arm.",
+            formTips: "Excellent core stability exercise. Keep hips square to ground.",
+            videoURL: "https://www.youtube.com/watch?v=kVpkjQiHGrc",
+            movementPattern: .horizontalPull,
+            isUnilateral: true
         )
     ]
 
@@ -520,6 +634,81 @@ final class ExerciseDatabase {
             formTips: "Requires good shoulder mobility. Not for everyone. Go light.",
             videoURL: "https://www.youtube.com/watch?v=WvePgOFmkJM",
             movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Barbell Shoulder Press",
+            alternateNames: ["Standing Barbell Press", "Overhead Barbell Press", "Military Press"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.triceps],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Stand with barbell at shoulder level, press overhead until arms are fully extended.",
+            formTips: "Keep core tight. Can be done seated or standing.",
+            videoURL: "https://www.youtube.com/watch?v=2yjwXTZQDDI",
+            movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Machine Lateral Raise",
+            alternateNames: ["Lateral Raise Machine", "Side Delt Machine"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Sit at lateral raise machine, raise arms out to sides until parallel with ground.",
+            formTips: "Great for isolating side delts with constant tension.",
+            videoURL: "https://www.youtube.com/watch?v=vM9D6Cjrtps",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Dumbbell Rear Delt Raise",
+            alternateNames: ["Bent Over Rear Raise", "Reverse Dumbbell Fly"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.back],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Bend over at hips, raise dumbbells out to sides targeting rear delts.",
+            formTips: "Use lighter weight. Focus on rear delt contraction.",
+            videoURL: "https://www.youtube.com/watch?v=ttvfGg9d76c",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Seated Dumbbell Rear Delt Raise",
+            alternateNames: ["Seated Rear Delt Fly", "Seated Reverse Fly"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.back],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Sit on bench, bend forward at hips, raise dumbbells out to sides.",
+            formTips: "Chest should be near knees. Isolates rear delts effectively.",
+            videoURL: "https://www.youtube.com/watch?v=GgjbZ5gp6bw",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Barbell Push Press",
+            alternateNames: ["Push Press", "Barbell Thruster"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.quads, .glutes, .triceps],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Use leg drive to help press barbell overhead explosively.",
+            formTips: "Great for building power. Use controlled leg dip then explosive drive.",
+            videoURL: "https://www.youtube.com/watch?v=iaBVSJm78ko",
+            movementPattern: .verticalPush
+        ),
+        Exercise(
+            name: "Dumbbell Push Press",
+            alternateNames: ["DB Push Press", "Dumbbell Thruster"],
+            primaryMuscleGroups: [.shoulders],
+            secondaryMuscleGroups: [.quads, .glutes, .triceps],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Use leg drive to help press dumbbells overhead explosively.",
+            formTips: "Excellent for shoulder development and power. Drive through heels.",
+            videoURL: "https://www.youtube.com/watch?v=A5-oSs0YfDI",
+            movementPattern: .verticalPush,
+            multiplier: 2.0
         )
     ]
 
@@ -655,6 +844,55 @@ final class ExerciseDatabase {
             formTips: "Classic bicep finisher. Use lighter weight than normal.",
             videoURL: "https://www.youtube.com/watch?v=_d8U0H5hLQA",
             movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Cable Rope Hammer Curls",
+            alternateNames: ["Rope Hammer Curl", "Cable Hammer Curl"],
+            primaryMuscleGroups: [.biceps],
+            secondaryMuscleGroups: [.forearms],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Attach rope to low cable, curl with neutral grip keeping thumbs up.",
+            formTips: "Targets brachialis and brachioradialis. Keep elbows at sides.",
+            videoURL: "https://www.youtube.com/watch?v=TwD-YGVP4Bk",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Machine Bicep Curl",
+            alternateNames: ["Bicep Curl Machine", "Preacher Curl Machine"],
+            primaryMuscleGroups: [.biceps],
+            secondaryMuscleGroups: [],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Sit at bicep curl machine, curl handles towards shoulders.",
+            formTips: "Great for isolating biceps with constant tension. Control the negative.",
+            videoURL: "https://www.youtube.com/watch?v=pWENoZFT8vg",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Reverse Barbell Curl",
+            alternateNames: ["Overhand Barbell Curl", "Reverse Grip Curl"],
+            primaryMuscleGroups: [.biceps, .forearms],
+            secondaryMuscleGroups: [],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Curl barbell with overhand (pronated) grip.",
+            formTips: "Great for forearm development. Use lighter weight than standard curl.",
+            videoURL: "https://www.youtube.com/watch?v=nRiJVZDpdL0",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Zottman Curl",
+            alternateNames: ["Dumbbell Zottman Curl", "Rotating Curl"],
+            primaryMuscleGroups: [.biceps, .forearms],
+            secondaryMuscleGroups: [],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Curl dumbbells with supinated grip, rotate to pronated grip at top, lower with pronated grip.",
+            formTips: "Combines standard and reverse curl. Great for complete arm development.",
+            videoURL: "https://www.youtube.com/watch?v=ZrpRBgswtHs",
+            movementPattern: .isolation,
+            multiplier: 2.0
         )
     ]
 
@@ -722,7 +960,7 @@ final class ExerciseDatabase {
             movementPattern: .horizontalPush
         ),
         Exercise(
-            name: "Tricep Kickbacks",
+            name: "Dumbbell Tricep Kickbacks",
             alternateNames: ["DB Kickback", "Dumbbell Kickback", "Tricep Kickback"],
             primaryMuscleGroups: [.triceps],
             secondaryMuscleGroups: [],
@@ -793,6 +1031,32 @@ final class ExerciseDatabase {
             formTips: "Bar comes to chin/neck area. Advanced movement.",
             videoURL: "https://www.youtube.com/watch?v=dTKMDl9VlJU",
             movementPattern: .horizontalPush
+        ),
+        Exercise(
+            name: "Dumbbell Skullcrushers",
+            alternateNames: ["Lying Dumbbell Tricep Extension", "DB Skull Crushers", "Dumbbell Lying Tricep Extension"],
+            primaryMuscleGroups: [.triceps],
+            secondaryMuscleGroups: [],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Lie on bench with dumbbells overhead, lower behind head by bending elbows, extend back to start.",
+            formTips: "Keep upper arms stationary. Great for long head of triceps.",
+            videoURL: "https://www.youtube.com/watch?v=dCFo7CXk0tM",
+            movementPattern: .isolation,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Cable Tricep Kickbacks",
+            alternateNames: ["Cable Kickback", "Single Arm Cable Kickback"],
+            primaryMuscleGroups: [.triceps],
+            secondaryMuscleGroups: [],
+            equipment: .cables,
+            difficulty: .beginner,
+            instructions: "Bend over at cable machine, extend arm back keeping upper arm parallel to ground.",
+            formTips: "Constant tension variation of dumbbell kickbacks. Squeeze at peak contraction.",
+            videoURL: "https://www.youtube.com/watch?v=IKQbZxYb9NM",
+            movementPattern: .isolation,
+            isUnilateral: true
         )
     ]
 
@@ -1038,7 +1302,7 @@ final class ExerciseDatabase {
             name: "Hip Adduction Machine",
             primaryMuscleGroups: [.glutes],
             secondaryMuscleGroups: [],
-            equipment: .bodyweightOnly,
+            equipment: .cables,
             specificMachine: .hipAdduction,
             difficulty: .beginner,
             instructions: "Sit at machine, squeeze legs together.",
@@ -1050,7 +1314,7 @@ final class ExerciseDatabase {
             name: "Hip Abduction Machine",
             primaryMuscleGroups: [.glutes],
             secondaryMuscleGroups: [],
-            equipment: .bodyweightOnly,
+            equipment: .cables,
             specificMachine: .hipAbduction,
             difficulty: .beginner,
             instructions: "Sit at machine, push legs apart.",
@@ -1139,6 +1403,146 @@ final class ExerciseDatabase {
             videoURL: "https://www.youtube.com/watch?v=hQgFixeXdZo",
             movementPattern: .hipHinge,
             multiplier: 2.0
+        ),
+        Exercise(
+            name: "Dumbbell Walking Lunges",
+            alternateNames: ["DB Walking Lunge", "Forward Lunge", "Walking Dumbbell Lunge"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Hold dumbbells at sides, lunge forward alternating legs with each step.",
+            formTips: "Great for functional strength. Keep torso upright.",
+            videoURL: "https://www.youtube.com/watch?v=L8fvypPrzzs",
+            movementPattern: .lunge,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Barbell Walking Lunges",
+            alternateNames: ["Barbell Forward Lunge", "BB Walking Lunge"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Hold barbell on back, lunge forward alternating legs with each step.",
+            formTips: "More challenging than dumbbell version. Requires good balance.",
+            videoURL: "https://www.youtube.com/watch?v=v75GJYpXkjw",
+            movementPattern: .lunge
+        ),
+        Exercise(
+            name: "Single Leg Hip Thrust",
+            alternateNames: ["Unilateral Hip Thrust", "One Leg Hip Thrust"],
+            primaryMuscleGroups: [.glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .bodyweightOnly,
+            difficulty: .intermediate,
+            instructions: "Upper back on bench, one foot planted, thrust hips up with one leg.",
+            formTips: "Great glute isolation. Can be loaded with barbell or dumbbell on hips.",
+            videoURL: "https://www.youtube.com/watch?v=yQuMkKw8tC4",
+            movementPattern: .hipHinge,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Single Leg Press",
+            alternateNames: ["Unilateral Leg Press", "One Leg Press"],
+            primaryMuscleGroups: [.quads],
+            secondaryMuscleGroups: [.glutes, .hamstrings],
+            equipment: .legPress,
+            difficulty: .intermediate,
+            instructions: "Leg press with one leg at a time.",
+            formTips: "Address muscular imbalances. Go lighter than bilateral version.",
+            videoURL: "https://www.youtube.com/watch?v=lDt1MzQvGPo",
+            movementPattern: .squat,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Dumbbell Step Ups",
+            alternateNames: ["DB Step Up", "Box Step Up with Dumbbells"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Hold dumbbells, step up onto box or bench with one leg, drive through heel.",
+            formTips: "Great functional exercise. Don't push off with back foot.",
+            videoURL: "https://www.youtube.com/watch?v=dQqApCGd5Ss",
+            movementPattern: .squat,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Single Leg Romanian Deadlift",
+            alternateNames: ["Unilateral RDL", "One Leg RDL", "Single Leg Dumbbell RDL", "Staggered Romanian Deadlift"],
+            primaryMuscleGroups: [.hamstrings, .glutes],
+            secondaryMuscleGroups: [.lowerBack, .abs],
+            equipment: .dumbbells,
+            difficulty: .intermediate,
+            instructions: "Stand on one leg with dumbbells, hinge at hip lowering weights while extending other leg back.",
+            formTips: "Excellent for balance and hamstring development. Keep back flat.",
+            videoURL: "https://www.youtube.com/watch?v=FqPL07L0EUE",
+            movementPattern: .hipHinge,
+            isUnilateral: true,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Pistol Squat",
+            alternateNames: ["Single Leg Squat", "One Leg Squat"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.abs],
+            equipment: .bodyweightOnly,
+            difficulty: .advanced,
+            instructions: "Squat on one leg while extending other leg forward.",
+            formTips: "Advanced bodyweight exercise. Requires strength, balance, and mobility.",
+            videoURL: "https://www.youtube.com/watch?v=qDcniqddTeE",
+            movementPattern: .squat,
+            isUnilateral: true
+        ),
+        Exercise(
+            name: "Dumbbell Reverse Lunge",
+            alternateNames: ["DB Reverse Lunge", "Backward Lunge"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .dumbbells,
+            difficulty: .beginner,
+            instructions: "Hold dumbbells, step backward into lunge position.",
+            formTips: "Easier on knees than forward lunges. Great for beginners.",
+            videoURL: "https://www.youtube.com/watch?v=iDv5BYEjsK0",
+            movementPattern: .lunge,
+            multiplier: 2.0
+        ),
+        Exercise(
+            name: "Barbell Reverse Lunge",
+            alternateNames: ["BB Reverse Lunge", "Barbell Backward Lunge"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.hamstrings],
+            equipment: .barbell,
+            difficulty: .intermediate,
+            instructions: "Hold barbell on back, step backward into lunge position.",
+            formTips: "More challenging than dumbbell version. Keep torso upright.",
+            videoURL: "https://www.youtube.com/watch?v=Y9Y4zb2BBME",
+            movementPattern: .lunge
+        ),
+        Exercise(
+            name: "Calf Press",
+            alternateNames: ["Leg Press Calf Raise", "Seated Calf Press"],
+            primaryMuscleGroups: [.calves],
+            secondaryMuscleGroups: [],
+            equipment: .legPress,
+            difficulty: .beginner,
+            instructions: "On leg press machine, press through balls of feet to work calves.",
+            formTips: "Full range of motion. Stretch at bottom, squeeze at top.",
+            videoURL: "https://www.youtube.com/watch?v=eMTy3qylqnE",
+            movementPattern: .isolation
+        ),
+        Exercise(
+            name: "Jump Squats",
+            alternateNames: ["Bodyweight Jump Squat", "Explosive Squat", "Squat Jump"],
+            primaryMuscleGroups: [.quads, .glutes],
+            secondaryMuscleGroups: [.calves],
+            equipment: .bodyweightOnly,
+            difficulty: .intermediate,
+            instructions: "Squat down then explosively jump up, land softly and repeat.",
+            formTips: "Great for power development. Can be loaded with dumbbells or kettlebell.",
+            videoURL: "https://www.youtube.com/watch?v=Azl5Kfa52t0",
+            movementPattern: .squat
         )
     ]
 
