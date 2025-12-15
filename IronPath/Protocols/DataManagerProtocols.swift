@@ -192,6 +192,9 @@ protocol RestTimerManaging: AnyObject, Sendable {
 
     /// Stop the timer
     func stopTimer()
+
+    /// Clear user's group rest duration preference (call when workout ends)
+    func clearGroupRestPreference()
 }
 
 // MARK: - Exercise Timer Managing

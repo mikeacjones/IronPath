@@ -149,6 +149,8 @@ final class ActiveWorkoutViewModel {
 
         // Stop any active rest timers and cancel pending notifications
         restTimerManager.skipTimer()
+        // Clear user's group rest preference so next workout starts fresh
+        restTimerManager.clearGroupRestPreference()
 
         var completedWorkout = workout
         completedWorkout.completedAt = Date()
@@ -168,6 +170,8 @@ final class ActiveWorkoutViewModel {
     func cancelWorkout() {
         // Stop any active rest timers and cancel pending notifications
         restTimerManager.skipTimer()
+        // Clear user's group rest preference so next workout starts fresh
+        restTimerManager.clearGroupRestPreference()
         onCancel?()
     }
 

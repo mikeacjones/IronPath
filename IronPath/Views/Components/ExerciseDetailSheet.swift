@@ -224,7 +224,7 @@ struct ExerciseDetailSheet: View {
                     onAddedWeightChanged: { changedSetIndex, newWeight in
                         viewModel.propagateAddedWeight(from: changedSetIndex, newWeight: newWeight)
                     },
-                    suppressRestTimer: viewModel.suppressRestTimer,
+                    suppressRestTimer: viewModel.suppressRestTimer(for: set.setType),
                     isLastSet: viewModel.isLastSet(index: setIndex),
                     onSetCompleted: (viewModel.isLiveWorkout && viewModel.isInSuperset) ? {
                         viewModel.handleSupersetSetCompletion(forSetIndex: setIndex)

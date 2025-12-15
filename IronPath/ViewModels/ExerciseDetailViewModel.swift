@@ -281,8 +281,23 @@ final class ExerciseDetailViewModel {
     // MARK: - Superset Handling
 
     /// Handle set completion in a superset/circuit context
+    /// Warmup sets do NOT trigger navigation - they're prep work before the superset rotation
     func handleSupersetSetCompletion(forSetIndex setIndex: Int) {
         guard groupInfo != nil else { return }
+        guard setIndex >= 0, setIndex < exercise.sets.count else { return }
+
+        let completedSet = exercise.sets[setIndex]
+
+        // Warmup sets don't trigger navigation - user rests and continues with the same exercise
+        if completedSet.setType == .warmup {
+            // Just save the exercise state, don't navigate
+            if let updateWithoutDismiss = onUpdateWithoutDismiss {
+                updateWithoutDismiss(exercise)
+            } else {
+                onUpdate?(exercise)
+            }
+            return
+        }
 
         // Save current exercise state without dismissing (so navigation works)
         if let updateWithoutDismiss = onUpdateWithoutDismiss {
@@ -335,8 +350,22 @@ final class ExerciseDetailViewModel {
     }
 
     /// Whether rest timer should be suppressed for a set
+    /// Note: Warmup sets in supersets still get their rest timer (warmups are prep work, not part of rotation)
+    func suppressRestTimer(for setType: SetType) -> Bool {
+        if !isLiveWorkout || isPendingWorkout {
+            return true
+        }
+        // In supersets, suppress rest timer for working sets (they move to next exercise)
+        // but allow warmup sets to have their rest timer (warmups are done before rotation starts)
+        if isInSuperset && setType != .warmup {
+            return true
+        }
+        return false
+    }
+
+    /// Legacy property for backward compatibility - assumes standard set type
     var suppressRestTimer: Bool {
-        !isLiveWorkout || isPendingWorkout || isInSuperset
+        suppressRestTimer(for: .standard)
     }
 
     // MARK: - Timed Mode Support
