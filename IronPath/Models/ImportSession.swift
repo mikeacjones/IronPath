@@ -118,7 +118,8 @@ final class ImportSession {
         }
 
         // Add back to unmapped list if needed
-        let count = parsedWorkouts.reduce(0) { total, workout in
+        // Only count occurrences in selected workouts
+        let count = workoutsToImport.reduce(0) { total, workout in
             total + workout.exercises.filter { $0.name == csvName }.count
         }
         if count > 0 {

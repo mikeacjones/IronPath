@@ -130,7 +130,15 @@ struct FileSelectionStep: View {
         var unmappedMap: [String: Int] = [:]
 
         // Find all unique exercise names and auto-map exact matches
+        // Only process selected workouts
         for workoutIndex in session.parsedWorkouts.indices {
+            let workout = session.parsedWorkouts[workoutIndex]
+
+            // Skip workouts that aren't selected
+            guard session.selectedWorkouts.contains(workout.id) else {
+                continue
+            }
+
             for exerciseIndex in session.parsedWorkouts[workoutIndex].exercises.indices {
                 let exercise = session.parsedWorkouts[workoutIndex].exercises[exerciseIndex]
 
@@ -145,7 +153,7 @@ struct FileSelectionStep: View {
                     )
                     session.exerciseMappings[exercise.name] = matched
                 } else {
-                    // Track unmapped exercises
+                    // Track unmapped exercises (only from selected workouts)
                     unmappedMap[exercise.name, default: 0] += 1
                 }
             }
