@@ -104,6 +104,93 @@ struct MyView: View {
 
 ---
 
+## Weight Unit Handling Pattern
+
+**CRITICAL: Never hardcode "lbs" or "kg". Always respect user's preferred weight unit.**
+
+### Access Weight Unit in Views
+```swift
+struct MyView: View {
+    @Environment(DependencyContainer.self) private var dependencies
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
+    var body: some View {
+        Text("\(weight) \(weightUnit.abbreviation)")  // Dynamic: "180 lbs" or "82 kg"
+    }
+}
+```
+
+### Display Weight Values
+```swift
+// WRONG - loses decimals, hardcoded unit
+Text("\(Int(weight)) lbs")
+
+// CORRECT - preserves decimals, respects preference
+Text("\(formatWeight(weight)) \(weightUnit.abbreviation)")
+```
+
+The `formatWeight()` function:
+- Preserves decimal precision (e.g., 2.5 kg remains "2.5", not "2")
+- Removes unnecessary trailing zeros (45.0 becomes "45")
+- Handles both small increments (2.5 lb plates) and large weights (225 lbs)
+
+### Unit-Specific Defaults in Models
+
+**Models MUST NOT access GymProfileManager.shared directly.** Static methods accept WeightUnit parameter:
+
+```swift
+// In CableMachineConfig.swift
+static var defaultConfig: CableMachineConfig {
+    // 10lb increments for pounds
+}
+
+static var defaultConfigKg: CableMachineConfig {
+    // 2.5kg increments for kilograms
+}
+
+// WRONG - model accesses singleton
+static var defaultConfigForUnit: CableMachineConfig {
+    let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    return unit == .kilograms ? defaultConfigKg : defaultConfig
+}
+```
+
+The above pattern is a **temporary compromise** due to migration constraints. **Preferred pattern** for new code:
+
+```swift
+// In Views/ViewModels - pass unit from caller
+let config = CableMachineConfig.defaultConfig(for: weightUnit)
+
+// In Models - accept parameter
+static func defaultConfig(for unit: WeightUnit) -> CableMachineConfig {
+    unit == .kilograms ? defaultConfigKg : defaultConfig
+}
+```
+
+### Common Weight Display Locations
+When modifying these UI areas, always use `weightUnit.abbreviation`:
+
+| Location | Examples |
+|----------|----------|
+| Set rows | "3×225 lbs", "5×100 kg" |
+| History displays | "Max: 315 lbs", "Volume: 12,500 kg" |
+| Calculators | "Total Weight: 225 lbs", "Target: 102.5 kg" |
+| Equipment configs | "45 lbs per side", "20 kg bar" |
+| Progress tracking | "PR: 315 lbs", "Current: 143 kg" |
+| Completion summaries | "+5 lbs vs last week", "+2.5 kg increase" |
+
+### Migration Notes (for context)
+The `fix/hardcoded-weight-units` branch (commit cb7dfee) fixed 12 files:
+- Replaced all hardcoded "lbs" with dynamic `weightUnit.abbreviation`
+- Replaced `Int(weight)` casting with `formatWeight(weight)` for decimal preservation
+- Added unit-specific defaults: `GymSettings.standardPlatesForUnit`, `CableMachineConfig.defaultConfigForUnit`
+- Views now access weight unit via DependencyContainer, not direct singleton access
+
+---
+
 ## Key Services & Managers
 
 | Service | File | Purpose |
@@ -220,6 +307,9 @@ struct EditorView: View {
 | `ObservableObject`/`@Published` | `@Observable` macro |
 | `@StateObject`/`@ObservedObject` | `@State` for owned, plain var for passed |
 | New singleton without protocol | Add to `DependencyContainer` with protocol |
+| Model accessing `.shared` singleton | Accept parameter or use unit-specific static methods |
+| Hardcoded "lbs" or "kg" | Dynamic `weightUnit.abbreviation` |
+| `Int(weight)` for display | `formatWeight(weight)` to preserve decimals |
 | View files >300 lines | Split into components |
 | `DispatchQueue.main.async` | `@MainActor` or `Task { @MainActor in }` |
 | Force unwraps `!` | `guard let`, `if let`, `??` |
