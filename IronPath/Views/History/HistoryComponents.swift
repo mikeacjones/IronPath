@@ -146,7 +146,7 @@ struct CalendarDayView: View {
 
 struct WorkoutStatsSummaryView: View {
     let stats: WorkoutStats
-    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    let weightUnit: WeightUnit
 
     var body: some View {
         HStack(spacing: 16) {
@@ -253,7 +253,7 @@ struct WorkoutHistoryCard: View {
                 if let duration = workout.duration {
                     Label("\(Int(duration / 60)) min", systemImage: "clock")
                 }
-                Label("\(Int(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
+                Label("\(formatWeight(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                 if let calories = workout.estimatedCalories {
                     Label("\(calories) cal", systemImage: "flame")
                 }
@@ -324,7 +324,7 @@ struct WorkoutHistoryRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Label("\(Int(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
+                Label("\(formatWeight(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

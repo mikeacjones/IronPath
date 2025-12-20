@@ -5,12 +5,13 @@ import SwiftUI
 /// Editor for free weights on a cable machine with count support
 /// Allows adding multiple of the same weight (e.g., 3x 5lb plates)
 struct FreeWeightsEditor: View {
+    @Environment(DependencyContainer.self) private var dependencies
     @Binding var freeWeights: [CableMachineConfig.FreeWeight]
     @State private var newWeight: String = ""
     @State private var newCount: Int = 1
 
     private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     /// Common free weight values for quick add
@@ -159,13 +160,14 @@ struct FreeWeightsEditor: View {
 // MARK: - Cable Machine Config Editor
 
 struct CableMachineConfigEditor: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(DependencyContainer.self) private var dependencies
     @State var config: CableMachineConfig
     let title: String
     let onSave: (CableMachineConfig) -> Void
-    @Environment(\.dismiss) var dismiss
 
     private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     var body: some View {

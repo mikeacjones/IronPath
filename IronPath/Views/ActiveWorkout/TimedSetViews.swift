@@ -17,15 +17,12 @@ struct TimedSetRow: View {
     let onSetCompleted: (() -> Void)?
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
+    let weightUnit: WeightUnit
 
     @Environment(DependencyContainer.self) private var dependencies
     @State private var addedWeightString: String = ""
     @State private var secondsString: String = ""
     @State private var restTimerManager = RestTimerManager.shared
-
-    private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
-    }
 
     private var timedConfig: TimedSetConfig? {
         self.set.timedSetConfig

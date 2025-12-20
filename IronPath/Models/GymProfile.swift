@@ -398,9 +398,8 @@ final class GymSettings {
     /// Standard kg plate sizes
     static let standardPlatesKg: [AvailablePlate] = kStandardKgAvailablePlates
 
-    /// Returns standard plates for the current weight unit preference
-    static var standardPlatesForUnit: [AvailablePlate] {
-        let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    /// Returns standard plates for the given weight unit preference
+    static func standardPlatesForUnit(_ unit: WeightUnit) -> [AvailablePlate] {
         return unit == .kilograms ? standardPlatesKg : standardPlates
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - Shared Set Input Components
 
 struct WeightInputView: View {
+    @Environment(DependencyContainer.self) private var dependencies
     @Binding var weight: String
     let equipment: Equipment
     let exerciseName: String
@@ -11,10 +12,10 @@ struct WeightInputView: View {
 
     private var weightUnit: WeightUnit {
         // Use active workout unit if available, otherwise use gym profile unit
-        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+        if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit
         }
-        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        return dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     private var showCalcButton: Bool {
@@ -141,15 +142,16 @@ struct CompleteButton: View {
 // MARK: - Timed Exercise Input Components
 
 struct AddedWeightInputView: View {
+    @Environment(DependencyContainer.self) private var dependencies
     @Binding var weight: String
     let onWeightChanged: (Double?) -> Void
 
     private var weightUnit: WeightUnit {
         // Use active workout unit if available, otherwise use gym profile unit
-        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+        if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit
         }
-        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        return dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     var body: some View {

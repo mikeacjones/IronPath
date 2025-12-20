@@ -3,7 +3,12 @@ import SwiftUI
 // MARK: - History View
 
 struct HistoryView: View {
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var viewModel = HistoryViewModel()
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,7 +25,7 @@ struct HistoryView: View {
                     }
 
                     if viewModel.hasWorkouts {
-                        WorkoutStatsSummaryView(stats: viewModel.stats)
+                        WorkoutStatsSummaryView(stats: viewModel.stats, weightUnit: weightUnit)
                             .padding(.horizontal)
                     }
 

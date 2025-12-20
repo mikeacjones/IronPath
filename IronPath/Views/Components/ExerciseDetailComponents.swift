@@ -99,7 +99,7 @@ private struct SetTypeButton: View {
 struct ExerciseHistorySection: View {
     let history: [(date: Date, sets: [ExerciseSet])]
     @Binding var isExpanded: Bool
-    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    let weightUnit: WeightUnit
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()

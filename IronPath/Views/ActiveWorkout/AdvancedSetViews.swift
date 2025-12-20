@@ -23,6 +23,12 @@ struct AdvancedSetRowView: View {
     let previousSetWeight: Double?
     let isFirstIncompleteSet: Bool
 
+    @Environment(DependencyContainer.self) private var dependencies
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     @State private var weight: String
     @State private var reps: String
     @State private var isCompleted: Bool
@@ -188,7 +194,8 @@ struct AdvancedSetRowView: View {
                     isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted,
                     isLiveWorkout: isLiveWorkout,
-                    isPendingWorkout: isPendingWorkout
+                    isPendingWorkout: isPendingWorkout,
+                    weightUnit: weightUnit
                 )
             }
 

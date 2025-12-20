@@ -123,9 +123,8 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
         )
     }
 
-    /// Returns default config for the current weight unit preference
-    static var defaultConfigForUnit: CableMachineConfig {
-        let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    /// Returns default config for the given weight unit preference
+    static func defaultConfigForUnit(_ unit: WeightUnit) -> CableMachineConfig {
         return unit == .kilograms ? defaultConfigKg : defaultConfig
     }
 
@@ -141,8 +140,7 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
     }
 
     /// Human-readable description of the weight stack
-    var stackDescription: String {
-        let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    func stackDescription(unit: WeightUnit) -> String {
         var desc = plateTiers.map { "\($0.plateCount)×\(formatWeight($0.plateWeight))\(unit.abbreviation)" }.joined(separator: " + ")
         if !freeWeights.isEmpty {
             let freeWeightStr = freeWeights.map { "\($0.count)×\(formatWeight($0.weight))\(unit.abbreviation)" }.joined(separator: ", ")

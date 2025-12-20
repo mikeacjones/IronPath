@@ -84,7 +84,7 @@ struct CableWeightCalculatorView: View {
                                                 .cornerRadius(4)
                                         }
                                     }
-                                    Text(config.stackDescription)
+                                    Text(config.stackDescription(unit: gymSettings.preferredWeightUnit))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -294,7 +294,7 @@ struct WeightOptionRow: View {
     let weight: Double
     let label: String
     let isSelected: Bool
-    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    let weightUnit: WeightUnit
 
     var body: some View {
         HStack {

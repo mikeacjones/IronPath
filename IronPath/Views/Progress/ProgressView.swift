@@ -3,12 +3,14 @@ import SwiftUI
 // MARK: - Progress Tab View
 
 struct ProgressTabView: View {
+    @Environment(DependencyContainer.self) private var dependencies
+
     @State private var workouts: [Workout] = []
     @State private var personalRecords: [PersonalRecord] = []
     @State private var selectedExercise: String?
 
     private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     var exerciseNames: [String] {

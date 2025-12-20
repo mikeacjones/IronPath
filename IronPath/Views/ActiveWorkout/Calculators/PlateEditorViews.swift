@@ -72,6 +72,7 @@ struct AvailablePlatesEditor: View {
             ForEach(Array(localPlates.enumerated()), id: \.element.weight) { index, _ in
                 PlateRowEditor(
                     plate: $localPlates[index],
+                    weightUnit: weightUnit,
                     onUpdate: saveChanges
                 )
             }
@@ -133,7 +134,7 @@ struct AvailablePlatesEditor: View {
             }
 
             Button("Reset to Standard Plates") {
-                localPlates = GymSettings.standardPlatesForUnit
+                localPlates = GymSettings.standardPlatesForUnit(weightUnit)
                 saveChanges()
             }
             .foregroundStyle(.orange)
@@ -171,8 +172,8 @@ struct AvailablePlatesEditor: View {
 
 struct PlateRowEditor: View {
     @Binding var plate: AvailablePlate
+    let weightUnit: WeightUnit
     let onUpdate: () -> Void
-    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
     @State private var countText: String = ""
     @FocusState private var isFocused: Bool

@@ -166,9 +166,11 @@ struct ExerciseDetailSheet: View {
     @ViewBuilder
     private var historySection: some View {
         if !viewModel.exerciseHistory.isEmpty {
+            let weightUnit = dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
             ExerciseHistorySection(
                 history: viewModel.exerciseHistory,
-                isExpanded: $viewModel.showHistory
+                isExpanded: $viewModel.showHistory,
+                weightUnit: weightUnit
             )
             .padding(.horizontal)
         }

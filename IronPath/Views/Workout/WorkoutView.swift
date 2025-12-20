@@ -247,7 +247,7 @@ struct WorkoutView: View {
             name: "Custom Workout",
             exercises: [],
             notes: "",
-            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+            weightUnit: dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
         )
         (dependencies.pendingWorkoutManager as? PendingWorkoutManager)?.pendingWorkout = workout
     }
