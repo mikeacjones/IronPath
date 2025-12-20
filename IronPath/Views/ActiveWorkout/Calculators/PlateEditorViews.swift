@@ -5,14 +5,20 @@ import SwiftUI
 struct AvailablePlatesEditor: View {
     let exerciseName: String
 
+    private let gymSettings: GymSettingsProviding
+
     @Environment(\.dismiss) var dismiss
-    @State private var settings = GymSettings.shared
     @State private var newPlateWeight: String = ""
     @State private var newPlateCount: String = ""
     @State private var localPlates: [AvailablePlate] = []
 
+    init(exerciseName: String, gymSettings: GymSettingsProviding? = nil) {
+        self.exerciseName = exerciseName
+        self.gymSettings = gymSettings ?? GymSettings.shared
+    }
+
     private var hasCustomConfig: Bool {
-        settings.hasCustomPlateConfig(for: exerciseName)
+        gymSettings.hasCustomPlateConfig(for: exerciseName)
     }
 
     var body: some View {
@@ -33,7 +39,7 @@ struct AvailablePlatesEditor: View {
                 }
             }
             .onAppear {
-                localPlates = settings.availablePlates(for: exerciseName)
+                localPlates = gymSettings.availablePlates(for: exerciseName)
             }
         }
     }
@@ -83,7 +89,7 @@ struct AvailablePlatesEditor: View {
                     .keyboardType(.decimalPad)
                     .frame(width: 80)
 
-                Text(GymSettings.shared.preferredWeightUnit.abbreviation)
+                Text(gymSettings.preferredWeightUnit.abbreviation)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -116,8 +122,8 @@ struct AvailablePlatesEditor: View {
         Section {
             if hasCustomConfig {
                 Button("Use Default Plates") {
-                    settings.resetPlateConfig(for: exerciseName)
-                    localPlates = settings.defaultAvailablePlates
+                    gymSettings.resetPlateConfig(for: exerciseName)
+                    localPlates = gymSettings.defaultAvailablePlates
                 }
                 .foregroundStyle(.blue)
             }
@@ -149,7 +155,7 @@ struct AvailablePlatesEditor: View {
     }
 
     private func saveChanges() {
-        settings.setAvailablePlates(localPlates, for: exerciseName)
+        gymSettings.setAvailablePlates(localPlates, for: exerciseName)
     }
 }
 

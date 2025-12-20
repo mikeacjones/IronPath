@@ -14,6 +14,8 @@ struct DropSetRow: View {
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
 
+    private let gymSettings: GymSettingsProviding
+
     @State private var localConfig: DropSetConfig
     @State private var showEditSheet = false
     @State private var restTimerManager = RestTimerManager.shared
@@ -28,7 +30,8 @@ struct DropSetRow: View {
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
-        isPendingWorkout: Bool = false
+        isPendingWorkout: Bool = false,
+        gymSettings: GymSettingsProviding? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -40,6 +43,7 @@ struct DropSetRow: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.gymSettings = gymSettings ?? GymSettings.shared
         _localConfig = State(initialValue: set.dropSetConfig ?? DropSetConfig())
     }
 
@@ -97,7 +101,8 @@ struct DropSetRow: View {
                             }
                             onSetCompleted?()
                         }
-                    }
+                    },
+                    gymSettings: gymSettings
                 )
             }
 
@@ -118,7 +123,8 @@ struct DropSetRow: View {
             DropSetConfigEditor(
                 config: $localConfig,
                 startingWeight: set.weight,
-                onSave: saveConfig
+                onSave: saveConfig,
+                gymSettings: gymSettings
             )
         }
     }
@@ -150,15 +156,25 @@ struct DropEntryRow: View {
     let isPendingWorkout: Bool
     let onUpdate: (DropSetEntry) -> Void
 
+    private let gymSettings: GymSettingsProviding
+
     @State private var weight: String
     @State private var reps: String
 
-    init(drop: DropSetEntry, isFirstDrop: Bool, isLiveWorkout: Bool = true, isPendingWorkout: Bool = false, onUpdate: @escaping (DropSetEntry) -> Void) {
+    init(
+        drop: DropSetEntry,
+        isFirstDrop: Bool,
+        isLiveWorkout: Bool = true,
+        isPendingWorkout: Bool = false,
+        onUpdate: @escaping (DropSetEntry) -> Void,
+        gymSettings: GymSettingsProviding? = nil
+    ) {
         self.drop = drop
         self.isFirstDrop = isFirstDrop
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
         self.onUpdate = onUpdate
+        self.gymSettings = gymSettings ?? GymSettings.shared
 
         _weight = State(initialValue: (drop.actualWeight ?? drop.targetWeight).map { formatWeight($0) } ?? "")
         _reps = State(initialValue: isPendingWorkout ? String(drop.targetReps) : (drop.actualReps.map { String($0) } ?? String(drop.targetReps)))
@@ -182,7 +198,7 @@ struct DropEntryRow: View {
             }
             .frame(width: 40)
 
-            TextField(GymSettings.shared.preferredWeightUnit.abbreviation, text: $weight)
+            TextField(gymSettings.preferredWeightUnit.abbreviation, text: $weight)
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 60)
@@ -252,15 +268,24 @@ struct DropSetConfigEditor: View {
     @Binding var config: DropSetConfig
     let startingWeight: Double?
     let onSave: () -> Void
+
+    private let gymSettings: GymSettingsProviding
+
     @Environment(\.dismiss) var dismiss
 
     @State private var numberOfDrops: Int
     @State private var dropPercentage: Double
 
-    init(config: Binding<DropSetConfig>, startingWeight: Double?, onSave: @escaping () -> Void) {
+    init(
+        config: Binding<DropSetConfig>,
+        startingWeight: Double?,
+        onSave: @escaping () -> Void,
+        gymSettings: GymSettingsProviding? = nil
+    ) {
         self._config = config
         self.startingWeight = startingWeight
         self.onSave = onSave
+        self.gymSettings = gymSettings ?? GymSettings.shared
         _numberOfDrops = State(initialValue: config.wrappedValue.numberOfDrops)
         _dropPercentage = State(initialValue: config.wrappedValue.dropPercentage * 100)
     }
@@ -293,7 +318,7 @@ struct DropSetConfigEditor: View {
                                 Text(index == 0 ? "Starting" : "Drop \(index)")
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text(GymSettings.shared.preferredWeightUnit.format(suggestedWeights[index]))
+                                Text(gymSettings.preferredWeightUnit.format(suggestedWeights[index]))
                                     .fontWeight(.medium)
                             }
                         }

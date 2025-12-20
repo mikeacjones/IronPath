@@ -7,12 +7,26 @@ struct CableWeightCalculatorView: View {
     let targetWeight: Double
     let exerciseName: String
     let onSelectWeight: (Double) -> Void
+
+    private let gymSettings: GymSettingsProviding
+
     @Environment(\.dismiss) var dismiss
-    @State private var settings = GymSettings.shared
     @State private var showingConfigEditor = false
 
+    init(
+        targetWeight: Double,
+        exerciseName: String,
+        onSelectWeight: @escaping (Double) -> Void,
+        gymSettings: GymSettingsProviding? = nil
+    ) {
+        self.targetWeight = targetWeight
+        self.exerciseName = exerciseName
+        self.onSelectWeight = onSelectWeight
+        self.gymSettings = gymSettings ?? GymSettings.shared
+    }
+
     private var config: CableMachineConfig {
-        settings.cableConfig(for: exerciseName)
+        gymSettings.cableConfig(for: exerciseName)
     }
 
     private var availableWeights: [Double] {
@@ -28,7 +42,7 @@ struct CableWeightCalculatorView: View {
     }
 
     private var hasCustomConfig: Bool {
-        settings.cableMachineConfigs[exerciseName] != nil
+        gymSettings.cableMachineConfigs[exerciseName] != nil
     }
 
     var body: some View {
@@ -109,7 +123,8 @@ struct CableWeightCalculatorView: View {
                                         weight: weight,
                                         pinNumber: breakdown?.pin,
                                         freeWeight: breakdown?.freeWeight ?? 0,
-                                        isSelected: weight == nearestWeight
+                                        isSelected: weight == nearestWeight,
+                                        gymSettings: gymSettings
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -180,7 +195,7 @@ struct CableWeightCalculatorView: View {
                     config: config,
                     title: exerciseName,
                     onSave: { newConfig in
-                        settings.setCableConfig(newConfig, for: exerciseName)
+                        gymSettings.setCableConfig(newConfig, for: exerciseName)
                     }
                 )
             }
@@ -201,15 +216,24 @@ struct CableWeightButton: View {
     let freeWeight: Double
     let isSelected: Bool
 
-    init(weight: Double, pinNumber: Int?, freeWeight: Double = 0, isSelected: Bool) {
+    private let gymSettings: GymSettingsProviding
+
+    init(
+        weight: Double,
+        pinNumber: Int?,
+        freeWeight: Double = 0,
+        isSelected: Bool,
+        gymSettings: GymSettingsProviding? = nil
+    ) {
         self.weight = weight
         self.pinNumber = pinNumber
         self.freeWeight = freeWeight
         self.isSelected = isSelected
+        self.gymSettings = gymSettings ?? GymSettings.shared
     }
 
     private var unit: String {
-        GymSettings.shared.preferredWeightUnit.abbreviation
+        gymSettings.preferredWeightUnit.abbreviation
     }
 
     var body: some View {

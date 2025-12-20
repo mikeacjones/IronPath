@@ -264,10 +264,18 @@ struct CableMachineConfigEditor: View {
 /// Uses string-based editing and converts to numbers on blur/submit
 struct TierInputRow: View {
     @Binding var tier: CableMachineConfig.PlateTier
+
+    private let gymSettings: GymSettingsProviding
+
     @State private var countText: String = ""
     @State private var weightText: String = ""
     @FocusState private var countFocused: Bool
     @FocusState private var weightFocused: Bool
+
+    init(tier: Binding<CableMachineConfig.PlateTier>, gymSettings: GymSettingsProviding? = nil) {
+        self._tier = tier
+        self.gymSettings = gymSettings ?? GymSettings.shared
+    }
 
     var body: some View {
         HStack {
@@ -294,7 +302,7 @@ struct TierInputRow: View {
                     }
                 }
                 .onSubmit { commitWeight() }
-            Text(GymSettings.shared.preferredWeightUnit.abbreviation)
+            Text(gymSettings.preferredWeightUnit.abbreviation)
                 .foregroundStyle(.secondary)
         }
         .onAppear {
