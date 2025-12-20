@@ -14,6 +14,8 @@ struct RestPauseSetRow: View {
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
 
+    private let gymSettings: GymSettingsProviding
+
     @State private var localConfig: RestPauseConfig
     @State private var weight: String
     @State private var showEditSheet = false
@@ -30,7 +32,8 @@ struct RestPauseSetRow: View {
         suppressRestTimer: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
-        isPendingWorkout: Bool = false
+        isPendingWorkout: Bool = false,
+        gymSettings: GymSettingsProviding? = nil
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -42,6 +45,7 @@ struct RestPauseSetRow: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.gymSettings = gymSettings ?? GymSettings.shared
         _localConfig = State(initialValue: set.restPauseConfig ?? RestPauseConfig())
         _weight = State(initialValue: set.weight.map { formatWeight($0) } ?? "")
     }
@@ -85,7 +89,7 @@ struct RestPauseSetRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                TextField("lbs", text: $weight)
+                TextField(gymSettings.preferredWeightUnit.abbreviation, text: $weight)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
@@ -97,7 +101,7 @@ struct RestPauseSetRow: View {
                         }
                     }
 
-                Text("lbs")
+                Text(gymSettings.preferredWeightUnit.abbreviation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

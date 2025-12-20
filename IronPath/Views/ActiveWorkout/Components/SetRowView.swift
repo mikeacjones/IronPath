@@ -130,7 +130,7 @@ struct SetRowView: View {
                                     onWeightChanged?(setIndex, weightValue)
                                 }
                             }
-                        Text("lbs")
+                        Text(gymSettings.preferredWeightUnit.abbreviation)
                             .font(.caption)
                             .foregroundStyle(.secondary)
 

@@ -322,8 +322,32 @@ protocol ExercisePreferenceManaging: AnyObject, Sendable {
 /// Protocol for accessing gym settings
 @MainActor
 protocol GymSettingsProviding: AnyObject, Sendable {
+    /// The preferred weight unit from the active gym profile
+    var preferredWeightUnit: WeightUnit { get }
+
+    /// Custom cable machine configurations per exercise
+    var cableMachineConfigs: [String: CableMachineConfig] { get }
+
     /// Get cable config for specific exercise
     func cableConfig(for exerciseName: String) -> CableMachineConfig
+
+    /// Set cable config for specific exercise
+    func setCableConfig(_ config: CableMachineConfig, for exerciseName: String)
+
+    /// Default available plates
+    var defaultAvailablePlates: [AvailablePlate] { get }
+
+    /// Get available plates for exercise
+    func availablePlates(for exerciseName: String) -> [AvailablePlate]
+
+    /// Set available plates for exercise
+    func setAvailablePlates(_ plates: [AvailablePlate], for exerciseName: String)
+
+    /// Check if exercise has custom plate config
+    func hasCustomPlateConfig(for exerciseName: String) -> Bool
+
+    /// Reset plate config for exercise
+    func resetPlateConfig(for exerciseName: String)
 
     /// Round weight to nearest valid for equipment
     func roundToValidWeight(_ weight: Double, for equipment: Equipment, exerciseName: String?) -> Double

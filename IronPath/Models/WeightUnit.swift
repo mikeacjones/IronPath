@@ -65,4 +65,28 @@ enum WeightUnit: String, Codable, CaseIterable, Sendable {
     func convert(_ weight: Double, to: WeightUnit) -> Double {
         WeightUnit.convert(weight, from: self, to: to)
     }
+
+    // MARK: - Formatting
+
+    /// Format a weight value with this unit's abbreviation
+    /// Shows decimals only when they exist (e.g., 245.5 -> "245.5kg", 245.0 -> "245kg")
+    /// - Parameter weight: The weight value to format
+    /// - Returns: Formatted string with weight and unit
+    func format(_ weight: Double) -> String {
+        let formattedWeight = weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", weight)
+            : String(format: "%.1f", weight)
+        return "\(formattedWeight)\(rawValue)"
+    }
+
+    /// Format a weight value with a space before the unit
+    /// Shows decimals only when they exist (e.g., 245.5 -> "245.5 kg", 245.0 -> "245 kg")
+    /// - Parameter weight: The weight value to format
+    /// - Returns: Formatted string with weight and unit separated by space
+    func formatWithSpace(_ weight: Double) -> String {
+        let formattedWeight = weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", weight)
+            : String(format: "%.1f", weight)
+        return "\(formattedWeight) \(rawValue)"
+    }
 }

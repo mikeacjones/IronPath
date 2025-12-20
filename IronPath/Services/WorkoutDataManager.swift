@@ -154,23 +154,33 @@ class WorkoutDataManager {
     /// Export all workout history as CSV
     func exportHistoryAsCSV() -> String {
         let history = getWorkoutHistory()
-        var csv = "Workout Name,Date,Exercise,Set,Target Reps,Actual Reps,Weight (lbs),Completed\n"
+        var csv = "Workout Name,Date,Exercise,Set,Target Reps,Actual Reps,Weight,Weight Unit,Completed\n"
 
         for workout in history {
             let dateStr = workout.completedAt?.ISO8601Format() ?? "N/A"
+            let unit = workout.weightUnit.rawValue
 
             for exercise in workout.exercises {
                 for set in exercise.sets {
                     let completed = set.completedAt != nil ? "Yes" : "No"
-                    let weight = set.weight.map { String(Int($0)) } ?? "N/A"
+                    let weight = set.weight.map { formatWeightForCSV($0) } ?? "N/A"
                     let actualReps = set.actualReps.map { String($0) } ?? "N/A"
 
-                    csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(set.targetReps),\(actualReps),\(weight),\(completed)\n"
+                    csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(set.targetReps),\(actualReps),\(weight),\(unit),\(completed)\n"
                 }
             }
         }
 
         return csv
+    }
+
+    /// Format weight for CSV export (preserves decimals when present)
+    private func formatWeightForCSV(_ weight: Double) -> String {
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", weight)
+        } else {
+            return String(format: "%.1f", weight)
+        }
     }
 
     /// Get workout by ID

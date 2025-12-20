@@ -536,6 +536,11 @@ final class GymSettings {
         }
     }
 
+    /// The preferred weight unit from the active gym profile
+    var preferredWeightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     /// Get cable config for specific exercise, or default if none set
     func cableConfig(for exerciseName: String) -> CableMachineConfig {
         cableMachineConfigs[exerciseName] ?? defaultCableConfig
@@ -582,6 +587,12 @@ final class GymSettings {
 
     /// Generate a summary of gym equipment for LLM prompts
     func equipmentSummaryForLLM() -> String {
+        let weightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        let unit = weightUnit.rawValue
+
+        // Warmup weight threshold varies by unit (30 lbs ≈ 14 kg)
+        let warmupThreshold: Double = weightUnit == .kilograms ? 14.0 : 30.0
+
         var summary = "GYM EQUIPMENT CONSTRAINTS:\n\n"
 
         // Dumbbells - be explicit about ALL available weights
@@ -589,38 +600,38 @@ final class GymSettings {
         if let specificDumbbells = availableDumbbells {
             let sortedDumbbells = specificDumbbells.sorted()
             let dumbbellList = sortedDumbbells.map { formatWeight($0) }.joined(separator: ", ")
-            summary += "Available weights (ONLY use these exact values): \(dumbbellList) lbs\n"
+            summary += "Available weights (ONLY use these exact values): \(dumbbellList) \(unit)\n"
 
             // Highlight warmup-appropriate weights
-            let warmupWeights = sortedDumbbells.filter { $0 <= 30 }
+            let warmupWeights = sortedDumbbells.filter { $0 <= warmupThreshold }
             if !warmupWeights.isEmpty {
-                summary += "For warmup sets, use one of: \(warmupWeights.map { formatWeight($0) }.joined(separator: ", ")) lbs\n"
+                summary += "For warmup sets, use one of: \(warmupWeights.map { formatWeight($0) }.joined(separator: ", ")) \(unit)\n"
             }
         } else {
             // Generate explicit list from range
             let allWeights = stride(from: dumbbellMinWeight, through: dumbbellMaxWeight, by: dumbbellIncrement).map { formatWeight($0) }
-            summary += "Available weights: \(allWeights.joined(separator: ", ")) lbs\n"
+            summary += "Available weights: \(allWeights.joined(separator: ", ")) \(unit)\n"
 
-            // Highlight warmup-appropriate weights (first 6 or up to 30 lbs)
-            let warmupWeights = stride(from: dumbbellMinWeight, through: min(30, dumbbellMaxWeight), by: dumbbellIncrement)
+            // Highlight warmup-appropriate weights (first 6 or up to threshold)
+            let warmupWeights = stride(from: dumbbellMinWeight, through: min(warmupThreshold, dumbbellMaxWeight), by: dumbbellIncrement)
                 .prefix(6)
                 .map { formatWeight($0) }
-            summary += "For warmup sets, use one of: \(warmupWeights.joined(separator: ", ")) lbs\n"
+            summary += "For warmup sets, use one of: \(warmupWeights.joined(separator: ", ")) \(unit)\n"
         }
 
         summary += "\n"
 
         // Cable machines - show all available weights
         summary += "CABLE MACHINES:\n"
-        let cableWeights = defaultCableConfig.availableWeights.map { "\(Int($0))" }
-        summary += "Default machine weights: \(cableWeights.joined(separator: ", ")) lbs\n"
+        let cableWeights = defaultCableConfig.availableWeights.map { formatWeight($0) }
+        summary += "Default machine weights: \(cableWeights.joined(separator: ", ")) \(unit)\n"
 
         // Per-exercise cable configs
         if !cableMachineConfigs.isEmpty {
             summary += "Exercise-specific cable machines:\n"
             for (exercise, config) in cableMachineConfigs {
-                let weights = config.availableWeights.map { "\(Int($0))" }.joined(separator: ", ")
-                summary += "  \(exercise): \(weights) lbs\n"
+                let weights = config.availableWeights.map { formatWeight($0) }.joined(separator: ", ")
+                summary += "  \(exercise): \(weights) \(unit)\n"
             }
         }
 
@@ -629,8 +640,12 @@ final class GymSettings {
         // Barbells and plate-loaded
         summary += "BARBELLS & PLATE-LOADED:\n"
         let effectiveBarWeight = selectedBarWeight == GymSettings.customBarWeightTag ? customBarWeight : selectedBarWeight
-        summary += "Bar weight: \(Int(effectiveBarWeight)) lbs\n"
-        summary += "Weight increments: Use 5 lb increments (e.g., 95, 100, 105, 110...)\n"
+        summary += "Bar weight: \(formatWeight(effectiveBarWeight)) \(unit)\n"
+
+        // Increment varies by unit (5 lbs = 2.5 kg typically)
+        let increment = weightUnit == .kilograms ? "2.5" : "5"
+        let exampleWeights = weightUnit == .kilograms ? "42.5, 45, 47.5, 50" : "95, 100, 105, 110"
+        summary += "Weight increments: Use \(increment) \(unit) increments (e.g., \(exampleWeights)...)\n"
 
         summary += "\n"
         summary += "⚠️ CRITICAL: When suggesting weights, ONLY use values that exactly match the available weights listed above. "
