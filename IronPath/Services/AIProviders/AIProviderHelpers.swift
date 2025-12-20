@@ -121,7 +121,8 @@ enum AIProviderHelpers {
                 if let lastSet = completedSets.last, let weight = lastSet.weight {
                     let reps = lastSet.actualReps ?? lastSet.targetReps
                     let dateStr = workout.completedAt?.formatted(date: .abbreviated, time: .omitted) ?? "recent"
-                    history.append("\(dateStr): \(Int(weight))lbs x \(reps)")
+                    let weightStr = workout.weightUnit.format(weight)
+                    history.append("\(dateStr): \(weightStr) x \(reps)")
                 }
             }
         }
@@ -356,7 +357,7 @@ enum AIProviderHelpers {
                     if !completedSets.isEmpty {
                         prompt += "  - \(exercise.exercise.name):\n"
                         for (index, set) in completedSets.enumerated() {
-                            let weight = set.weight.map { "\(Int($0))lbs" } ?? "bodyweight"
+                            let weight = set.weight.map { workout.weightUnit.format($0) } ?? "bodyweight"
                             let reps = set.actualReps.map { "\($0) reps" } ?? "\(set.targetReps) reps (target)"
                             prompt += "      Set \(index + 1): \(weight) x \(reps)\n"
                         }
@@ -469,6 +470,8 @@ enum AIProviderHelpers {
             .filter { $0.id != exercise.id }
             .map { $0.exercise.name }
 
+        let weightStr = exercise.sets.first?.weight.map { currentWorkout.weightUnit.formatWithSpace($0) } ?? "not specified"
+
         var prompt = """
         Find a replacement for the exercise "\(exercise.exercise.name)".
 
@@ -478,7 +481,7 @@ enum AIProviderHelpers {
         - Primary Muscles: \(exercise.exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
         - Sets: \(exercise.sets.count)
         - Target Reps: \(exercise.sets.first?.targetReps ?? 10)
-        - Weight: \(exercise.sets.first?.weight.map { "\(Int($0)) lbs" } ?? "not specified")
+        - Weight: \(weightStr)
 
         Other exercises already in workout (DO NOT suggest these): \(otherExercises.joined(separator: ", "))
 
@@ -881,6 +884,8 @@ enum AIProviderHelpers {
         recentWorkouts: [Workout],
         personalRecords: [WorkoutPR]
     ) -> String {
+        let weightUnit = workout.weightUnit
+
         var prompt = "Generate a brief, encouraging summary (2-3 sentences) for this completed workout:\n\n"
 
         // Current workout details
@@ -897,7 +902,7 @@ enum AIProviderHelpers {
 
             prompt += "- \(exercise.exercise.name): "
             let setDescriptions = completedSets.map { set -> String in
-                let weight = set.weight.map { "\(Int($0))lbs" } ?? "bodyweight"
+                let weight = set.weight.map { weightUnit.format($0) } ?? "bodyweight"
                 let reps = set.actualReps ?? set.targetReps
                 return "\(weight) x \(reps)"
             }
@@ -912,9 +917,9 @@ enum AIProviderHelpers {
                 let valueStr: String
                 switch pr.type {
                 case .weight:
-                    valueStr = "\(Int(pr.newValue))lbs"
+                    valueStr = weightUnit.format(pr.newValue)
                 case .volume:
-                    valueStr = "\(Int(pr.newValue))lbs total volume"
+                    valueStr = "\(weightUnit.format(pr.newValue)) total volume"
                 case .reps:
                     valueStr = "\(Int(pr.newValue)) reps"
                 }

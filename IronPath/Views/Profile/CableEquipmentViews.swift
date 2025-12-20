@@ -294,7 +294,7 @@ struct TierInputRow: View {
                     }
                 }
                 .onSubmit { commitWeight() }
-            Text("lbs")
+            Text(GymSettings.shared.preferredWeightUnit.abbreviation)
                 .foregroundStyle(.secondary)
         }
         .onAppear {

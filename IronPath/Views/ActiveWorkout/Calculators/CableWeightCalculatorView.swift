@@ -208,12 +208,16 @@ struct CableWeightButton: View {
         self.isSelected = isSelected
     }
 
+    private var unit: String {
+        GymSettings.shared.preferredWeightUnit.abbreviation
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             Text("\(formatWeight(weight))")
                 .font(.title3)
                 .fontWeight(.semibold)
-            Text("lbs")
+            Text(unit)
                 .font(.caption2)
                 .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
 
@@ -228,7 +232,7 @@ struct CableWeightButton: View {
                             .fontWeight(.medium)
                     }
                     if freeWeight > 0 {
-                        Text("+ \(formatWeight(freeWeight))lb")
+                        Text("+ \(formatWeight(freeWeight))\(unit)")
                             .font(.system(size: 9))
                     }
                 }
@@ -236,7 +240,7 @@ struct CableWeightButton: View {
                 .padding(.top, 2)
             } else if freeWeight > 0 {
                 // Only free weights, no pin
-                Text("\(formatWeight(freeWeight))lb free")
+                Text("\(formatWeight(freeWeight))\(unit) free")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .orange)

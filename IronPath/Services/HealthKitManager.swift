@@ -111,9 +111,11 @@ class HealthKitManager {
 
     /// Create a workout summary string for Claude to estimate calories
     func createWorkoutSummaryForCalorieEstimation(workout: Workout, userProfile: UserProfile?) -> String {
+        let weightUnit = workout.weightUnit
+
         var summary = "Strength training workout summary:\n"
         summary += "- Duration: \(Int((workout.duration ?? 0) / 60)) minutes\n"
-        summary += "- Total volume: \(Int(workout.totalVolume)) lbs\n"
+        summary += "- Total volume: \(weightUnit.format(workout.totalVolume))\n"
         summary += "- Number of exercises: \(workout.exercises.count)\n"
 
         if workout.isDeload {
@@ -129,7 +131,7 @@ class HealthKitManager {
 
             summary += "- \(exercise.exercise.name): \(completedSets.count) sets, \(totalReps) total reps"
             if avgWeight > 0 {
-                summary += ", avg weight: \(Int(avgWeight)) lbs"
+                summary += ", avg weight: \(weightUnit.format(avgWeight))"
             }
             summary += "\n"
         }

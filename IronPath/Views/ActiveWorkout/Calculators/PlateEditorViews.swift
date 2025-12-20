@@ -83,7 +83,7 @@ struct AvailablePlatesEditor: View {
                     .keyboardType(.decimalPad)
                     .frame(width: 80)
 
-                Text("lbs")
+                Text(GymSettings.shared.preferredWeightUnit.abbreviation)
                     .foregroundStyle(.secondary)
 
                 Spacer()

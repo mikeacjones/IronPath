@@ -322,6 +322,9 @@ protocol ExercisePreferenceManaging: AnyObject, Sendable {
 /// Protocol for accessing gym settings
 @MainActor
 protocol GymSettingsProviding: AnyObject, Sendable {
+    /// The preferred weight unit from the active gym profile
+    var preferredWeightUnit: WeightUnit { get }
+
     /// Get cable config for specific exercise
     func cableConfig(for exerciseName: String) -> CableMachineConfig
 

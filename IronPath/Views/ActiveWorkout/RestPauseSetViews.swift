@@ -85,7 +85,7 @@ struct RestPauseSetRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                TextField("lbs", text: $weight)
+                TextField(GymSettings.shared.preferredWeightUnit.abbreviation, text: $weight)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
@@ -97,7 +97,7 @@ struct RestPauseSetRow: View {
                         }
                     }
 
-                Text("lbs")
+                Text(GymSettings.shared.preferredWeightUnit.abbreviation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

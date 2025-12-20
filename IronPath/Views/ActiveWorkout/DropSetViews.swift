@@ -182,7 +182,7 @@ struct DropEntryRow: View {
             }
             .frame(width: 40)
 
-            TextField("lbs", text: $weight)
+            TextField(GymSettings.shared.preferredWeightUnit.abbreviation, text: $weight)
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 60)
@@ -293,7 +293,7 @@ struct DropSetConfigEditor: View {
                                 Text(index == 0 ? "Starting" : "Drop \(index)")
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text("\(Int(suggestedWeights[index])) lbs")
+                                Text(GymSettings.shared.preferredWeightUnit.format(suggestedWeights[index]))
                                     .fontWeight(.medium)
                             }
                         }
