@@ -37,8 +37,8 @@ final class ActiveWorkoutViewModel {
 
     // MARK: - Task Management
 
-    /// Task handle for navigation delay (for cancellation)
-    private var navigationTask: Task<Void, Never>?
+    /// Collection of pending tasks for cleanup on deallocation
+    private var pendingTasks: Set<Task<Void, Never>> = []
 
     // MARK: - Computed Properties
 
@@ -278,10 +278,7 @@ final class ActiveWorkoutViewModel {
         let nextExerciseId = nextInfo.exercise.id
         selectedExercise = nil
 
-        // Cancel any existing navigation task
-        navigationTask?.cancel()
-
-        navigationTask = Task { [weak self] in
+        let task = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled, let self else { return }
             // Get fresh exercise from workout at navigation time
@@ -289,14 +286,27 @@ final class ActiveWorkoutViewModel {
             // Reset flag after navigation is complete
             self.isNavigatingBetweenExercises = false
         }
+
+        trackTask(task)
+    }
+
+    // MARK: - Task Tracking
+
+    /// Track a task for proper cleanup
+    private func trackTask(_ task: Task<Void, Never>) {
+        pendingTasks.insert(task)
+        Task { [weak self] in
+            _ = await task.result
+            self?.pendingTasks.remove(task)
+        }
     }
 
     // MARK: - Cleanup
 
     /// Cancel any pending tasks when the ViewModel is no longer needed
     func cleanup() {
-        navigationTask?.cancel()
-        navigationTask = nil
+        pendingTasks.forEach { $0.cancel() }
+        pendingTasks.removeAll()
     }
 
     // MARK: - Exercise Selection Helpers
