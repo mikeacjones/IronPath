@@ -9,6 +9,10 @@ struct FreeWeightsEditor: View {
     @State private var newWeight: String = ""
     @State private var newCount: Int = 1
 
+    private var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     /// Common free weight values for quick add
     private let commonWeights: [Double] = [2.5, 5.0, 7.5, 10.0]
 
@@ -24,7 +28,7 @@ struct FreeWeightsEditor: View {
                     ForEach($freeWeights) { $freeWeight in
                         HStack {
                             // Weight display
-                            Text("\(formatWeight(freeWeight.weight)) lb")
+                            Text("\(formatWeight(freeWeight.weight)) \(weightUnit.abbreviation)")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
 
@@ -113,7 +117,7 @@ struct FreeWeightsEditor: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
 
-                Text("lb")
+                Text(weightUnit.abbreviation)
                     .foregroundStyle(.secondary)
 
                 Text("×")
@@ -159,6 +163,10 @@ struct CableMachineConfigEditor: View {
     let title: String
     let onSave: (CableMachineConfig) -> Void
     @Environment(\.dismiss) var dismiss
+
+    private var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     var body: some View {
         NavigationStack {
@@ -227,7 +235,7 @@ struct CableMachineConfigEditor: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text("Max: \(formatWeight(weights.last ?? 0)) lbs")
+                        Text("Max: \(formatWeight(weights.last ?? 0)) \(weightUnit.abbreviation)")
                             .font(.caption)
                             .foregroundStyle(.blue)
                     }

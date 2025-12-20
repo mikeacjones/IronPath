@@ -146,12 +146,13 @@ struct CalendarDayView: View {
 
 struct WorkoutStatsSummaryView: View {
     let stats: WorkoutStats
+    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
     var body: some View {
         HStack(spacing: 16) {
             StatCard(title: "Total", value: "\(stats.totalWorkouts)", subtitle: "workouts")
             StatCard(title: "This Week", value: "\(stats.workoutsThisWeek)", subtitle: "workouts")
-            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: "lbs lifted")
+            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: "\(weightUnit.abbreviation) lifted")
         }
     }
 
@@ -323,7 +324,7 @@ struct WorkoutHistoryRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Label("\(Int(workout.totalVolume)) lbs", systemImage: "scalemass")
+                Label("\(Int(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

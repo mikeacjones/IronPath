@@ -23,6 +23,10 @@ struct TimedSetRow: View {
     @State private var secondsString: String = ""
     @State private var restTimerManager = RestTimerManager.shared
 
+    private var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     private var timedConfig: TimedSetConfig? {
         self.set.timedSetConfig
     }
@@ -132,7 +136,7 @@ struct TimedSetRow: View {
                 if let weight = config.addedWeight, weight > 0 {
                     Text("•")
                         .foregroundStyle(.secondary)
-                    Text("\(formatWeight(weight)) lbs")
+                    Text("\(formatWeight(weight)) \(weightUnit.abbreviation)")
                         .font(.body)
                 }
             }

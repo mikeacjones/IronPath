@@ -177,7 +177,7 @@ struct PlateCalculatorView: View {
             Text("Total Weight")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(Int(totalWeight)) \(weightUnit.abbreviation)")
+            Text("\(formatWeight(totalWeight)) \(weightUnit.abbreviation)")
                 .font(.system(size: 48, weight: .bold))
             Text(equipmentLabel)
                 .font(.caption)
@@ -203,7 +203,7 @@ struct PlateCalculatorView: View {
                         localMachineWeight = weight
                         saveMachineWeight()
                     } label: {
-                        Text("\(Int(weight))")
+                        Text("\(formatWeight(weight))")
                             .font(.subheadline)
                             .fontWeight(localMachineWeight == weight ? .bold : .regular)
                             .frame(minWidth: 44)

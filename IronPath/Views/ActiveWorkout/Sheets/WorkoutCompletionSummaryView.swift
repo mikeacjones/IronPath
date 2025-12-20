@@ -143,7 +143,7 @@ struct WorkoutCompletionSummaryView: View {
                             .padding(.horizontal)
 
                             ForEach(workoutPRs) { pr in
-                                PRCard(pr: pr)
+                                PRCard(pr: pr, weightUnit: workout.weightUnit)
                             }
                         }
                     }
@@ -414,6 +414,7 @@ struct CompletionStatCard: View {
 /// A card displaying a personal record achievement
 struct PRCard: View {
     let pr: WorkoutPR
+    let weightUnit: WeightUnit
 
     var body: some View {
         HStack(spacing: 12) {
@@ -457,14 +458,15 @@ struct PRCard: View {
     }
 
     private func formatValue(_ value: Double, for type: WorkoutPR.PRType) -> String {
+        let unit = weightUnit.abbreviation
         switch type {
         case .weight:
-            return "\(Int(value)) lbs"
+            return "\(formatWeight(value)) \(unit)"
         case .volume:
             if value >= 1000 {
-                return String(format: "%.1fK lbs", value / 1000)
+                return String(format: "%.1fK %@", value / 1000, unit)
             }
-            return "\(Int(value)) lbs"
+            return "\(formatWeight(value)) \(unit)"
         case .reps:
             return "\(Int(value)) reps"
         }

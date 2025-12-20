@@ -45,6 +45,10 @@ struct CableWeightCalculatorView: View {
         gymSettings.cableMachineConfigs[exerciseName] != nil
     }
 
+    private var unit: String {
+        gymSettings.preferredWeightUnit.abbreviation
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -54,7 +58,7 @@ struct CableWeightCalculatorView: View {
                         Text("Target Weight")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(targetWeight)) lbs")
+                        Text("\(formatWeight(targetWeight)) \(unit)")
                             .font(.system(size: 48, weight: .bold))
                     }
                     .padding(.top)
@@ -290,11 +294,12 @@ struct WeightOptionRow: View {
     let weight: Double
     let label: String
     let isSelected: Bool
+    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("\(formatWeight(weight)) lbs")
+                Text("\(formatWeight(weight)) \(weightUnit.abbreviation)")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Text(label)

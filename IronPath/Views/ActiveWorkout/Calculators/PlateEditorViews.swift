@@ -17,6 +17,10 @@ struct AvailablePlatesEditor: View {
         self.gymSettings = gymSettings ?? GymSettings.shared
     }
 
+    private var weightUnit: WeightUnit {
+        gymSettings.preferredWeightUnit
+    }
+
     private var hasCustomConfig: Bool {
         gymSettings.hasCustomPlateConfig(for: exerciseName)
     }
@@ -129,12 +133,16 @@ struct AvailablePlatesEditor: View {
             }
 
             Button("Reset to Standard Plates") {
-                localPlates = GymSettings.standardPlates
+                localPlates = GymSettings.standardPlatesForUnit
                 saveChanges()
             }
             .foregroundStyle(.orange)
         } footer: {
-            Text("Standard: 45, 35, 25, 10, 5, 2.5 lbs (unlimited)")
+            if weightUnit == .kilograms {
+                Text("Standard: 20, 15, 10, 5, 2.5, 1.25 kg (unlimited)")
+            } else {
+                Text("Standard: 45, 35, 25, 10, 5, 2.5 lbs (unlimited)")
+            }
         }
     }
 
@@ -164,6 +172,7 @@ struct AvailablePlatesEditor: View {
 struct PlateRowEditor: View {
     @Binding var plate: AvailablePlate
     let onUpdate: () -> Void
+    var weightUnit: WeightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
     @State private var countText: String = ""
     @FocusState private var isFocused: Bool
@@ -171,7 +180,7 @@ struct PlateRowEditor: View {
     var body: some View {
         HStack {
             PlateVisual(weight: plate.weight)
-            Text("\(formatWeight(plate.weight)) lbs")
+            Text("\(formatWeight(plate.weight)) \(weightUnit.abbreviation)")
                 .fontWeight(.medium)
 
             Spacer()
