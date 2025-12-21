@@ -3,9 +3,15 @@ import SwiftUI
 // MARK: - Progress Tab View
 
 struct ProgressTabView: View {
+    @Environment(DependencyContainer.self) private var dependencies
+
     @State private var workouts: [Workout] = []
     @State private var personalRecords: [PersonalRecord] = []
     @State private var selectedExercise: String?
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     var exerciseNames: [String] {
         var names = Set<String>()
@@ -44,7 +50,7 @@ struct ProgressTabView: View {
                             .padding(.horizontal)
 
                         // Personal Records
-                        PRSectionView(records: personalRecords)
+                        PRSectionView(records: personalRecords, weightUnit: weightUnit)
                             .padding(.horizontal)
 
                         // Exercise picker for specific progress
@@ -52,7 +58,8 @@ struct ProgressTabView: View {
                             ExerciseProgressSection(
                                 exerciseNames: exerciseNames,
                                 selectedExercise: $selectedExercise,
-                                workouts: workouts
+                                workouts: workouts,
+                                weightUnit: weightUnit
                             )
                             .padding(.horizontal)
                         }
@@ -192,6 +199,7 @@ struct VolumeChartView: View {
 
 struct PRSectionView: View {
     let records: [PersonalRecord]
+    let weightUnit: WeightUnit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -212,7 +220,7 @@ struct PRSectionView: View {
                     .padding(.vertical, 20)
             } else {
                 ForEach(records.prefix(5)) { record in
-                    PRRowView(record: record)
+                    PRRowView(record: record, weightUnit: weightUnit)
                 }
 
                 if records.count > 5 {
@@ -233,6 +241,7 @@ struct PRSectionView: View {
 
 struct PRRowView: View {
     let record: PersonalRecord
+    let weightUnit: WeightUnit
 
     var body: some View {
         HStack {
@@ -247,7 +256,7 @@ struct PRRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(formatWeight(record.weight)) lbs × \(record.reps)")
+                Text("\(formatWeight(record.weight)) \(weightUnit.abbreviation) × \(record.reps)")
                     .font(.subheadline)
                     .fontWeight(.medium)
 
@@ -266,6 +275,7 @@ struct ExerciseProgressSection: View {
     let exerciseNames: [String]
     @Binding var selectedExercise: String?
     let workouts: [Workout]
+    let weightUnit: WeightUnit
 
     var exerciseHistory: [(date: Date, weight: Double, reps: Int)] {
         guard let exerciseName = selectedExercise else { return [] }
@@ -334,7 +344,7 @@ struct ExerciseProgressSection: View {
                         HStack {
                             Text("Max Weight:")
                                 .foregroundStyle(.secondary)
-                            Text("\(Int(maxWeight)) lbs")
+                            Text("\(formatWeight(maxWeight)) \(weightUnit.abbreviation)")
                                 .fontWeight(.bold)
                         }
                         .font(.subheadline)
@@ -349,7 +359,7 @@ struct ExerciseProgressSection: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text("\(formatWeight(entry.weight)) lbs × \(entry.reps)")
+                                Text("\(formatWeight(entry.weight)) \(weightUnit.abbreviation) × \(entry.reps)")
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }

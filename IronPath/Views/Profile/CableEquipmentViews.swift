@@ -5,9 +5,14 @@ import SwiftUI
 /// Editor for free weights on a cable machine with count support
 /// Allows adding multiple of the same weight (e.g., 3x 5lb plates)
 struct FreeWeightsEditor: View {
+    @Environment(DependencyContainer.self) private var dependencies
     @Binding var freeWeights: [CableMachineConfig.FreeWeight]
     @State private var newWeight: String = ""
     @State private var newCount: Int = 1
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     /// Common free weight values for quick add
     private let commonWeights: [Double] = [2.5, 5.0, 7.5, 10.0]
@@ -24,7 +29,7 @@ struct FreeWeightsEditor: View {
                     ForEach($freeWeights) { $freeWeight in
                         HStack {
                             // Weight display
-                            Text("\(formatWeight(freeWeight.weight)) lb")
+                            Text("\(formatWeight(freeWeight.weight)) \(weightUnit.abbreviation)")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
 
@@ -113,7 +118,7 @@ struct FreeWeightsEditor: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
 
-                Text("lb")
+                Text(weightUnit.abbreviation)
                     .foregroundStyle(.secondary)
 
                 Text("×")
@@ -155,10 +160,15 @@ struct FreeWeightsEditor: View {
 // MARK: - Cable Machine Config Editor
 
 struct CableMachineConfigEditor: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(DependencyContainer.self) private var dependencies
     @State var config: CableMachineConfig
     let title: String
     let onSave: (CableMachineConfig) -> Void
-    @Environment(\.dismiss) var dismiss
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     var body: some View {
         NavigationStack {
@@ -227,7 +237,7 @@ struct CableMachineConfigEditor: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text("Max: \(formatWeight(weights.last ?? 0)) lbs")
+                        Text("Max: \(formatWeight(weights.last ?? 0)) \(weightUnit.abbreviation)")
                             .font(.caption)
                             .foregroundStyle(.blue)
                     }

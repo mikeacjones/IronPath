@@ -4,9 +4,14 @@ import SwiftUI
 
 struct GymEquipmentSettingsView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var settings = GymSettings.shared
     @State private var showingDefaultCableEditor = false
     @State private var showingDumbbellConfig = false
+
+    private var weightUnit: WeightUnit {
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,7 +24,7 @@ struct GymEquipmentSettingsView: View {
                             VStack(alignment: .leading) {
                                 Text("Default Cable Machine")
                                     .foregroundStyle(.primary)
-                                Text(settings.defaultCableConfig.stackDescription)
+                                Text(settings.defaultCableConfig.stackDescription(unit: weightUnit))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -35,7 +40,7 @@ struct GymEquipmentSettingsView: View {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(exercise)
-                                        Text(config.stackDescription)
+                                        Text(config.stackDescription(unit: weightUnit))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -110,10 +115,6 @@ struct GymEquipmentSettingsView: View {
                 DumbbellConfigurationView()
             }
         }
-    }
-
-    private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     private var dumbbellSummary: String {

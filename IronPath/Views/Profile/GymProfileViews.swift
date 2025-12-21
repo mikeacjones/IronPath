@@ -153,7 +153,7 @@ struct GymProfileEditorView: View {
                 }
 
                 Section("Quick Settings") {
-                    Stepper("Max Dumbbell: \(Int(dumbbellMaxWeight)) lbs", value: $dumbbellMaxWeight, in: 10...200, step: 10)
+                    Stepper("Max Dumbbell: \(formatWeight(dumbbellMaxWeight)) \(preferredWeightUnit.abbreviation)", value: $dumbbellMaxWeight, in: 10...200, step: 10)
                 }
 
                 if isEditing && onDelete != nil {

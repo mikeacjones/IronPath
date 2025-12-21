@@ -146,12 +146,13 @@ struct CalendarDayView: View {
 
 struct WorkoutStatsSummaryView: View {
     let stats: WorkoutStats
+    let weightUnit: WeightUnit
 
     var body: some View {
         HStack(spacing: 16) {
             StatCard(title: "Total", value: "\(stats.totalWorkouts)", subtitle: "workouts")
             StatCard(title: "This Week", value: "\(stats.workoutsThisWeek)", subtitle: "workouts")
-            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: "lbs lifted")
+            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: "\(weightUnit.abbreviation) lifted")
         }
     }
 
@@ -252,7 +253,7 @@ struct WorkoutHistoryCard: View {
                 if let duration = workout.duration {
                     Label("\(Int(duration / 60)) min", systemImage: "clock")
                 }
-                Label("\(Int(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
+                Label("\(formatWeight(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                 if let calories = workout.estimatedCalories {
                     Label("\(calories) cal", systemImage: "flame")
                 }
@@ -323,7 +324,7 @@ struct WorkoutHistoryRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Label("\(Int(workout.totalVolume)) lbs", systemImage: "scalemass")
+                Label("\(formatWeight(workout.totalVolume)) \(workout.weightUnit.abbreviation)", systemImage: "scalemass")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

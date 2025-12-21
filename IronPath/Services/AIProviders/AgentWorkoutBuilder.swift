@@ -58,6 +58,9 @@ final class AgentWorkoutBuilder {
     /// Maximum allowed iterations (expect 2 rounds: gather context + build workout)
     let maxIterations: Int = 5
 
+    /// Whether to enable refinement pass after workout is built
+    let enableRefinement: Bool
+
     /// Last tool that was called
     private(set) var lastToolCall: String?
 
@@ -74,13 +77,15 @@ final class AgentWorkoutBuilder {
         targetMuscleGroups: Set<MuscleGroup>?,
         userNotes: String?,
         techniqueOptions: WorkoutGenerationOptions,
-        profile: UserProfile
+        profile: UserProfile,
+        enableRefinement: Bool = false
     ) {
         self.workoutType = workoutType
         self.targetMuscleGroups = targetMuscleGroups
         self.userNotes = userNotes
         self.techniqueOptions = techniqueOptions
         self.profile = profile
+        self.enableRefinement = enableRefinement
     }
 
     // MARK: - State Management
@@ -350,6 +355,100 @@ final class AgentWorkoutBuilder {
     /// Set the generation summary
     func setSummary(_ summary: String) {
         self.summary = summary
+    }
+
+    // MARK: - Refinement Support
+
+    /// Build a summary of the current workout for refinement
+    func buildWorkoutSummary() -> String {
+        guard !exercises.isEmpty else {
+            return "No exercises added yet."
+        }
+
+        var summary = "Workout: \(workoutName)\n"
+        if isDeload {
+            summary += "Type: Deload\n"
+        }
+        summary += "Exercises: \(exercises.count)\n\n"
+
+        for (index, exercise) in exercises.enumerated() {
+            summary += "\(index + 1). \(exercise.exercise.name)\n"
+            summary += "   Sets: \(exercise.sets.count)"
+
+            if let firstSet = exercise.sets.first {
+                if let weight = firstSet.weight, weight > 0 {
+                    summary += ", Weight: \(Int(weight)) lbs"
+                }
+                summary += ", Reps: \(firstSet.targetReps)"
+                summary += ", Rest: \(Int(firstSet.restPeriod))s"
+            }
+
+            // Identify special set types
+            let hasWarmup = exercise.sets.contains(where: { $0.setType == .warmup })
+            let hasDropSet = exercise.sets.contains(where: { $0.setType == .dropSet })
+            let hasRestPause = exercise.sets.contains(where: { $0.setType == .restPause })
+
+            var techniques: [String] = []
+            if hasWarmup { techniques.append("warmup") }
+            if hasDropSet { techniques.append("drop set") }
+            if hasRestPause { techniques.append("rest-pause") }
+
+            if !techniques.isEmpty {
+                summary += " [\(techniques.joined(separator: ", "))]"
+            }
+
+            summary += "\n"
+        }
+
+        if !exerciseGroups.isEmpty {
+            summary += "\nSupersets/Groups: \(exerciseGroups.count)\n"
+        }
+
+        return summary
+    }
+
+    /// Build user constraints string for refinement
+    func buildUserConstraints() -> String {
+        var constraints = ""
+
+        if let workoutType = workoutType {
+            constraints += "Workout Type: \(workoutType)\n"
+        }
+
+        if let targetMuscles = targetMuscleGroups, !targetMuscles.isEmpty {
+            constraints += "Target Muscles: \(targetMuscles.map { $0.rawValue }.joined(separator: ", "))\n"
+        }
+
+        if let notes = userNotes, !notes.isEmpty {
+            constraints += "User Notes: \(notes)\n"
+        }
+
+        constraints += "Fitness Level: \(profile.fitnessLevel.rawValue)\n"
+
+        if let primaryGoal = profile.goals.first {
+            constraints += "Goal: \(primaryGoal.rawValue)\n"
+        }
+
+        // Technique requirements
+        var requiredTechniques: [String] = []
+        if techniqueOptions.warmupSetMode == .required {
+            requiredTechniques.append("warmup sets")
+        }
+        if techniqueOptions.dropSetMode == .required {
+            requiredTechniques.append("drop sets")
+        }
+        if techniqueOptions.restPauseMode == .required {
+            requiredTechniques.append("rest-pause sets")
+        }
+        if techniqueOptions.supersetMode == .required {
+            requiredTechniques.append("supersets")
+        }
+
+        if !requiredTechniques.isEmpty {
+            constraints += "Required Techniques: \(requiredTechniques.joined(separator: ", "))\n"
+        }
+
+        return constraints
     }
 
     // MARK: - Build Final Workout

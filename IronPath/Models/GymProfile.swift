@@ -398,6 +398,11 @@ final class GymSettings {
     /// Standard kg plate sizes
     static let standardPlatesKg: [AvailablePlate] = kStandardKgAvailablePlates
 
+    /// Returns standard plates for the given weight unit preference
+    static func standardPlatesForUnit(_ unit: WeightUnit) -> [AvailablePlate] {
+        return unit == .kilograms ? standardPlatesKg : standardPlates
+    }
+
     /// Standard dumbbell sizes commonly found in gyms (in lbs)
     static let standardDumbbells: [Double] = [
         2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25,

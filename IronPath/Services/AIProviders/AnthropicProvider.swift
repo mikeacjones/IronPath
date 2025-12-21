@@ -127,7 +127,8 @@ class AnthropicProvider: AIProvider {
             isDeload: isDeload,
             allowDeloadRecommendation: allowDeloadRecommendation,
             availableExercises: availableExercises,
-            techniqueOptions: techniqueOptions
+            techniqueOptions: techniqueOptions,
+            profile: profile
         )
 
         let response = try await sendMessage(
@@ -338,6 +339,79 @@ class AnthropicProvider: AIProvider {
         // Check if we hit max iterations without finalizing
         if !builder.isFinalized && builder.iterationCount >= builder.maxIterations {
             throw AgentError.maxIterationsExceeded(builder.maxIterations)
+        }
+
+        // Optional Round 3: Self-Refine pass
+        if builder.enableRefinement && !builder.exercises.isEmpty {
+            // Check total timeout before refinement
+            guard Date().timeIntervalSince(startTime) < totalTimeout else {
+                throw AgentError.totalTimeoutExceeded
+            }
+
+            // Rate limiting before refinement call
+            if let lastCall = lastCallTime {
+                let elapsed = Date().timeIntervalSince(lastCall)
+                if elapsed < minDelayBetweenCalls {
+                    try await Task.sleep(nanoseconds: UInt64((minDelayBetweenCalls - elapsed) * 1_000_000_000))
+                }
+            }
+
+            // Build refinement prompt
+            let workoutSummary = builder.buildWorkoutSummary()
+            let userConstraints = builder.buildUserConstraints()
+            let refinementPrompt = WorkoutAgentTools.buildRefinementPrompt(
+                workoutSummary: workoutSummary,
+                userConstraints: userConstraints
+            )
+
+            // Log refinement start
+            APIDebugManager.shared.log(APILogEntry(
+                endpoint: "agentic://workout-generation/refine",
+                method: "REFINE",
+                requestHeaders: ["iteration": String(builder.iterationCount)],
+                requestBody: "Starting Self-Refine pass",
+                responseStatusCode: 200,
+                responseBody: workoutSummary,
+                duration: 0
+            ))
+
+            // Add refinement prompt to conversation
+            builder.addUserMessage(refinementPrompt)
+            builder.setState(.building)
+            progressCallback?(builder.progress)
+
+            // Send refinement request
+            let refinementResponse = try await sendAgentMessage(
+                messages: builder.conversationMessages,
+                tools: WorkoutAgentTools.allTools
+            )
+            lastCallTime = Date()
+
+            // Add assistant response
+            builder.addAssistantMessage(from: refinementResponse)
+
+            // Check if LLM wants to make fixes
+            if !AIToolParser.isResponseComplete(response: refinementResponse, provider: .anthropic) {
+                // Extract and execute tool calls for fixes
+                let toolCalls = AIToolParser.extractToolCallsFromAnthropic(from: refinementResponse)
+
+                if !toolCalls.isEmpty {
+                    // Execute refinement fixes
+                    let results = try await builder.executeTools(toolCalls)
+                    builder.addToolResultsMessage(results)
+
+                    // Log refinement fixes applied
+                    APIDebugManager.shared.log(APILogEntry(
+                        endpoint: "agentic://workout-generation/refine-fixes",
+                        method: "REFINE",
+                        requestHeaders: ["fixes_applied": String(toolCalls.count)],
+                        requestBody: "Applied refinement fixes",
+                        responseStatusCode: 200,
+                        responseBody: toolCalls.map { $0.name }.joined(separator: ", "),
+                        duration: 0
+                    ))
+                }
+            }
         }
 
         // Build and return the workout

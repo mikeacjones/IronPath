@@ -139,182 +139,21 @@ enum AIProviderHelpers {
         allowDeloadRecommendation: Bool,
         techniqueOptions: WorkoutGenerationOptions
     ) -> String {
-        // Get gym equipment summary
-        let gymSummary = GymSettings.shared.equipmentSummaryForLLM()
-
-        var prompt = """
-        You are an expert personal trainer creating personalized workout programs.
-        Always respond with valid JSON only - no markdown code blocks, no explanations outside the JSON.
-
-        USER PROFILE:
-        - Fitness Level: \(profile.fitnessLevel.rawValue)
-        - Goals: \(profile.goals.map { $0.rawValue }.joined(separator: ", "))
-        - Training Style: \(profile.workoutPreferences.trainingStyle.rawValue)
-        - Preferred Duration: \(profile.workoutPreferences.preferredWorkoutDuration) minutes
-        - Preferred Rest: \(profile.workoutPreferences.preferredRestTime) seconds between sets
-
-        GYM EQUIPMENT:
-        \(gymSummary)
-
-        WORKOUT GENERATION RULES:
-        1. ONLY use exercises from the available exercises list provided
-        2. Match exercise names EXACTLY as they appear in the list
-        3. Create \(profile.workoutPreferences.preferredWorkoutDuration > 45 ? "5-7" : "4-5") exercises for a balanced workout
-        4. Use the exercise history to suggest appropriate weights\(isDeload ? " (reduced to 50-70% for deload)" : " (progressive overload)")
-        5. Return the workout in JSON format
-        """
-
-        // Build advanced techniques section
-        prompt += buildAdvancedTechniquesPrompt(techniqueOptions: techniqueOptions, fitnessLevel: profile.fitnessLevel)
-
-        return prompt
+        let builder = WorkoutPromptBuilder(
+            profile: profile,
+            techniqueOptions: techniqueOptions,
+            isDeload: isDeload
+        )
+        return builder.buildSystemPrompt()
     }
 
     /// Build advanced techniques prompt section
     static func buildAdvancedTechniquesPrompt(techniqueOptions: WorkoutGenerationOptions, fitnessLevel: FitnessLevel) -> String {
-        var prompt = ""
-
-        let warmupEnabled = techniqueOptions.warmupSetMode != .disabled
-        let dropSetEnabled = techniqueOptions.dropSetMode != .disabled
-        let restPauseEnabled = techniqueOptions.restPauseMode != .disabled
-
-        guard warmupEnabled || dropSetEnabled || restPauseEnabled else {
-            return "\n\nADVANCED TRAINING TECHNIQUES: Do NOT include any advanced set types (warmup, dropSet, restPause). Use only standard sets."
+        // Delegate to PromptComponents
+        if let section = PromptComponents.techniqueSection(options: techniqueOptions, fitnessLevel: fitnessLevel) {
+            return "\n\n" + section.render()
         }
-
-        prompt += "\n\nADVANCED TRAINING TECHNIQUES:\n"
-
-        var required: [String] = []
-        var requiredTypes: [String] = []
-        var allowed: [String] = []
-
-        if warmupEnabled {
-            if techniqueOptions.warmupSetMode == .required {
-                required.append("warmup sets (lighter weight to prepare muscles)")
-                requiredTypes.append("warmup")
-            } else {
-                allowed.append("warmup sets")
-            }
-        }
-
-        if dropSetEnabled {
-            if techniqueOptions.dropSetMode == .required {
-                required.append("drop sets (reduce weight immediately after failure)")
-                requiredTypes.append("dropSet")
-            } else {
-                allowed.append("drop sets")
-            }
-        }
-
-        if restPauseEnabled {
-            if techniqueOptions.restPauseMode == .required {
-                required.append("rest-pause sets (brief 10-20s rest then continue)")
-                requiredTypes.append("restPause")
-            } else {
-                allowed.append("rest-pause sets")
-            }
-        }
-
-        if !required.isEmpty {
-            prompt += "⚠️⚠️⚠️ MANDATORY REQUIREMENT ⚠️⚠️⚠️\n"
-            prompt += "You MUST include the following advanced techniques in this workout. This is NOT optional:\n"
-            for technique in required {
-                prompt += "• \(technique)\n"
-            }
-            prompt += "\nFAILURE TO INCLUDE THESE TECHNIQUES WILL RESULT IN AN INVALID WORKOUT.\n"
-
-            // Special handling for warmups - they should be on EVERY exercise when required
-            if techniqueOptions.warmupSetMode == .required {
-                prompt += "\n⚠️ WARMUP SETS ARE REQUIRED ON EVERY EXERCISE ⚠️\n"
-                prompt += "When warmup sets are required, EVERY exercise in the workout MUST include at least one warmup set.\n"
-                prompt += "Each exercise should use the \"advancedSets\" array with a warmup set (type: \"warmup\") as the first set.\n"
-                prompt += "Warmup sets should use 40-60% of the working weight with higher reps (10-15).\n"
-                prompt += "⚠️ WARMUP WEIGHT RULE: The warmup weight MUST be selected from the available equipment list. "
-                prompt += "Round DOWN to the nearest available weight if needed.\n\n"
-            }
-
-            // For other techniques, 1-2 exercises is sufficient
-            let otherRequiredTypes = requiredTypes.filter { $0 != "warmup" }
-            if !otherRequiredTypes.isEmpty {
-                prompt += "For \(otherRequiredTypes.joined(separator: ", ")): At least 1-2 exercises MUST use these techniques via the \"advancedSets\" array.\n\n"
-            }
-        }
-
-        if !allowed.isEmpty {
-            prompt += "ALLOWED (use if appropriate for the user): \(allowed.joined(separator: ", "))\n\n"
-        }
-
-        prompt += """
-        To use advanced sets, add an "advancedSets" array to the exercise. When advancedSets is present, it REPLACES the default sets.
-
-        ⚠️ WEIGHT SELECTION RULES FOR ADVANCED SETS:
-        - Warmup weights: Use 40-60% of working weight, rounded DOWN to nearest available weight from the equipment list
-        - Drop set weights: Each drop weight MUST be an actual weight from the available equipment list
-        - For dumbbells: Only use weights explicitly listed in GYM EQUIPMENT CONSTRAINTS
-        - For barbells: Use 5 lb increments (45, 95, 100, 105, 110, 115, 120, 125, 130, 135...)
-
-        EXAMPLE - Dumbbell exercise with warmup (if available dumbbells are 5,10,15,20,25,30,35,40 lbs):
-        {
-          "name": "Dumbbell Bench Press",
-          "sets": 4,
-          "reps": "8",
-          "weight": 35,
-          "restSeconds": 90,
-          "equipment": "dumbbells",
-          "primaryMuscles": ["chest"],
-          "advancedSets": [
-            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 15},
-            {"setNumber": 2, "type": "standard", "reps": "8", "weight": 35},
-            {"setNumber": 3, "type": "standard", "reps": "8", "weight": 35},
-            {"setNumber": 4, "type": "dropSet", "reps": "8", "weight": 35, "numberOfDrops": 2, "dropPercentage": 0.2}
-          ]
-        }
-
-        EXAMPLE - Barbell exercise with warmup:
-        {
-          "name": "Bench Press",
-          "sets": 4,
-          "reps": "8",
-          "weight": 135,
-          "restSeconds": 90,
-          "equipment": "barbell",
-          "primaryMuscles": ["chest"],
-          "advancedSets": [
-            {"setNumber": 1, "type": "warmup", "reps": "12", "weight": 95},
-            {"setNumber": 2, "type": "standard", "reps": "8", "weight": 135},
-            {"setNumber": 3, "type": "standard", "reps": "8", "weight": 135},
-            {"setNumber": 4, "type": "dropSet", "reps": "8", "weight": 135, "numberOfDrops": 2, "dropPercentage": 0.2}
-          ]
-        }
-
-        EXAMPLE - Exercise with rest-pause:
-        {
-          "name": "Leg Press",
-          "sets": 3,
-          "reps": "10",
-          "weight": 200,
-          "restSeconds": 120,
-          "equipment": "legPress",
-          "primaryMuscles": ["quadriceps"],
-          "advancedSets": [
-            {"setNumber": 1, "type": "standard", "reps": "10", "weight": 200},
-            {"setNumber": 2, "type": "standard", "reps": "10", "weight": 200},
-            {"setNumber": 3, "type": "restPause", "reps": "10", "weight": 200, "numberOfPauses": 2, "pauseDuration": 15}
-          ]
-        }
-
-        Valid set types: "standard", "warmup", "dropSet", "restPause"
-        """
-
-        if fitnessLevel == .beginner && required.isEmpty {
-            prompt += "\nNote: User is a beginner - only use advanced techniques sparingly unless specifically required."
-        }
-
-        if !required.isEmpty {
-            prompt += "\n\n🔴 REMINDER: You MUST include advancedSets with types [\(requiredTypes.joined(separator: ", "))] on at least 1-2 exercises. Do not omit this requirement."
-        }
-
-        return prompt
+        return "\n\nADVANCED TRAINING TECHNIQUES: Do NOT include any advanced set types (warmup, dropSet, restPause). Use only standard sets."
     }
 
     /// Build user prompt for workout generation
@@ -326,136 +165,43 @@ enum AIProviderHelpers {
         isDeload: Bool,
         allowDeloadRecommendation: Bool,
         availableExercises: String,
-        techniqueOptions: WorkoutGenerationOptions
+        techniqueOptions: WorkoutGenerationOptions,
+        profile: UserProfile? = nil
     ) -> String {
-        let todayStr = Date().formatted(date: .complete, time: .omitted)
-        var prompt = "Today's Date: \(todayStr)\n\nPlease create a workout for me.\n\n"
-
-        if isDeload {
-            prompt += "⚠️ THIS IS A DELOAD WORKOUT - Use lighter weights (50-70% of normal) for recovery.\n\n"
-        }
-
-        if let workoutType = workoutType {
-            prompt += "Workout Type: \(workoutType)\n\n"
-        }
-
-        if let notes = userNotes, !notes.isEmpty {
-            prompt += "My Notes: \(notes)\n\n"
-        }
-
-        // Add workout history
-        if !workoutHistory.isEmpty {
-            prompt += "RECENT WORKOUT HISTORY:\n"
-
-            let relevantHistory = workoutHistory.filter { !$0.isDeload }.prefix(5)
-            for workout in relevantHistory {
-                let dateStr = workout.completedAt?.formatted(date: .abbreviated, time: .omitted) ?? "recent"
-                prompt += "\n[\(dateStr)] \(workout.name)\n"
-
-                for exercise in workout.exercises {
-                    let completedSets = exercise.sets.filter { $0.completedAt != nil }
-                    if !completedSets.isEmpty {
-                        prompt += "  - \(exercise.exercise.name):\n"
-                        for (index, set) in completedSets.enumerated() {
-                            let weight = set.weight.map { workout.weightUnit.format($0) } ?? "bodyweight"
-                            let reps = set.actualReps.map { "\($0) reps" } ?? "\(set.targetReps) reps (target)"
-                            prompt += "      Set \(index + 1): \(weight) x \(reps)\n"
-                        }
-                    }
-                }
-            }
-
-            if allowDeloadRecommendation {
-                prompt += "\nDELOAD CONTEXT:\n"
-                let lastDeload = workoutHistory.last { $0.isDeload }
-                if let lastDeload = lastDeload, let completedAt = lastDeload.completedAt {
-                    let daysSinceDeload = Calendar.current.dateComponents([.day], from: completedAt, to: Date()).day ?? 0
-                    prompt += "- Last deload workout: \(daysSinceDeload) days ago\n"
-                } else {
-                    prompt += "- No recent deload workouts in history\n"
-                }
-                let nonDeloadCount = workoutHistory.filter { !$0.isDeload }.count
-                prompt += "- Total non-deload workouts in recent history: \(nonDeloadCount)\n"
-            }
-
-            prompt += "\nUse this history to:\n"
-            prompt += "1. Suggest appropriate weights based on past performance (progressive overload)\n"
-            prompt += "2. Vary exercise selection to ensure balanced training\n"
-            prompt += "3. Avoid overtraining muscle groups that were recently worked hard\n\n"
-        }
-
-        // Add exercise preferences
-        if let preferencePrompt = ExercisePreferenceManager.shared.generatePreferencePrompt() {
-            prompt += preferencePrompt
-            prompt += "\n"
-        }
-
-        // Add available exercises
-        prompt += availableExercises
-        prompt += "\n"
-
-        // Add JSON format specification
-        let supersetEnabled = techniqueOptions.supersetMode != .disabled
-        let supersetRequired = techniqueOptions.supersetMode == .required
-
-        let weightInstruction = isDeload ? "reduced weight (50-70% of history)" : "suggested weight based on history or appropriate starting weight"
-        let deloadComment = allowDeloadRecommendation ? " // Set to true if you recommend a deload based on training history" : ""
-
-        prompt += "Return the workout as JSON with this structure:\n"
-        prompt += "{\n"
-        prompt += "  \"name\": \"\(isDeload ? "Deload - " : "")Workout name\",\n"
-        prompt += "  \"isDeload\": \(isDeload ? "true" : "false")\(deloadComment),\n"
-        prompt += "  \"exercises\": [\n"
-        prompt += "    {\n"
-        prompt += "      \"name\": \"Exercise name (must match exactly from the list)\",\n"
-        prompt += "      \"sets\": number,\n"
-        prompt += "      \"reps\": \"rep range or target\",\n"
-        prompt += "      \"weight\": \(weightInstruction),\n"
-        prompt += "      \"restSeconds\": number,\n"
-        prompt += "      \"equipment\": \"equipment type\",\n"
-        prompt += "      \"primaryMuscles\": [\"muscle1\"],\n"
-        prompt += "      \"notes\": \"Optional coaching notes\"\n"
-        prompt += "    }\n"
-        prompt += "  ]"
-
-        if supersetEnabled {
-            prompt += ",\n"
-            prompt += "  \"exerciseGroups\": [\n"
-            prompt += "    {\n"
-            prompt += "      \"type\": \"superset|triset|giantSet|circuit\",\n"
-            prompt += "      \"exerciseIndices\": [0, 1],\n"
-            prompt += "      \"restBetweenExercises\": 0,\n"
-            prompt += "      \"restAfterGroup\": 90\n"
-            prompt += "    }\n"
-            prompt += "  ]\n"
+        // Get profile from parameter or fallback to creating from gym profile
+        let userProfile: UserProfile
+        if let profile = profile {
+            userProfile = profile
+        } else if let gymProfile = GymProfileManager.shared.activeProfile {
+            // Create minimal profile from gym profile
+            userProfile = UserProfile(
+                name: gymProfile.name,
+                fitnessLevel: .intermediate,
+                goals: [.hypertrophy],
+                availableEquipment: gymProfile.availableEquipment,
+                workoutPreferences: WorkoutPreferences()
+            )
         } else {
-            prompt += "\n"
+            // Last resort: use defaults
+            userProfile = UserProfile(
+                name: "User",
+                fitnessLevel: .intermediate,
+                goals: [.hypertrophy],
+                availableEquipment: Set(Equipment.allCases),
+                workoutPreferences: WorkoutPreferences()
+            )
         }
 
-        prompt += "}\n"
+        let builder = WorkoutPromptBuilder(
+            profile: userProfile,
+            techniqueOptions: techniqueOptions,
+            workoutType: workoutType,
+            targetMuscles: targetMuscleGroups,
+            isDeload: isDeload,
+            userNotes: userNotes
+        )
 
-        // Add superset instructions based on mode
-        if supersetRequired {
-            prompt += "\n⚠️ SUPERSETS REQUIRED:\n"
-            prompt += "You MUST include at least one superset or circuit in this workout.\n"
-            prompt += "Group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.\n"
-            prompt += "- Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time\n"
-            prompt += "- exerciseIndices are 0-based indices into the exercises array\n"
-            prompt += "- restBetweenExercises is typically 0 for supersets (exercises done back-to-back)\n"
-            prompt += "- restAfterGroup is rest after completing one round of the group\n"
-        } else if supersetEnabled {
-            prompt += "\nSUPERSETS & CIRCUITS (optional):\n"
-            prompt += "You can group exercises together as supersets (2 exercises), trisets (3), giant sets (4+), or circuits.\n"
-            prompt += "- Use supersets for antagonist pairs (e.g., biceps/triceps, chest/back) or to save time\n"
-            prompt += "- exerciseIndices are 0-based indices into the exercises array\n"
-            prompt += "- restBetweenExercises is typically 0 for supersets (exercises done back-to-back)\n"
-            prompt += "- restAfterGroup is rest after completing one round of the group\n"
-            prompt += "- Only include exerciseGroups if you want to create supersets/circuits; omit for standard workouts\n"
-        } else {
-            prompt += "\nNOTE: Do NOT include exerciseGroups or supersets in this workout. Keep all exercises separate with standard rest periods.\n"
-        }
-
-        return prompt
+        return builder.buildUserPrompt(history: workoutHistory, availableExercises: availableExercises)
     }
 
     /// Build prompt for exercise replacement

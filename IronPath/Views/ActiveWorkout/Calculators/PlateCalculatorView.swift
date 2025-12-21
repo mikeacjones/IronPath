@@ -9,6 +9,7 @@ struct PlateCalculatorView: View {
     var previousWeight: Double? = nil
 
     @Environment(\.dismiss) var dismiss
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var settings = GymSettings.shared
     @State private var showingPlateEditor = false
     @State private var customWeightText: String = ""
@@ -17,10 +18,10 @@ struct PlateCalculatorView: View {
 
     private var weightUnit: WeightUnit {
         // Use active workout unit if available, otherwise use gym profile unit
-        if let activeWorkout = ActiveWorkoutManager.shared.activeWorkout {
+        if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit
         }
-        return GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        return dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     private var machineWeightLabel: String {
@@ -177,7 +178,7 @@ struct PlateCalculatorView: View {
             Text("Total Weight")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(Int(totalWeight)) \(weightUnit.abbreviation)")
+            Text("\(formatWeight(totalWeight)) \(weightUnit.abbreviation)")
                 .font(.system(size: 48, weight: .bold))
             Text(equipmentLabel)
                 .font(.caption)
@@ -203,7 +204,7 @@ struct PlateCalculatorView: View {
                         localMachineWeight = weight
                         saveMachineWeight()
                     } label: {
-                        Text("\(Int(weight))")
+                        Text("\(formatWeight(weight))")
                             .font(.subheadline)
                             .fontWeight(localMachineWeight == weight ? .bold : .regular)
                             .frame(minWidth: 44)

@@ -125,11 +125,12 @@ class AgentToolExecutor {
         let exerciseName = call.input["exercise_name"] as? String
 
         let config = gymSettings.cableConfig(for: exerciseName ?? "")
+        let weightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
         let content: [String: Any] = [
             "exerciseName": exerciseName ?? "default",
             "availableWeights": config.availableWeights,
-            "stackDescription": config.stackDescription
+            "stackDescription": config.stackDescription(unit: weightUnit)
         ]
 
         return .success(toolCallId: call.id, content: content)

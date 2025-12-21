@@ -115,6 +115,19 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
         )
     }
 
+    /// Default cable machine config for kg (2.5kg increments)
+    static var defaultConfigKg: CableMachineConfig {
+        CableMachineConfig(
+            name: "Default Cable Machine",
+            plateTiers: [PlateTier(plateWeight: 2.5, plateCount: 40)]
+        )
+    }
+
+    /// Returns default config for the given weight unit preference
+    static func defaultConfigForUnit(_ unit: WeightUnit) -> CableMachineConfig {
+        return unit == .kilograms ? defaultConfigKg : defaultConfig
+    }
+
     /// Example: Lat pulldown with 6x9lb then 12.5lb plates
     static var latPulldownExample: CableMachineConfig {
         CableMachineConfig(
@@ -127,10 +140,10 @@ struct CableMachineConfig: Codable, Identifiable, Equatable {
     }
 
     /// Human-readable description of the weight stack
-    var stackDescription: String {
-        var desc = plateTiers.map { "\($0.plateCount)×\(formatWeight($0.plateWeight))lb" }.joined(separator: " + ")
+    func stackDescription(unit: WeightUnit) -> String {
+        var desc = plateTiers.map { "\($0.plateCount)×\(formatWeight($0.plateWeight))\(unit.abbreviation)" }.joined(separator: " + ")
         if !freeWeights.isEmpty {
-            let freeWeightStr = freeWeights.map { "\($0.count)×\(formatWeight($0.weight))lb" }.joined(separator: ", ")
+            let freeWeightStr = freeWeights.map { "\($0.count)×\(formatWeight($0.weight))\(unit.abbreviation)" }.joined(separator: ", ")
             desc += " + free: \(freeWeightStr)"
         }
         return desc

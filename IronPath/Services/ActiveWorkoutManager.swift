@@ -12,9 +12,12 @@ final class ActiveWorkoutManager {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
+    private var saveTask: Task<Void, Never>?
+    private let saveDebounceInterval: Duration = .milliseconds(100)
+
     var activeWorkout: Workout? {
         didSet {
-            saveActiveWorkout()
+            scheduleSave()
         }
     }
 
@@ -31,6 +34,22 @@ final class ActiveWorkoutManager {
 
     private init() {
         loadActiveWorkout()
+    }
+
+    /// Schedule a debounced save to prevent overlapping writes
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: self?.saveDebounceInterval ?? .milliseconds(100))
+            guard !Task.isCancelled else { return }
+            self?.saveActiveWorkout()
+        }
+    }
+
+    /// Force an immediate save, bypassing debouncing (for critical moments)
+    func forceSave() {
+        saveTask?.cancel()
+        saveActiveWorkout()
     }
 
     /// Save the active workout to UserDefaults
@@ -80,6 +99,7 @@ final class ActiveWorkoutManager {
         let completed = activeWorkout
         activeWorkout = nil
         workoutStartTime = nil
+        forceSave()
         return completed
     }
 
@@ -87,6 +107,7 @@ final class ActiveWorkoutManager {
     func cancelWorkout() {
         activeWorkout = nil
         workoutStartTime = nil
+        forceSave()
     }
 
     /// Check if there's an active workout in progress

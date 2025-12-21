@@ -99,6 +99,7 @@ private struct SetTypeButton: View {
 struct ExerciseHistorySection: View {
     let history: [(date: Date, sets: [ExerciseSet])]
     @Binding var isExpanded: Bool
+    let weightUnit: WeightUnit
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -150,7 +151,8 @@ struct ExerciseHistorySection: View {
             ForEach(Array(history.enumerated()), id: \.offset) { index, session in
                 HistorySessionRow(
                     session: session,
-                    dateFormatter: dateFormatter
+                    dateFormatter: dateFormatter,
+                    weightUnit: weightUnit
                 )
 
                 if index < history.count - 1 {
@@ -169,6 +171,7 @@ struct ExerciseHistorySection: View {
 private struct HistorySessionRow: View {
     let session: (date: Date, sets: [ExerciseSet])
     let dateFormatter: DateFormatter
+    let weightUnit: WeightUnit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -182,7 +185,7 @@ private struct HistorySessionRow: View {
                         Text("Max")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(maxWeight)) lbs")
+                        Text("\(formatWeight(maxWeight)) \(weightUnit.abbreviation)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                     }
@@ -202,14 +205,14 @@ private struct HistorySessionRow: View {
         .padding(.vertical, 8)
     }
 
-    /// Format sets as "3×10 @ 135 lbs" style
+    /// Format sets as "3×10 @ 135" style
     private func setsBreakdown(_ sets: [ExerciseSet]) -> String {
         var breakdown: [String] = []
 
         for set in sets {
             let reps = set.actualReps ?? set.targetReps
             if let weight = set.weight {
-                breakdown.append("\(reps)×\(Int(weight))")
+                breakdown.append("\(reps)×\(formatWeight(weight))")
             } else {
                 breakdown.append("\(reps) reps")
             }

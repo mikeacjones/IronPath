@@ -17,6 +17,7 @@ struct TimedSetRow: View {
     let onSetCompleted: (() -> Void)?
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
+    let weightUnit: WeightUnit
 
     @Environment(DependencyContainer.self) private var dependencies
     @State private var addedWeightString: String = ""
@@ -132,7 +133,7 @@ struct TimedSetRow: View {
                 if let weight = config.addedWeight, weight > 0 {
                     Text("•")
                         .foregroundStyle(.secondary)
-                    Text("\(formatWeight(weight)) lbs")
+                    Text("\(formatWeight(weight)) \(weightUnit.abbreviation)")
                         .font(.body)
                 }
             }

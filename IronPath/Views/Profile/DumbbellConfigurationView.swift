@@ -4,13 +4,14 @@ import SwiftUI
 
 struct DumbbellConfigurationView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(DependencyContainer.self) private var dependencies
     @State private var settings = GymSettings.shared
 
     @State private var useSpecificDumbbells: Bool
     @State private var selectedDumbbells: Set<Double>
 
     private var weightUnit: WeightUnit {
-        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
     }
 
     private var standardDumbbells: [Double] {
@@ -21,13 +22,13 @@ struct DumbbellConfigurationView: View {
         weightUnit == .kilograms ? GymSettings.limitedDumbbellsKg : GymSettings.limitedDumbbells
     }
 
-    init() {
+    init(gymProfileManager: GymProfileManaging? = nil) {
         let settings = GymSettings.shared
         let hasSpecific = settings.availableDumbbells != nil
         _useSpecificDumbbells = State(initialValue: hasSpecific)
 
         // Use the appropriate standard set based on current unit
-        let unit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+        let unit = (gymProfileManager ?? GymProfileManager.shared).activeProfile?.preferredWeightUnit ?? .pounds
         let defaultStandard = unit == .kilograms ? GymSettings.standardDumbbellsKg : GymSettings.standardDumbbells
         _selectedDumbbells = State(initialValue: settings.availableDumbbells ?? Set(defaultStandard.filter { $0 <= settings.dumbbellMaxWeight }))
     }
