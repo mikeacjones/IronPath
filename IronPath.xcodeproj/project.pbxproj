@@ -275,11 +275,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = IronPath/IronPath.entitlements;
-				EXCLUDED_SOURCE_FILE_NAMES = "CLAUDE.md";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WN5AK2E86G;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = CLAUDE.md;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "IronPath can read your workout history from Apple Health to provide better workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "IronPath uses HealthKit to save your completed workouts and estimated calories burned to Apple Health.";
@@ -314,11 +314,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = IronPath/IronPath.entitlements;
-				EXCLUDED_SOURCE_FILE_NAMES = "CLAUDE.md";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WN5AK2E86G;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = CLAUDE.md;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "IronPath can read your workout history from Apple Health to provide better workout recommendations.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "IronPath uses HealthKit to save your completed workouts and estimated calories burned to Apple Health.";

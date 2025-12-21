@@ -127,7 +127,8 @@ class AnthropicProvider: AIProvider {
             isDeload: isDeload,
             allowDeloadRecommendation: allowDeloadRecommendation,
             availableExercises: availableExercises,
-            techniqueOptions: techniqueOptions
+            techniqueOptions: techniqueOptions,
+            profile: profile
         )
 
         let response = try await sendMessage(

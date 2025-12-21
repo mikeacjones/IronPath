@@ -17,7 +17,7 @@ enum WorkoutAgentTools {
 
     static let getGymEquipmentTool: [String: Any] = [
         "name": "get_gym_equipment",
-        "description": "Get raw gym equipment list. Usually not needed - get_available_exercises already filters by equipment.",
+        "description": "Get raw equipment list. Usually unnecessary - exercises are pre-filtered.",
         "input_schema": [
             "type": "object",
             "properties": [:] as [String: Any],
@@ -27,7 +27,7 @@ enum WorkoutAgentTools {
 
     static let getDumbbellWeightsTool: [String: Any] = [
         "name": "get_dumbbell_weights",
-        "description": "Get available dumbbell weights. ONLY call if you are adding a dumbbell exercise to the workout. Skip entirely for bodyweight/barbell/cable/machine workouts. Weights auto-snap anyway.",
+        "description": "Get available dumbbell weights. Only needed for dumbbell exercises. Weights auto-snap.",
         "input_schema": [
             "type": "object",
             "properties": [:] as [String: Any],
@@ -37,7 +37,7 @@ enum WorkoutAgentTools {
 
     static let getCableWeightsTool: [String: Any] = [
         "name": "get_cable_weights",
-        "description": "Get cable machine weights. ONLY call if you are adding a cable exercise to the workout. Skip entirely for non-cable workouts. Weights auto-snap anyway.",
+        "description": "Get cable machine weights. Only needed for cable exercises. Weights auto-snap.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -52,7 +52,7 @@ enum WorkoutAgentTools {
 
     static let getAvailableExercisesTool: [String: Any] = [
         "name": "get_available_exercises",
-        "description": "Get exercises filtered by muscle groups. Returns exercises available with user's gym equipment, including equipment type for each. Blocked exercises are excluded.",
+        "description": "Get exercises filtered by muscle groups. Returns exercises available with user's equipment. Blocked exercises excluded.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -82,7 +82,7 @@ enum WorkoutAgentTools {
 
     static let getExerciseHistoryTool: [String: Any] = [
         "name": "get_exercise_history",
-        "description": "Get user's recent workout sessions for an exercise. Returns raw history (dates, weights, reps). Analyze the progression yourself and decide appropriate weight based on their history. If no history, use sensible defaults for their fitness level.",
+        "description": "Get exercise history. Returns recent sessions with weights/reps for progressive overload.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -97,7 +97,7 @@ enum WorkoutAgentTools {
 
     static let getExercisePreferencesTool: [String: Any] = [
         "name": "get_exercise_preferences",
-        "description": "Get preferred/avoided/blocked exercises. Usually not needed - get_available_exercises includes this.",
+        "description": "Get exercise preferences (preferred/avoided/blocked). Usually unnecessary - already filtered.",
         "input_schema": [
             "type": "object",
             "properties": [:] as [String: Any],
@@ -107,7 +107,7 @@ enum WorkoutAgentTools {
 
     static let getWorkoutHistoryTool: [String: Any] = [
         "name": "get_workout_history",
-        "description": "Get recent workout summaries. Useful to avoid repeating the same workout or check if deload is needed.",
+        "description": "Get recent workout summaries. Useful for rotation planning and deload checks.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -122,7 +122,7 @@ enum WorkoutAgentTools {
 
     static let getTechniqueSettingsTool: [String: Any] = [
         "name": "get_technique_settings",
-        "description": "Get technique settings: warmup/dropset/rest-pause/superset modes (disabled/allowed/required).",
+        "description": "Get technique modes (warmup/dropset/rest-pause/superset): disabled/allowed/required.",
         "input_schema": [
             "type": "object",
             "properties": [:] as [String: Any],
@@ -153,7 +153,7 @@ enum WorkoutAgentTools {
 
     static let addExerciseTool: [String: Any] = [
         "name": "add_exercise",
-        "description": "Add an exercise to the workout. Returns exercise index for warmup/dropset/superset tools. Call multiple times in parallel to add all exercises at once.",
+        "description": "Add exercise to workout. Returns index for technique tools. Call in parallel for all exercises.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -188,7 +188,7 @@ enum WorkoutAgentTools {
 
     static let createExerciseTool: [String: Any] = [
         "name": "create_exercise",
-        "description": "Create a new custom exercise. ONLY use if the exercise doesn't exist in get_available_exercises AND there's a good reason (user requested specific exercise, equipment-specific variation, etc). Returns the exercise name to use with add_exercise.",
+        "description": "Create custom exercise. Only use if unavailable and specifically needed. Returns name for add_exercise.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -231,7 +231,7 @@ enum WorkoutAgentTools {
 
     static let addWarmupSetTool: [String: Any] = [
         "name": "add_warmup_set",
-        "description": "Add a warmup set to an exercise. Warmup sets use lighter weight (40-60% of working weight).",
+        "description": "Add warmup set to exercise. Use 40-60% of working weight.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -308,7 +308,7 @@ enum WorkoutAgentTools {
 
     static let createSupersetTool: [String: Any] = [
         "name": "create_superset",
-        "description": "Group exercises into a superset/triset/giant set (back-to-back with minimal rest).",
+        "description": "Group exercises into superset/triset/giant set with minimal rest.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -336,7 +336,7 @@ enum WorkoutAgentTools {
 
     static let finalizeWorkoutTool: [String: Any] = [
         "name": "finalize_workout",
-        "description": "Finalize and complete the workout. Call when done adding all exercises.",
+        "description": "Complete the workout. Call after adding all exercises.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -386,56 +386,52 @@ enum WorkoutAgentTools {
 
     static func buildAgentSystemPrompt(techniqueOptions: WorkoutGenerationOptions) -> String {
         var prompt = """
-        You are an expert personal trainer. Build a workout using the available tools.
+        You are an expert personal trainer building workouts with tools.
 
-        ## CRITICAL: Minimize API Rounds
-        Complete the workout in exactly 2 rounds:
+        ## CRITICAL: Complete in 2 API Rounds
 
         ### Round 1 - Gather Context
-        Call in parallel: get_user_profile + get_available_exercises (+ get_exercise_history for key exercises if needed)
+        Call in parallel: get_user_profile + get_available_exercises (+ get_exercise_history if needed)
 
-        ### Round 2 - Build ENTIRE Workout in ONE Response
-        After reviewing Round 1 data, call ALL of these in a SINGLE response:
+        ### Round 2 - Build Entire Workout
+        Call ALL tools in ONE response:
         - set_workout_name
-        - add_exercise (call once for EACH exercise - all in parallel)
-        - add_warmup_set (if needed, all in parallel)
-        - add_drop_set / add_rest_pause_set (if needed)
+        - add_exercise (once per exercise, all parallel)
+        - add_warmup_set / add_drop_set / add_rest_pause_set (if needed, parallel)
         - create_superset (if needed)
         - finalize_workout
 
-        Example Round 2 response should include 8+ tool calls: 1 set_workout_name + 5 add_exercise + 1 add_warmup_set + 1 finalize_workout
+        Example: 8+ tool calls (1 name + 5 exercises + 1 warmup + 1 finalize)
 
         ## Decision Making
-        You decide based on user profile:
-        - Number of exercises (~4 min per exercise including rest, based on user's preferred duration)
-        - Exercise selection (compound movements for efficiency, isolation if time permits)
-        - Sets/reps/rest (based on goals: strength vs hypertrophy vs endurance)
-        - Weights (estimate based on fitness level, they auto-snap to valid values)
+        Based on user profile, decide:
+        - Exercise count (~4 min per exercise with rest, fit to preferred duration)
+        - Exercise selection (compounds first, isolation if time permits)
+        - Sets/reps/rest (align with goals: strength/hypertrophy/endurance)
+        - Weights (estimate by fitness level, auto-snap to equipment)
 
-        ## Equipment Awareness
-        - Bodyweight-only gym: use weight=0, skip weight lookups
-        - Dumbbells/cables: weights auto-snap, no need to verify exact values
-        - No exercise history: use sensible defaults for fitness level
-
-        ## Creating New Exercises
-        Use create_exercise ONLY when an exercise doesn't exist AND is specifically needed.
+        ## Notes
+        - Bodyweight gyms: use weight=0, skip weight lookups
+        - Weights auto-snap - no need to verify exact values
+        - No history: use fitness-appropriate defaults
+        - Create custom exercises only when necessary
         """
 
         // Add technique-specific instructions
         if techniqueOptions.warmupSetMode == .required {
-            prompt += "\n\n## IMPORTANT: Warmup sets are REQUIRED for every exercise. Use add_warmup_set for each exercise."
+            prompt += "\n\n## REQUIRED: Add warmup set to every exercise (add_warmup_set)."
         }
 
         if techniqueOptions.dropSetMode == .required {
-            prompt += "\n\n## IMPORTANT: Drop sets are REQUIRED. Include at least 1-2 exercises with drop sets using add_drop_set."
+            prompt += "\n\n## REQUIRED: Include 1-2 drop sets (add_drop_set)."
         }
 
         if techniqueOptions.restPauseMode == .required {
-            prompt += "\n\n## IMPORTANT: Rest-pause sets are REQUIRED. Include at least 1-2 exercises with rest-pause using add_rest_pause_set."
+            prompt += "\n\n## REQUIRED: Include 1-2 rest-pause sets (add_rest_pause_set)."
         }
 
         if techniqueOptions.supersetMode == .required {
-            prompt += "\n\n## IMPORTANT: Supersets are REQUIRED. Group at least 2-3 exercises using create_superset."
+            prompt += "\n\n## REQUIRED: Group 2-3 exercises into supersets (create_superset)."
         }
 
         return prompt

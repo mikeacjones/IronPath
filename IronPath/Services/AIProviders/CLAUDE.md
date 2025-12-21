@@ -12,6 +12,9 @@
 | `AITools.swift` | Tool definitions for AI | Adding AI tool capabilities |
 | `AIToolParser.swift` | Parse AI tool calls | Tool call parsing issues |
 | `AIProviderHelpers.swift` | Shared AI utilities | Common AI functionality |
+| `PromptComponents.swift` | Reusable prompt blocks with priority system | Creating prompt sections, understanding prompt structure |
+| `WorkoutSchema.swift` | JSON schema definitions for structured output | Modifying AI response format, adding workout fields |
+| `WorkoutPromptBuilder.swift` | Modular prompt builder for workout generation | Assembling prompts, tuning generation parameters |
 | `AgentModels.swift` | Agent-based generation models | Agent workflow data |
 | `AgentToolExecutor.swift` | Execute agent tool calls | Agent tool implementation |
 | `AgentWorkoutBuilder.swift` | Build workouts from agent output | Workout generation from AI |

@@ -1,5 +1,11 @@
 # IronPathTests/
 
+## Files
+
+| File | What | When to read |
+| ---- | ---- | ------------ |
+| `AIPromptTests.swift` | Unit tests for prompt infrastructure | Testing prompt builders, validating prompt structure |
+
 ## Subdirectories
 
 | Directory | What | When to read |
