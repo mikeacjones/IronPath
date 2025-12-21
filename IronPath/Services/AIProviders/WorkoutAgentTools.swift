@@ -448,11 +448,8 @@ enum WorkoutAgentTools {
 
         if let workoutType = workoutType {
             prompt += "Workout Type: \(workoutType)\n"
-
-            if let muscleGroups = targetMuscleGroups, !muscleGroups.isEmpty {
-                let groupNames = muscleGroups.map { $0.rawValue }.joined(separator: ", ")
-                prompt += "Target Muscle Groups: \(groupNames)\n"
-            }
+            // targetMuscleGroups intentionally not added to prompt - LLM infers muscles from workout type name
+            // (e.g., "Push Day" implies chest/shoulders/triceps). Parameter kept for internal exercise filtering.
         } else {
             // No workout type specified - LLM should decide based on user's split and history
             prompt += """
