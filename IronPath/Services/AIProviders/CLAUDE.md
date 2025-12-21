@@ -9,6 +9,7 @@
 | `AnthropicProvider.swift` | Claude API integration | Claude-specific issues |
 | `OpenAIProvider.swift` | OpenAI API integration | OpenAI-specific issues |
 | `AIModels.swift` | AI request/response models | Modifying AI data structures |
+| `AIGenerationMetrics.swift` | Quality metrics tracking for AI generation | Debugging generation quality, monitoring parse errors |
 | `AITools.swift` | Tool definitions for AI | Adding AI tool capabilities |
 | `AIToolParser.swift` | Parse AI tool calls | Tool call parsing issues |
 | `AIProviderHelpers.swift` | Shared AI utilities | Common AI functionality |

@@ -415,6 +415,14 @@ enum WorkoutAgentTools {
         - Weights auto-snap - no need to verify exact values
         - No history: use fitness-appropriate defaults
         - Create custom exercises only when necessary
+
+        ## Self-Verification
+        Before calling finalize_workout, verify:
+        - Exercise selection matches workout type and user goals
+        - Difficulty is appropriate for fitness level
+        - Weights follow progressive overload from history (or sensible defaults)
+        - Required techniques (warmup/dropset/rest-pause/superset) are included
+        If any issues found, fix them before finalizing.
         """
 
         // Add technique-specific instructions
@@ -486,5 +494,37 @@ enum WorkoutAgentTools {
         prompt += "\nPlease build the workout using the available tools."
 
         return prompt
+    }
+
+    /// Build refinement prompt for Self-Refine pass (optional 3rd round)
+    /// Research: Self-Refine shows 5-40% improvement on constrained generation
+    static func buildRefinementPrompt(workoutSummary: String, userConstraints: String) -> String {
+        """
+        Review this workout and identify any issues:
+
+        WORKOUT:
+        \(workoutSummary)
+
+        USER CONSTRAINTS:
+        \(userConstraints)
+
+        VERIFICATION CHECKLIST:
+        1. Does exercise selection match the workout type?
+        2. Is exercise difficulty appropriate for the user's fitness level?
+        3. Do weights follow progressive overload from history?
+        4. Are all required techniques included (warmup/dropset/rest-pause/superset)?
+        5. Is the workout duration appropriate for user preferences?
+
+        If ALL checks pass, respond: "VERIFIED: Workout meets all constraints."
+
+        If ANY issues found, respond with:
+        "ISSUES FOUND:"
+        - [List each issue]
+
+        "FIXES:"
+        - [List specific fixes using available tools]
+
+        Then apply the fixes using the tools.
+        """
     }
 }
