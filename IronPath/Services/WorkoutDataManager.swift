@@ -120,7 +120,18 @@ class WorkoutDataManager {
 
         // Calculate this week's workouts
         let calendar = Calendar.current
-        let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())) else {
+            // Fallback: use last 7 days if calendar calculation fails
+            let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+            let thisWeek = completed.filter { $0.completedAt ?? Date.distantPast >= sevenDaysAgo }
+            return WorkoutStats(
+                totalWorkouts: totalWorkouts,
+                totalVolume: totalVolume,
+                workoutsThisWeek: thisWeek.count,
+                averageWorkoutDuration: calculateAverageDuration(completed)
+            )
+        }
+
         let thisWeek = completed.filter { $0.completedAt ?? Date.distantPast >= weekStart }
 
         return WorkoutStats(

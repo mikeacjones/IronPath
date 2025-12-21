@@ -39,6 +39,11 @@ final class AgentWorkoutBuilder {
     /// User profile for context
     let profile: UserProfile
 
+    /// Weight unit for this workout (derived from active gym profile)
+    var weightUnit: WeightUnit {
+        GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+    }
+
     // MARK: - Conversation State
 
     /// Full conversation history for multi-turn
@@ -68,7 +73,10 @@ final class AgentWorkoutBuilder {
 
     /// Executor for handling tool calls
     @ObservationIgnored
-    private lazy var toolExecutor = AgentToolExecutor(builder: self)
+    private lazy var toolExecutor = AgentToolExecutor(
+        builder: self,
+        weightUnit: self.weightUnit
+    )
 
     // MARK: - Initialization
 
@@ -377,7 +385,7 @@ final class AgentWorkoutBuilder {
 
             if let firstSet = exercise.sets.first {
                 if let weight = firstSet.weight, weight > 0 {
-                    summary += ", Weight: \(Int(weight)) lbs"
+                    summary += ", Weight: \(formatWeight(weight)) \(weightUnit.abbreviation)"
                 }
                 summary += ", Reps: \(firstSet.targetReps)"
                 summary += ", Rest: \(Int(firstSet.restPeriod))s"
@@ -493,8 +501,18 @@ final class AgentWorkoutBuilder {
             exerciseGroups: exerciseGroups.isEmpty ? nil : exerciseGroups,
             claudeGenerationPrompt: summary ?? "",
             isDeload: isDeload,
-            weightUnit: GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
+            weightUnit: weightUnit
         )
+    }
+
+    // MARK: - Weight Formatting
+
+    private func formatWeight(_ weight: Double) -> String {
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", weight)
+        } else {
+            return String(format: "%.1f", weight)
+        }
     }
 
     // MARK: - Weight Snapping

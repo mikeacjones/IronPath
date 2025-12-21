@@ -130,6 +130,7 @@ enum AIProviderError: LocalizedError {
     case notConfigured
     case missingAPIKey
     case invalidResponse
+    case invalidConfiguration(String)
     case apiError(statusCode: Int, message: String?)
     case parseError(detail: String?)
     case unsupportedOperation
@@ -143,6 +144,8 @@ enum AIProviderError: LocalizedError {
             return "API key is missing. Please add your API key in settings."
         case .invalidResponse:
             return "Received an invalid response from the AI provider."
+        case .invalidConfiguration(let detail):
+            return "Invalid configuration: \(detail)"
         case .apiError(let code, let message):
             if let msg = message {
                 return "API error (\(code)): \(msg)"

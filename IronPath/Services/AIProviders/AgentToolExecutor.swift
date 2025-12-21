@@ -7,11 +7,13 @@ class AgentToolExecutor {
     // MARK: - Properties
 
     private weak var builder: AgentWorkoutBuilder?
+    private let weightUnit: WeightUnit
 
     // MARK: - Initialization
 
-    init(builder: AgentWorkoutBuilder) {
+    init(builder: AgentWorkoutBuilder, weightUnit: WeightUnit) {
         self.builder = builder
+        self.weightUnit = weightUnit
     }
 
     // MARK: - Main Execution
@@ -76,7 +78,8 @@ class AgentToolExecutor {
             "preferredDuration": profile.workoutPreferences.preferredWorkoutDuration,
             "preferredRestTime": profile.workoutPreferences.preferredRestTime,
             "workoutSplit": profile.workoutPreferences.workoutSplit.rawValue,
-            "workoutsPerWeek": profile.workoutPreferences.workoutsPerWeek
+            "workoutsPerWeek": profile.workoutPreferences.workoutsPerWeek,
+            "weightUnit": weightUnit.abbreviation
         ]
 
         return .success(toolCallId: call.id, content: content)
@@ -116,6 +119,7 @@ class AgentToolExecutor {
 
         content["minWeight"] = gymSettings.dumbbellMinWeight
         content["maxWeight"] = gymSettings.dumbbellMaxWeight
+        content["unit"] = weightUnit.abbreviation
 
         return .success(toolCallId: call.id, content: content)
     }
@@ -125,12 +129,12 @@ class AgentToolExecutor {
         let exerciseName = call.input["exercise_name"] as? String
 
         let config = gymSettings.cableConfig(for: exerciseName ?? "")
-        let weightUnit = GymProfileManager.shared.activeProfile?.preferredWeightUnit ?? .pounds
 
         let content: [String: Any] = [
             "exerciseName": exerciseName ?? "default",
             "availableWeights": config.availableWeights,
-            "stackDescription": config.stackDescription(unit: weightUnit)
+            "stackDescription": config.stackDescription(unit: weightUnit),
+            "unit": weightUnit.abbreviation
         ]
 
         return .success(toolCallId: call.id, content: content)
@@ -242,13 +246,20 @@ class AgentToolExecutor {
         var recentSessions: [[String: Any]] = []
 
         for workout in workoutHistory.prefix(10) {
+            let workoutUnit = workout.weightUnit
+
             for exercise in workout.exercises {
                 if exercise.exercise.name.lowercased() == exerciseName.lowercased() {
                     let completedSets = exercise.sets.filter { $0.completedAt != nil }
                     if !completedSets.isEmpty {
                         let setData = completedSets.map { set -> [String: Any] in
-                            [
-                                "weight": set.weight ?? 0,
+                            var convertedWeight = set.weight ?? 0
+                            if workoutUnit != weightUnit && convertedWeight > 0 {
+                                convertedWeight = WeightUnit.convert(convertedWeight, from: workoutUnit, to: weightUnit)
+                            }
+
+                            return [
+                                "weight": convertedWeight,
                                 "reps": set.actualReps ?? set.targetReps,
                                 "setType": set.setType.rawValue
                             ]
@@ -266,7 +277,8 @@ class AgentToolExecutor {
         let content: [String: Any] = [
             "exerciseName": exerciseName,
             "hasHistory": !recentSessions.isEmpty,
-            "sessions": Array(recentSessions.prefix(5))
+            "sessions": Array(recentSessions.prefix(5)),
+            "unit": weightUnit.abbreviation
         ]
 
         return .success(toolCallId: call.id, content: content)

@@ -242,7 +242,8 @@ class AnthropicProvider: AIProvider {
     ) async throws -> Workout {
         // Initialize conversation with system and user prompts
         let systemPrompt = WorkoutAgentTools.buildAgentSystemPrompt(
-            techniqueOptions: builder.techniqueOptions
+            techniqueOptions: builder.techniqueOptions,
+            weightUnit: builder.weightUnit
         )
 
         let userPrompt = WorkoutAgentTools.buildAgentUserPrompt(
@@ -302,7 +303,7 @@ class AnthropicProvider: AIProvider {
             // Send current conversation to LLM
             let response = try await sendAgentMessage(
                 messages: builder.conversationMessages,
-                tools: WorkoutAgentTools.allTools
+                tools: WorkoutAgentTools.allTools(unit: builder.weightUnit)
             )
             lastCallTime = Date()
 
@@ -383,7 +384,7 @@ class AnthropicProvider: AIProvider {
             // Send refinement request
             let refinementResponse = try await sendAgentMessage(
                 messages: builder.conversationMessages,
-                tools: WorkoutAgentTools.allTools
+                tools: WorkoutAgentTools.allTools(unit: builder.weightUnit)
             )
             lastCallTime = Date()
 
@@ -443,7 +444,9 @@ class AnthropicProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/messages")!
+        guard let url = URL(string: "\(baseURL)/messages") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -562,7 +565,9 @@ class AnthropicProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/messages")!
+        guard let url = URL(string: "\(baseURL)/messages") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -651,7 +656,9 @@ class AnthropicProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/messages")!
+        guard let url = URL(string: "\(baseURL)/messages") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
