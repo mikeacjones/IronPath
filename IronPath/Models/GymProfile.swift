@@ -238,6 +238,12 @@ final class GymProfileManager {
             name: .cloudDataDidSync,
             object: nil
         )
+
+        // Load gym settings from active profile
+        // This must happen after isInitializing is false since loadProfiles()
+        // sets activeProfileId while isInitializing is true, skipping the didSet
+        // Pass the profile directly to avoid circular dependency (re-accessing GymProfileManager.shared)
+        GymSettings.shared.loadFromActiveProfile(from: activeProfile)
     }
 
     @objc nonisolated private func handleCloudSync() {
@@ -452,10 +458,11 @@ final class GymSettings {
     }
 
     /// Load settings from the active gym profile
-    func loadFromActiveProfile() {
+    /// - Parameter profile: Optional profile to load from. If nil, loads from GymProfileManager.shared.activeProfile
+    func loadFromActiveProfile(from profile: GymProfile? = nil) {
         isLoading = true
 
-        if let profile = GymProfileManager.shared.activeProfile {
+        if let profile = profile ?? GymProfileManager.shared.activeProfile {
             self.defaultCableConfig = profile.defaultCableConfig
             self.cableMachineConfigs = profile.cableMachineConfigs
             self.dumbbellIncrement = profile.dumbbellIncrement

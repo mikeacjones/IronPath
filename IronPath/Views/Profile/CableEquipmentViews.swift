@@ -255,8 +255,13 @@ struct CableMachineConfigEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        onSave(config)
-                        dismiss()
+                        // Resign first responder to commit any active text field values
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        // Small delay to ensure commit handlers run
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            onSave(config)
+                            dismiss()
+                        }
                     }
                 }
             }
