@@ -205,22 +205,18 @@ private struct HistorySessionRow: View {
         .padding(.vertical, 8)
     }
 
-    /// Format sets as "3×10 @ 135" style
+    /// Format sets as "195lbs×10, 195lbs×10" style showing weight×reps for each set
     private func setsBreakdown(_ sets: [ExerciseSet]) -> String {
+        let unit = weightUnit.abbreviation
         var breakdown: [String] = []
 
         for set in sets {
             let reps = set.actualReps ?? set.targetReps
             if let weight = set.weight {
-                breakdown.append("\(reps)×\(formatWeight(weight))")
+                breakdown.append("\(formatWeight(weight))\(unit)×\(reps)")
             } else {
                 breakdown.append("\(reps) reps")
             }
-        }
-
-        let uniqueBreakdowns = Set(breakdown)
-        if uniqueBreakdowns.count == 1, let first = breakdown.first, sets.count > 1 {
-            return "\(sets.count)×\(first.components(separatedBy: "×").last ?? first)"
         }
 
         return breakdown.joined(separator: ", ")
