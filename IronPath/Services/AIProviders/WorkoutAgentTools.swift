@@ -25,15 +25,17 @@ enum WorkoutAgentTools {
         ]
     ]
 
-    static let getDumbbellWeightsTool: [String: Any] = [
-        "name": "get_dumbbell_weights",
-        "description": "Get available dumbbell weights. Only needed for dumbbell exercises. Weights auto-snap.",
-        "input_schema": [
-            "type": "object",
-            "properties": [:] as [String: Any],
-            "required": [] as [String]
+    static func getDumbbellWeightsTool(unit: WeightUnit) -> [String: Any] {
+        [
+            "name": "get_dumbbell_weights",
+            "description": "Get available dumbbell weights in \(unit.abbreviation). Only needed for dumbbell exercises. Weights auto-snap.",
+            "input_schema": [
+                "type": "object",
+                "properties": [:] as [String: Any],
+                "required": [] as [String]
+            ]
         ]
-    ]
+    }
 
     static let getCableWeightsTool: [String: Any] = [
         "name": "get_cable_weights",
@@ -151,40 +153,42 @@ enum WorkoutAgentTools {
         ]
     ]
 
-    static let addExerciseTool: [String: Any] = [
-        "name": "add_exercise",
-        "description": "Add exercise to workout. Returns index for technique tools. Call in parallel for all exercises.",
-        "input_schema": [
-            "type": "object",
-            "properties": [
-                "name": [
-                    "type": "string",
-                    "description": "Exercise name (must match from get_available_exercises, or use create_exercise first)"
+    static func addExerciseTool(unit: WeightUnit) -> [String: Any] {
+        [
+            "name": "add_exercise",
+            "description": "Add exercise to workout. Returns index for technique tools. Call in parallel for all exercises.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "name": [
+                        "type": "string",
+                        "description": "Exercise name (must match from get_available_exercises, or use create_exercise first)"
+                    ],
+                    "sets": [
+                        "type": "integer",
+                        "description": "Number of working sets"
+                    ],
+                    "reps": [
+                        "type": "string",
+                        "description": "Rep target or range (e.g., '8', '8-12')"
+                    ],
+                    "weight": [
+                        "type": "number",
+                        "description": "Target weight in \(unit.abbreviation) (use 0 for bodyweight). Weights auto-snap to valid equipment."
+                    ],
+                    "rest_seconds": [
+                        "type": "integer",
+                        "description": "Rest between sets in seconds"
+                    ],
+                    "notes": [
+                        "type": "string",
+                        "description": "Optional coaching notes"
+                    ]
                 ],
-                "sets": [
-                    "type": "integer",
-                    "description": "Number of working sets"
-                ],
-                "reps": [
-                    "type": "string",
-                    "description": "Rep target or range (e.g., '8', '8-12')"
-                ],
-                "weight": [
-                    "type": "number",
-                    "description": "Target weight in pounds (use 0 for bodyweight). Weights auto-snap to valid equipment."
-                ],
-                "rest_seconds": [
-                    "type": "integer",
-                    "description": "Rest between sets in seconds"
-                ],
-                "notes": [
-                    "type": "string",
-                    "description": "Optional coaching notes"
-                ]
-            ],
-            "required": ["name", "sets", "reps", "weight", "rest_seconds"]
+                "required": ["name", "sets", "reps", "weight", "rest_seconds"]
+            ]
         ]
-    ]
+    }
 
     static let createExerciseTool: [String: Any] = [
         "name": "create_exercise",
@@ -229,82 +233,88 @@ enum WorkoutAgentTools {
         ]
     ]
 
-    static let addWarmupSetTool: [String: Any] = [
-        "name": "add_warmup_set",
-        "description": "Add warmup set to exercise. Use 40-60% of working weight.",
-        "input_schema": [
-            "type": "object",
-            "properties": [
-                "exercise_index": [
-                    "type": "integer",
-                    "description": "Exercise index (0-based)"
+    static func addWarmupSetTool(unit: WeightUnit) -> [String: Any] {
+        [
+            "name": "add_warmup_set",
+            "description": "Add warmup set to exercise. Use 40-60% of working weight.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "exercise_index": [
+                        "type": "integer",
+                        "description": "Exercise index (0-based)"
+                    ],
+                    "reps": [
+                        "type": "integer",
+                        "description": "Reps (typically 10-15)"
+                    ],
+                    "weight": [
+                        "type": "number",
+                        "description": "Weight in \(unit.abbreviation)"
+                    ]
                 ],
-                "reps": [
-                    "type": "integer",
-                    "description": "Reps (typically 10-15)"
-                ],
-                "weight": [
-                    "type": "number",
-                    "description": "Weight in pounds"
-                ]
-            ],
-            "required": ["exercise_index", "reps", "weight"]
+                "required": ["exercise_index", "reps", "weight"]
+            ]
         ]
-    ]
+    }
 
-    static let addDropSetTool: [String: Any] = [
-        "name": "add_drop_set",
-        "description": "Convert last set to a drop set. Only for weighted exercises.",
-        "input_schema": [
-            "type": "object",
-            "properties": [
-                "exercise_index": [
-                    "type": "integer",
-                    "description": "Exercise index (0-based)"
+    static func addDropSetTool(unit: WeightUnit) -> [String: Any] {
+        [
+            "name": "add_drop_set",
+            "description": "Convert last set to a drop set. Only for weighted exercises.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "exercise_index": [
+                        "type": "integer",
+                        "description": "Exercise index (0-based)"
+                    ],
+                    "starting_weight": [
+                        "type": "number",
+                        "description": "Starting weight in \(unit.abbreviation)"
+                    ],
+                    "num_drops": [
+                        "type": "integer",
+                        "description": "Number of drops (typically 2-3)"
+                    ],
+                    "drop_percentage": [
+                        "type": "number",
+                        "description": "Weight reduction per drop (default: 0.2 = 20%)"
+                    ]
                 ],
-                "starting_weight": [
-                    "type": "number",
-                    "description": "Starting weight in pounds"
-                ],
-                "num_drops": [
-                    "type": "integer",
-                    "description": "Number of drops (typically 2-3)"
-                ],
-                "drop_percentage": [
-                    "type": "number",
-                    "description": "Weight reduction per drop (default: 0.2 = 20%)"
-                ]
-            ],
-            "required": ["exercise_index", "starting_weight", "num_drops"]
+                "required": ["exercise_index", "starting_weight", "num_drops"]
+            ]
         ]
-    ]
+    }
 
-    static let addRestPauseSetTool: [String: Any] = [
-        "name": "add_rest_pause_set",
-        "description": "Convert last set to rest-pause (brief 10-20s rests between mini-sets).",
-        "input_schema": [
-            "type": "object",
-            "properties": [
-                "exercise_index": [
-                    "type": "integer",
-                    "description": "Exercise index (0-based)"
+    static func addRestPauseSetTool(unit: WeightUnit) -> [String: Any] {
+        [
+            "name": "add_rest_pause_set",
+            "description": "Convert last set to rest-pause (brief 10-20s rests between mini-sets).",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "exercise_index": [
+                        "type": "integer",
+                        "description": "Exercise index (0-based)"
+                    ],
+                    "weight": [
+                        "type": "number",
+                        "description": "Weight in \(unit.abbreviation)"
+                    ],
+                    "num_pauses": [
+                        "type": "integer",
+                        "description": "Number of pauses (typically 2-3)"
+                    ],
+                    "pause_duration": [
+                        "type": "integer",
+                        "description": "Pause duration in seconds (typically 10-20)"
+                    ]
                 ],
-                "weight": [
-                    "type": "number",
-                    "description": "Weight in pounds"
-                ],
-                "num_pauses": [
-                    "type": "integer",
-                    "description": "Number of pauses (typically 2-3)"
-                ],
-                "pause_duration": [
-                    "type": "integer",
-                    "description": "Pause duration in seconds (typically 10-20)"
-                ]
-            ],
-            "required": ["exercise_index", "weight", "num_pauses", "pause_duration"]
+                "required": ["exercise_index", "weight", "num_pauses", "pause_duration"]
+            ]
         ]
-    ]
+    }
 
     static let createSupersetTool: [String: Any] = [
         "name": "create_superset",
@@ -351,11 +361,11 @@ enum WorkoutAgentTools {
 
     // MARK: - Tool Collections
 
-    static var readOnlyTools: [[String: Any]] {
+    static func readOnlyTools(unit: WeightUnit) -> [[String: Any]] {
         [
             getUserProfileTool,
             getGymEquipmentTool,
-            getDumbbellWeightsTool,
+            getDumbbellWeightsTool(unit: unit),
             getCableWeightsTool,
             getAvailableExercisesTool,
             getExerciseHistoryTool,
@@ -365,28 +375,32 @@ enum WorkoutAgentTools {
         ]
     }
 
-    static var actionTools: [[String: Any]] {
+    static func actionTools(unit: WeightUnit) -> [[String: Any]] {
         [
             setWorkoutNameTool,
-            addExerciseTool,
+            addExerciseTool(unit: unit),
             createExerciseTool,
-            addWarmupSetTool,
-            addDropSetTool,
-            addRestPauseSetTool,
+            addWarmupSetTool(unit: unit),
+            addDropSetTool(unit: unit),
+            addRestPauseSetTool(unit: unit),
             createSupersetTool,
             finalizeWorkoutTool
         ]
     }
 
-    static var allTools: [[String: Any]] {
-        readOnlyTools + actionTools
+    static func allTools(unit: WeightUnit) -> [[String: Any]] {
+        readOnlyTools(unit: unit) + actionTools(unit: unit)
     }
 
     // MARK: - Prompt Builders
 
-    static func buildAgentSystemPrompt(techniqueOptions: WorkoutGenerationOptions) -> String {
+    static func buildAgentSystemPrompt(techniqueOptions: WorkoutGenerationOptions, weightUnit: WeightUnit) -> String {
         var prompt = """
         You are an expert personal trainer building workouts with tools.
+
+        ## WEIGHT UNIT
+        User's preferred weight unit: \(weightUnit.abbreviation)
+        All weights should be specified in \(weightUnit.abbreviation).
 
         ## CRITICAL: Complete in 2 API Rounds
 

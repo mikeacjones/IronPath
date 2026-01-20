@@ -102,13 +102,14 @@ final class ExerciseTimerManager {
 
         // Start countdown timer
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        let newTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 self.countdownTick()
             }
         }
-        RunLoop.current.add(timer!, forMode: .common)
+        timer = newTimer
+        RunLoop.current.add(newTimer, forMode: .common)
 
         // Haptic for initial countdown start
         impactFeedback.impactOccurred(intensity: 0.5)
@@ -134,13 +135,14 @@ final class ExerciseTimerManager {
 
         // Start main timer (update every 0.1 seconds for smooth UI)
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let newTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 self.mainTimerTick()
             }
         }
-        RunLoop.current.add(timer!, forMode: .common)
+        timer = newTimer
+        RunLoop.current.add(newTimer, forMode: .common)
     }
 
     /// Stop the timer and return the final duration
@@ -184,13 +186,14 @@ final class ExerciseTimerManager {
         }
 
         // Restart timer
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let newTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 self.mainTimerTick()
             }
         }
-        RunLoop.current.add(timer!, forMode: .common)
+        timer = newTimer
+        RunLoop.current.add(newTimer, forMode: .common)
     }
 
     /// Cancel the timer without returning a duration

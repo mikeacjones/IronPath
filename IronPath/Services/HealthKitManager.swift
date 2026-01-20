@@ -16,10 +16,13 @@ class HealthKitManager {
 
     /// The types of data we want to write to HealthKit
     private var typesToWrite: Set<HKSampleType> {
-        Set([
-            HKObjectType.workoutType(),
-            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
-        ])
+        var types: Set<HKSampleType> = [HKObjectType.workoutType()]
+
+        if let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
+            types.insert(energyType)
+        }
+
+        return types
     }
 
     /// Request authorization to write workout data to HealthKit
@@ -72,8 +75,8 @@ class HealthKitManager {
         try await builder.beginCollection(at: startDate)
 
         // Add active energy burned
-        if activeCalories > 0 {
-            let calorieType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+        if activeCalories > 0,
+           let calorieType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
             let calorieQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: activeCalories)
             let calorieSample = HKQuantitySample(
                 type: calorieType,

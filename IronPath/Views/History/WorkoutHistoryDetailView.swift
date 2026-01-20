@@ -210,22 +210,43 @@ private struct SetsTableView: View {
     let sets: [ExerciseSet]
     let unit: WeightUnit
 
+    /// Check if any sets are timed to determine header style
+    private var isTimedExercise: Bool {
+        sets.first?.setType == .timed
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Set")
-                    .frame(width: 40, alignment: .leading)
-                Text("Target")
-                    .frame(width: 60, alignment: .center)
-                Text("Actual")
-                    .frame(width: 60, alignment: .center)
-                Text("Weight")
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            // Header - different for timed vs standard exercises
+            if isTimedExercise {
+                HStack {
+                    Text("Set")
+                        .frame(width: 40, alignment: .leading)
+                    Text("Target")
+                        .frame(width: 60, alignment: .center)
+                    Text("Actual")
+                        .frame(width: 60, alignment: .center)
+                    Text("Weight")
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+            } else {
+                HStack {
+                    Text("Set")
+                        .frame(width: 40, alignment: .leading)
+                    Text("Target")
+                        .frame(width: 60, alignment: .center)
+                    Text("Actual")
+                        .frame(width: 60, alignment: .center)
+                    Text("Weight")
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.bottom, 8)
 
             Divider()
 
@@ -248,6 +269,67 @@ private struct HistorySetRow: View {
     let unit: WeightUnit
 
     var body: some View {
+        // Handle timed sets differently
+        if set.setType == .timed {
+            timedSetRow
+        } else {
+            standardSetRow
+        }
+    }
+
+    /// Row display for timed sets (duration-based)
+    private var timedSetRow: some View {
+        HStack {
+            Text("\(set.setNumber)")
+                .frame(width: 40, alignment: .leading)
+                .foregroundStyle(set.completedAt != nil ? .primary : .secondary)
+
+            // Target duration
+            if let config = set.timedSetConfig {
+                Text(formatDuration(config.targetDuration))
+                    .frame(width: 60, alignment: .center)
+                    .foregroundStyle(.secondary)
+
+                // Actual duration
+                if let actualDuration = config.actualDuration {
+                    Text(formatDuration(actualDuration))
+                        .frame(width: 60, alignment: .center)
+                        .foregroundStyle(actualDuration >= config.targetDuration ? .green : .orange)
+                } else {
+                    Text("-")
+                        .frame(width: 60, alignment: .center)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Added weight (for weighted timed exercises like weighted planks)
+                if let addedWeight = config.addedWeight, addedWeight > 0 {
+                    Text(WeightConverter.format(addedWeight, unit: unit))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .fontWeight(.medium)
+                } else {
+                    Text("-")
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                // Fallback if timedSetConfig is missing
+                Text("-")
+                    .frame(width: 60, alignment: .center)
+                    .foregroundStyle(.secondary)
+                Text("-")
+                    .frame(width: 60, alignment: .center)
+                    .foregroundStyle(.secondary)
+                Text("-")
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.subheadline)
+        .padding(.vertical, 8)
+    }
+
+    /// Row display for standard sets (rep-based)
+    private var standardSetRow: some View {
         HStack {
             Text("\(set.setNumber)")
                 .frame(width: 40, alignment: .leading)
@@ -279,6 +361,22 @@ private struct HistorySetRow: View {
         }
         .font(.subheadline)
         .padding(.vertical, 8)
+    }
+
+    /// Format duration in seconds to a readable string (e.g., "30s" or "1:30")
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        if totalSeconds < 60 {
+            return "\(totalSeconds)s"
+        } else {
+            let minutes = totalSeconds / 60
+            let remainingSeconds = totalSeconds % 60
+            if remainingSeconds == 0 {
+                return "\(minutes)m"
+            } else {
+                return "\(minutes):\(String(format: "%02d", remainingSeconds))"
+            }
+        }
     }
 }
 

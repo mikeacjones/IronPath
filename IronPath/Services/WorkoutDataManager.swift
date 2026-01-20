@@ -120,7 +120,18 @@ class WorkoutDataManager {
 
         // Calculate this week's workouts
         let calendar = Calendar.current
-        let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        guard let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())) else {
+            // Fallback: use last 7 days if calendar calculation fails
+            let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+            let thisWeek = completed.filter { $0.completedAt ?? Date.distantPast >= sevenDaysAgo }
+            return WorkoutStats(
+                totalWorkouts: totalWorkouts,
+                totalVolume: totalVolume,
+                workoutsThisWeek: thisWeek.count,
+                averageWorkoutDuration: calculateAverageDuration(completed)
+            )
+        }
+
         let thisWeek = completed.filter { $0.completedAt ?? Date.distantPast >= weekStart }
 
         return WorkoutStats(
@@ -154,7 +165,7 @@ class WorkoutDataManager {
     /// Export all workout history as CSV
     func exportHistoryAsCSV() -> String {
         let history = getWorkoutHistory()
-        var csv = "Workout Name,Date,Exercise,Set,Target Reps,Actual Reps,Weight,Weight Unit,Completed\n"
+        var csv = "Workout Name,Date,Exercise,Set,Set Type,Target Reps,Actual Reps,Weight,Target Duration,Actual Duration,Weight Unit,Completed\n"
 
         for workout in history {
             let dateStr = workout.completedAt?.ISO8601Format() ?? "N/A"
@@ -163,15 +174,32 @@ class WorkoutDataManager {
             for exercise in workout.exercises {
                 for set in exercise.sets {
                     let completed = set.completedAt != nil ? "Yes" : "No"
-                    let weight = set.weight.map { formatWeightForCSV($0) } ?? "N/A"
-                    let actualReps = set.actualReps.map { String($0) } ?? "N/A"
+                    let setType = set.setType.rawValue
 
-                    csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(set.targetReps),\(actualReps),\(weight),\(unit),\(completed)\n"
+                    // Handle timed sets differently
+                    if set.setType == .timed, let config = set.timedSetConfig {
+                        let targetDuration = formatDurationForCSV(config.targetDuration)
+                        let actualDuration = config.actualDuration.map { formatDurationForCSV($0) } ?? "N/A"
+                        let weight = config.addedWeight.map { formatWeightForCSV($0) } ?? "N/A"
+
+                        csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(setType),N/A,N/A,\(weight),\(targetDuration),\(actualDuration),\(unit),\(completed)\n"
+                    } else {
+                        // Standard rep-based sets
+                        let weight = set.weight.map { formatWeightForCSV($0) } ?? "N/A"
+                        let actualReps = set.actualReps.map { String($0) } ?? "N/A"
+
+                        csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(setType),\(set.targetReps),\(actualReps),\(weight),N/A,N/A,\(unit),\(completed)\n"
+                    }
                 }
             }
         }
 
         return csv
+    }
+
+    /// Format duration in seconds for CSV export
+    private func formatDurationForCSV(_ seconds: TimeInterval) -> String {
+        return String(format: "%.0f", seconds)
     }
 
     /// Format weight for CSV export (preserves decimals when present)

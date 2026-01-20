@@ -242,7 +242,8 @@ class OpenAIProvider: AIProvider {
     ) async throws -> Workout {
         // Initialize conversation with system and user prompts
         let systemPrompt = WorkoutAgentTools.buildAgentSystemPrompt(
-            techniqueOptions: builder.techniqueOptions
+            techniqueOptions: builder.techniqueOptions,
+            weightUnit: builder.weightUnit
         )
 
         let userPrompt = WorkoutAgentTools.buildAgentUserPrompt(
@@ -302,7 +303,7 @@ class OpenAIProvider: AIProvider {
             // Send current conversation to LLM
             let response = try await sendAgentMessage(
                 messages: builder.conversationMessages,
-                tools: WorkoutAgentTools.allTools
+                tools: WorkoutAgentTools.allTools(unit: builder.weightUnit)
             )
             lastCallTime = Date()
 
@@ -407,7 +408,9 @@ class OpenAIProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -600,7 +603,9 @@ class OpenAIProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -689,7 +694,9 @@ class OpenAIProvider: AIProvider {
             throw AIProviderError.missingAPIKey
         }
 
-        let url = URL(string: "\(baseURL)/chat/completions")!
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw AIProviderError.invalidConfiguration("Invalid API URL")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
