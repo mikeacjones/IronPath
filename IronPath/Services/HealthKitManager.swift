@@ -129,7 +129,8 @@ class HealthKitManager {
 
         for exercise in workout.exercises {
             let completedSets = exercise.sets.filter { $0.isCompleted }
-            let avgWeight = completedSets.compactMap { $0.weight }.reduce(0, +) / max(Double(completedSets.count), 1)
+            let weightedSets = completedSets.compactMap { $0.weight }
+            let avgWeight = weightedSets.isEmpty ? 0 : weightedSets.reduce(0, +) / Double(weightedSets.count)
             let totalReps = completedSets.compactMap { $0.actualReps }.reduce(0, +)
 
             summary += "- \(exercise.exercise.name): \(completedSets.count) sets, \(totalReps) total reps"

@@ -215,7 +215,7 @@ struct GymProfileEditorView: View {
             availableEquipment: selectedEquipment,
             preferredWeightUnit: preferredWeightUnit,
             availableMachines: selectedMachines,
-            defaultCableConfig: .defaultConfig
+            defaultCableConfig: .defaultConfigForUnit(preferredWeightUnit)
         )
 
         updatedProfile.name = name

@@ -529,6 +529,14 @@ final class CloudSyncManager {
 
     /// Clears all app data from both local storage and iCloud
     func clearAllData() async {
+        // Keys owned by AIProviderManager / ExercisePreferenceManager generic KV storage
+        let exercisePreferencesKey = "exercise_preferences"
+        let legacyExercisePreferencesKey = "exercisePreferences" // Backward-compat cleanup
+        let anthropicProviderKey = "anthropic_api_key"
+        let openAIProviderKey = "openai_api_key"
+        let selectedProviderKey = "ai_selected_provider"
+        let selectedModelKey = "ai_selected_model"
+
         // Clear local UserDefaults
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: "workout_history")
@@ -539,7 +547,11 @@ final class CloudSyncManager {
         defaults.removeObject(forKey: "gym_settings_updated")
         defaults.removeObject(forKey: "activeGymProfileId")
         defaults.removeObject(forKey: "anthropic_api_key")
-        defaults.removeObject(forKey: "exercisePreferences")
+        defaults.removeObject(forKey: openAIProviderKey)
+        defaults.removeObject(forKey: selectedProviderKey)
+        defaults.removeObject(forKey: selectedModelKey)
+        defaults.removeObject(forKey: exercisePreferencesKey)
+        defaults.removeObject(forKey: legacyExercisePreferencesKey)
 
         // Clear iCloud KV Store
         if isICloudAvailable {
@@ -547,6 +559,12 @@ final class CloudSyncManager {
             kvStore.removeObject(forKey: KVKeys.hasCompletedOnboarding)
             kvStore.removeObject(forKey: KVKeys.activeGymProfileId)
             kvStore.removeObject(forKey: KVKeys.apiKey)
+            kvStore.removeObject(forKey: anthropicProviderKey)
+            kvStore.removeObject(forKey: openAIProviderKey)
+            kvStore.removeObject(forKey: selectedProviderKey)
+            kvStore.removeObject(forKey: selectedModelKey)
+            kvStore.removeObject(forKey: exercisePreferencesKey)
+            kvStore.removeObject(forKey: legacyExercisePreferencesKey)
             kvStore.synchronize()
         }
 

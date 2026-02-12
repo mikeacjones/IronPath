@@ -577,7 +577,10 @@ final class GymSettings {
                 return specificDumbbells.sorted()
             }
             return stride(from: dumbbellMinWeight, through: dumbbellMaxWeight, by: dumbbellIncrement).map { $0 }
-        case .barbell, .squat:
+        case .barbell, .squat, .trapBar:
+            if preferredWeightUnit == .kilograms {
+                return stride(from: 20.0, through: 250.0, by: 2.5).map { $0 }
+            }
             return stride(from: 45.0, through: 500.0, by: 5.0).map { $0 }
         default:
             return []

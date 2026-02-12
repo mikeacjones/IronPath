@@ -4,10 +4,6 @@ import Foundation
 class WorkoutDataManager {
     static let shared = WorkoutDataManager()
 
-    private let workoutHistoryKey = "workout_history"
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
-
     private init() {
         // Listen for iCloud sync changes
         NotificationCenter.default.addObserver(
@@ -73,20 +69,12 @@ class WorkoutDataManager {
             return nil
         }
 
-        // Find the average weight used in completed sets
-        let completedSets = lastExercise.sets.filter { $0.isCompleted }
-        guard !completedSets.isEmpty else { return nil }
-
-        let totalWeight = completedSets.compactMap { $0.weight }.reduce(0, +)
-        let avgWeight = totalWeight / Double(completedSets.count)
-
-        // Suggest 2.5-5% increase for progressive overload
-        let increase = avgWeight * 0.025 // 2.5% increase
-        let suggestedWeight = avgWeight + increase
-
-        // Round to valid weight for the equipment type
         let equipment = lastExercise.exercise.equipment
-        return GymSettings.shared.roundToValidWeight(suggestedWeight, for: equipment)
+        return suggestedWeight(
+            from: lastExercise,
+            targetReps: targetReps,
+            equipment: equipment
+        )
     }
 
     /// Get suggested weight with equipment type specified (for when we know the equipment)
@@ -95,19 +83,52 @@ class WorkoutDataManager {
             return nil
         }
 
-        // Find the average weight used in completed sets
-        let completedSets = lastExercise.sets.filter { $0.isCompleted }
-        guard !completedSets.isEmpty else { return nil }
+        return suggestedWeight(
+            from: lastExercise,
+            targetReps: targetReps,
+            equipment: equipment
+        )
+    }
 
-        let totalWeight = completedSets.compactMap { $0.weight }.reduce(0, +)
-        let avgWeight = totalWeight / Double(completedSets.count)
+    /// Calculate suggested weight using historical performance and requested rep target.
+    /// Uses 1RM estimation so different rep targets produce different weight suggestions.
+    private func suggestedWeight(
+        from exercise: WorkoutExercise,
+        targetReps: Int,
+        equipment: Equipment
+    ) -> Double? {
+        let weightedSets = completedWeightedSets(from: exercise.sets)
+        guard !weightedSets.isEmpty else { return nil }
 
-        // Suggest 2.5-5% increase for progressive overload
-        let increase = avgWeight * 0.025 // 2.5% increase
-        let suggestedWeight = avgWeight + increase
+        let oneRepMaxes = weightedSets.map { estimateOneRepMax(weight: $0.weight, reps: $0.reps) }
+        guard let strongestOneRepMax = oneRepMaxes.max(), strongestOneRepMax > 0 else {
+            return nil
+        }
 
-        // Round to valid weight for the equipment type
-        return GymSettings.shared.roundToValidWeight(suggestedWeight, for: equipment)
+        let normalizedTargetReps = max(targetReps, 1)
+        let baseWeight = weightForTargetReps(strongestOneRepMax, targetReps: normalizedTargetReps)
+
+        // Suggest a conservative progressive overload bump.
+        let overloadAdjustedWeight = baseWeight * 1.025
+        return GymSettings.shared.roundToValidWeight(overloadAdjustedWeight, for: equipment)
+    }
+
+    private func completedWeightedSets(from sets: [ExerciseSet]) -> [(weight: Double, reps: Int)] {
+        sets.filter { $0.isCompleted }.compactMap { set in
+            guard let weight = set.weight else { return nil }
+            let reps = set.totalActualReps > 0 ? set.totalActualReps : (set.actualReps ?? set.targetReps)
+            guard reps > 0 else { return nil }
+            return (weight: weight, reps: reps)
+        }
+    }
+
+    private func estimateOneRepMax(weight: Double, reps: Int) -> Double {
+        // Epley formula: 1RM = weight * (1 + reps/30)
+        weight * (1 + Double(reps) / 30.0)
+    }
+
+    private func weightForTargetReps(_ oneRepMax: Double, targetReps: Int) -> Double {
+        oneRepMax / (1 + Double(targetReps) / 30.0)
     }
 
     /// Get workout statistics
@@ -150,7 +171,8 @@ class WorkoutDataManager {
 
     /// Clear all workout history (for testing/reset)
     func clearHistory() {
-        UserDefaults.standard.removeObject(forKey: workoutHistoryKey)
+        // Use shared save path so both local and cloud state are cleared consistently.
+        CloudSyncManager.shared.saveWorkoutHistory([])
     }
 
     /// Export all workout history as JSON
