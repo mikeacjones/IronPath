@@ -163,7 +163,7 @@ struct CableWeightCalculatorView: View {
                                                             .font(.system(size: 9))
                                                             .foregroundStyle(.blue)
                                                     } else if bd.freeWeight > 0 {
-                                                        Text("\(formatWeight(bd.freeWeight))lb free")
+                                                        Text("\(formatWeight(bd.freeWeight))\(unit) free")
                                                             .font(.system(size: 9))
                                                             .foregroundStyle(.orange)
                                                     }

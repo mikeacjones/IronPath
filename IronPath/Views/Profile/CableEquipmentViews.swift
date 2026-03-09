@@ -15,7 +15,9 @@ struct FreeWeightsEditor: View {
     }
 
     /// Common free weight values for quick add
-    private let commonWeights: [Double] = [2.5, 5.0, 7.5, 10.0]
+    private var commonWeights: [Double] {
+        weightUnit == .kilograms ? [1.25, 2.5, 5.0] : [2.5, 5.0, 7.5, 10.0]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -99,7 +101,7 @@ struct FreeWeightsEditor: View {
                                 freeWeights.append(CableMachineConfig.FreeWeight(weight: weight, count: 1))
                             }
                         } label: {
-                            Text("\(formatWeight(weight)) lb")
+                            Text("\(formatWeight(weight)) \(weightUnit.abbreviation)")
                                 .font(.caption)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -205,7 +207,8 @@ struct CableMachineConfigEditor: View {
                 } header: {
                     Text("Plate Stack")
                 } footer: {
-                    Text("Define your machine's weight stack. Add multiple tiers if plates have different weights (e.g., 6×9lb then 12×12.5lb)")
+                    let example = weightUnit == .kilograms ? "6×4kg then 12×5kg" : "6×9lb then 12×12.5lb"
+                    Text("Define your machine's weight stack. Add multiple tiers if plates have different weights (e.g., \(example))")
                 }
 
                 Section {
@@ -214,7 +217,7 @@ struct CableMachineConfigEditor: View {
                     Text("Free Weights")
                 } footer: {
                     if config.freeWeights.isEmpty {
-                        Text("Add-on weights that can be attached to the cable (e.g., 2.5lb or 5lb plates). These are optional when selecting a weight.")
+                        Text("Add-on weights that can be attached to the cable (e.g., 2.5\(weightUnit.abbreviation) or 5\(weightUnit.abbreviation) plates). These are optional when selecting a weight.")
                     } else {
                         let totalFreeWeights = config.freeWeights.reduce(0) { $0 + $1.count }
                         Text("This machine has \(totalFreeWeights) free weight plate(s) available.")

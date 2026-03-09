@@ -265,12 +265,13 @@ enum AIProviderHelpers {
 
     // MARK: - Weight Validation
 
-    /// Standard kettlebell weights in lbs
-    private static let standardKettlebellWeights: [Double] = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100]
+    private static let standardKettlebellWeightsLbs: [Double] = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100]
+    private static let standardKettlebellWeightsKg: [Double] = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48]
 
     /// Validate and snap all weights in a workout to available equipment
     /// This ensures LLM-generated weights match gym equipment constraints
     static func validateAndSnapWeights(in workout: inout Workout) {
+        let unitAbbr = GymSettings.shared.preferredWeightUnit.abbreviation
         for exerciseIndex in workout.exercises.indices {
             let equipment = workout.exercises[exerciseIndex].exercise.equipment
             let exerciseName = workout.exercises[exerciseIndex].exercise.name
@@ -282,7 +283,7 @@ enum AIProviderHelpers {
                 if let weight = set.weight {
                     let snappedWeight = snapWeight(weight, for: equipment, exerciseName: exerciseName)
                     if abs(weight - snappedWeight) > 0.01 {
-                        AppLogger.ai.debug("Weight adjusted: \(weight) -> \(snappedWeight) lbs for \(exerciseName) (\(equipment.rawValue), \(set.setType.rawValue))")
+                        AppLogger.ai.debug("Weight adjusted: \(weight) -> \(snappedWeight) \(unitAbbr) for \(exerciseName) (\(equipment.rawValue), \(set.setType.rawValue))")
                         set.weight = snappedWeight
                     }
                 }
@@ -293,7 +294,7 @@ enum AIProviderHelpers {
                         if let targetWeight = dropConfig.drops[dropIndex].targetWeight {
                             let snappedWeight = snapWeight(targetWeight, for: equipment, exerciseName: exerciseName)
                             if abs(targetWeight - snappedWeight) > 0.01 {
-                                AppLogger.ai.debug("Drop weight adjusted: \(targetWeight) -> \(snappedWeight) lbs for \(exerciseName) drop #\(dropIndex)")
+                                AppLogger.ai.debug("Drop weight adjusted: \(targetWeight) -> \(snappedWeight) \(unitAbbr) for \(exerciseName) drop #\(dropIndex)")
                                 dropConfig.drops[dropIndex].targetWeight = snappedWeight
                             }
                         }
@@ -318,16 +319,17 @@ enum AIProviderHelpers {
             return gymSettings.roundToValidWeight(weight, for: .cables, exerciseName: exerciseName)
 
         case .barbell, .trapBar, .squat, .smithMachine:
-            // For plate-loaded equipment, round to nearest 5 lbs
-            return (weight / 5.0).rounded() * 5.0
+            let increment: Double = GymSettings.shared.preferredWeightUnit == .kilograms ? 2.5 : 5.0
+            return (weight / increment).rounded() * increment
 
         case .kettlebells:
-            // Snap to standard kettlebell weights
-            return standardKettlebellWeights.min(by: { abs($0 - weight) < abs($1 - weight) }) ?? weight
+            let kettlebellWeights = GymSettings.shared.preferredWeightUnit == .kilograms
+                ? standardKettlebellWeightsKg : standardKettlebellWeightsLbs
+            return kettlebellWeights.min(by: { abs($0 - weight) < abs($1 - weight) }) ?? weight
 
         case .legPress:
-            // Leg press typically uses plates - round to nearest 10 lbs
-            return (weight / 10.0).rounded() * 10.0
+            let increment: Double = GymSettings.shared.preferredWeightUnit == .kilograms ? 5.0 : 10.0
+            return (weight / increment).rounded() * increment
 
         default:
             return weight

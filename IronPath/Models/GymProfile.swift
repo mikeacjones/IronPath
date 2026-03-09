@@ -513,7 +513,7 @@ final class GymSettings {
         case .legPress:
             return 0  // Default to 0 for leg press, user can set sled weight
         case .smithMachine:
-            return 20  // Smith machine bars typically 15-25 lbs
+            return preferredWeightUnit == .kilograms ? 10 : 20
         default:
             return 0
         }
@@ -578,7 +578,11 @@ final class GymSettings {
             }
             return stride(from: dumbbellMinWeight, through: dumbbellMaxWeight, by: dumbbellIncrement).map { $0 }
         case .barbell, .squat:
-            return stride(from: 45.0, through: 500.0, by: 5.0).map { $0 }
+            if preferredWeightUnit == .kilograms {
+                return stride(from: 20.0, through: 225.0, by: 2.5).map { $0 }
+            } else {
+                return stride(from: 45.0, through: 500.0, by: 5.0).map { $0 }
+            }
         default:
             return []
         }

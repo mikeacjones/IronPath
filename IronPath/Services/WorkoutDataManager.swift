@@ -293,22 +293,31 @@ extension WorkoutDataManager {
         var prs: [WorkoutPR] = []
         let history = getWorkoutHistory().filter { !$0.isDeload && $0.id != workout.id }
 
+        let currentUnit = workout.weightUnit
+
         for workoutExercise in workout.exercises {
             let exerciseName = workoutExercise.exercise.name
             let completedSets = workoutExercise.sets.filter { $0.isCompleted }
 
             guard !completedSets.isEmpty else { continue }
 
-            // Get historical data for this exercise
-            let historicalExercises = history.flatMap { $0.exercises }
-                .filter { $0.exercise.name == exerciseName }
+            // Get historical data for this exercise, preserving each workout's unit
+            let historicalExercisesWithUnit = history.flatMap { historicalWorkout in
+                historicalWorkout.exercises
+                    .filter { $0.exercise.name == exerciseName }
+                    .map { (exercise: $0, unit: historicalWorkout.weightUnit) }
+            }
 
             // Check for weight PR (heaviest single set)
             if let maxWeight = completedSets.compactMap({ $0.weight }).max() {
-                let previousMaxWeight = historicalExercises.flatMap { $0.sets }
-                    .filter { $0.isCompleted }
-                    .compactMap { $0.weight }
-                    .max()
+                let previousMaxWeight = historicalExercisesWithUnit.flatMap { entry in
+                    entry.exercise.sets
+                        .filter { $0.isCompleted }
+                        .compactMap { set -> Double? in
+                            guard let w = set.weight else { return nil }
+                            return WeightUnit.convert(w, from: entry.unit, to: currentUnit)
+                        }
+                }.max()
 
                 if let prev = previousMaxWeight {
                     if maxWeight > prev {
@@ -333,7 +342,9 @@ extension WorkoutDataManager {
             // Check for volume PR (total volume for this exercise)
             let exerciseVolume = workoutExercise.totalVolume
             if exerciseVolume > 0 {
-                let previousMaxVolume = historicalExercises.map { $0.totalVolume }.max()
+                let previousMaxVolume = historicalExercisesWithUnit.map { entry in
+                    WeightUnit.convert(entry.exercise.totalVolume, from: entry.unit, to: currentUnit)
+                }.max()
 
                 if let prev = previousMaxVolume {
                     if exerciseVolume > prev {

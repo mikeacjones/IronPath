@@ -46,7 +46,7 @@ struct ProgressTabView: View {
                 } else {
                     VStack(spacing: 20) {
                         // Volume chart
-                        VolumeChartView(workouts: workouts)
+                        VolumeChartView(workouts: workouts, weightUnit: weightUnit)
                             .padding(.horizontal)
 
                         // Personal Records
@@ -91,13 +91,14 @@ struct ProgressTabView: View {
                           let reps = set.actualReps,
                           set.isCompleted else { continue }
 
+                    let convertedWeight = WeightUnit.convert(weight, from: workout.weightUnit, to: weightUnit)
                     let currentPR = prs[exerciseName]
 
                     // Check if this is a new max weight
-                    if currentPR == nil || weight > currentPR!.weight {
+                    if currentPR == nil || convertedWeight > currentPR!.weight {
                         prs[exerciseName] = PersonalRecord(
                             exerciseName: exerciseName,
-                            weight: weight,
+                            weight: convertedWeight,
                             reps: reps,
                             date: set.completedAt ?? workout.completedAt ?? Date()
                         )
@@ -124,6 +125,7 @@ struct PersonalRecord: Identifiable {
 
 struct VolumeChartView: View {
     let workouts: [Workout]
+    let weightUnit: WeightUnit
 
     var weeklyVolume: [(week: String, volume: Double)] {
         let calendar = Calendar.current
@@ -132,7 +134,8 @@ struct VolumeChartView: View {
         for workout in workouts {
             guard let completedAt = workout.completedAt else { continue }
             let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: completedAt))!
-            volumeByWeek[weekStart, default: 0] += workout.totalVolume
+            let displayVolume = WeightUnit.convert(workout.totalVolume, from: workout.weightUnit, to: weightUnit)
+            volumeByWeek[weekStart, default: 0] += displayVolume
         }
 
         let sorted = volumeByWeek.sorted { $0.key < $1.key }.suffix(8)
@@ -290,7 +293,8 @@ struct ExerciseProgressSection: View {
                           set.isCompleted,
                           let date = set.completedAt ?? workout.completedAt else { continue }
 
-                    history.append((date: date, weight: weight, reps: reps))
+                    let convertedWeight = WeightUnit.convert(weight, from: workout.weightUnit, to: weightUnit)
+                    history.append((date: date, weight: convertedWeight, reps: reps))
                 }
             }
         }
