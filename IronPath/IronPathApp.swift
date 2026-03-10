@@ -8,75 +8,16 @@ struct IronPathApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if !cloudSync.hasCompletedInitialSync {
-                // Show loading while restoring from iCloud
-                CloudSyncLoadingView()
-            } else {
-                ContentView()
-                    .environment(appState)
-                    .environment(dependencyContainer)
-                    .environment(\.dependencyContainer, dependencyContainer)
-                    .overlay(alignment: .top) {
-                        // Show restoration banner if data was restored
-                        if cloudSync.restoredWorkoutsCount > 0 {
-                            DataRestorationBanner(count: cloudSync.restoredWorkoutsCount)
-                        }
+            ContentView()
+                .environment(appState)
+                .environment(dependencyContainer)
+                .environment(\.dependencyContainer, dependencyContainer)
+                .overlay(alignment: .top) {
+                    // Show restoration banner if data was restored from iCloud
+                    if cloudSync.restoredWorkoutsCount > 0 && cloudSync.hasCompletedInitialSync {
+                        DataRestorationBanner(count: cloudSync.restoredWorkoutsCount)
                     }
-            }
-        }
-    }
-}
-
-// MARK: - Cloud Sync Loading View
-
-struct CloudSyncLoadingView: View {
-    @State private var cloudSync = CloudSyncManager.shared
-    @State private var showingManualContinue = false
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "icloud.and.arrow.down")
-                .font(.system(size: 60))
-                .foregroundStyle(.blue)
-                .symbolEffect(.pulse, options: .repeating)
-
-            Text("Restoring Your Data")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Checking iCloud for your workout history...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            ProgressView()
-                .scaleEffect(1.2)
-                .padding(.top, 8)
-
-            Spacer()
-
-            // Show manual continue option after 5 seconds
-            if showingManualContinue {
-                Button {
-                    // Force complete the sync
-                    Task { @MainActor in
-                        cloudSync.hasCompletedInitialSync = true
-                    }
-                } label: {
-                    Text("Continue Without Waiting")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
                 }
-                .padding(.bottom, 40)
-            }
-        }
-        .padding()
-        .task {
-            // Show manual continue option after 5 seconds
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            showingManualContinue = true
         }
     }
 }
