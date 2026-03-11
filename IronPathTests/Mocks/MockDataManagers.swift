@@ -42,7 +42,8 @@ final class MockWorkoutDataManager: WorkoutDataManaging {
             totalWorkouts: workoutHistory.count,
             totalVolume: workoutHistory.reduce(0) { $0 + $1.totalVolume },
             workoutsThisWeek: 0,
-            averageWorkoutDuration: 3600
+            averageWorkoutDuration: 3600,
+            weightUnit: .pounds
         )
     }
 
@@ -198,6 +199,10 @@ final class MockRestTimerManager: RestTimerManaging {
         wasStopped = true
         isActive = false
         remainingTime = 0
+    }
+
+    func clearGroupRestPreference() {
+        groupTimersStarted.removeAll()
     }
 }
 
@@ -399,11 +404,42 @@ final class MockAppSettings: AppSettingsProviding {
 
 @MainActor
 final class MockGymSettings: GymSettingsProviding {
+    var preferredWeightUnit: WeightUnit = .pounds
+    var cableMachineConfigs: [String: CableMachineConfig] { cableConfigs }
     var cableConfigs: [String: CableMachineConfig] = [:]
     var defaultConfig: CableMachineConfig = .defaultConfig
+    var defaultAvailablePlates: [AvailablePlate] = [
+        AvailablePlate(weight: 45, count: 0),
+        AvailablePlate(weight: 35, count: 0),
+        AvailablePlate(weight: 25, count: 0),
+        AvailablePlate(weight: 10, count: 0),
+        AvailablePlate(weight: 5, count: 0),
+        AvailablePlate(weight: 2.5, count: 0),
+    ]
+    var exercisePlateConfigs: [String: [AvailablePlate]] = [:]
 
     func cableConfig(for exerciseName: String) -> CableMachineConfig {
         return cableConfigs[exerciseName] ?? defaultConfig
+    }
+
+    func setCableConfig(_ config: CableMachineConfig, for exerciseName: String) {
+        cableConfigs[exerciseName] = config
+    }
+
+    func availablePlates(for exerciseName: String) -> [AvailablePlate] {
+        exercisePlateConfigs[exerciseName] ?? defaultAvailablePlates
+    }
+
+    func setAvailablePlates(_ plates: [AvailablePlate], for exerciseName: String) {
+        exercisePlateConfigs[exerciseName] = plates
+    }
+
+    func hasCustomPlateConfig(for exerciseName: String) -> Bool {
+        exercisePlateConfigs[exerciseName] != nil
+    }
+
+    func resetPlateConfig(for exerciseName: String) {
+        exercisePlateConfigs.removeValue(forKey: exerciseName)
     }
 
     func roundToValidWeight(_ weight: Double, for equipment: Equipment, exerciseName: String?) -> Double {
