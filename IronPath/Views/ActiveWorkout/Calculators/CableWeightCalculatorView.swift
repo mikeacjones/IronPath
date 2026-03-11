@@ -6,6 +6,7 @@ import SwiftUI
 struct CableWeightCalculatorView: View {
     let targetWeight: Double
     let exerciseName: String
+    let weightUnit: WeightUnit
     let onSelectWeight: (Double) -> Void
 
     private let gymSettings: GymSettingsProviding
@@ -16,11 +17,13 @@ struct CableWeightCalculatorView: View {
     init(
         targetWeight: Double,
         exerciseName: String,
+        weightUnit: WeightUnit = .pounds,
         onSelectWeight: @escaping (Double) -> Void,
         gymSettings: GymSettingsProviding? = nil
     ) {
         self.targetWeight = targetWeight
         self.exerciseName = exerciseName
+        self.weightUnit = weightUnit
         self.onSelectWeight = onSelectWeight
         self.gymSettings = gymSettings ?? GymSettings.shared
     }
@@ -46,7 +49,7 @@ struct CableWeightCalculatorView: View {
     }
 
     private var unit: String {
-        gymSettings.preferredWeightUnit.abbreviation
+        weightUnit.abbreviation
     }
 
     var body: some View {
@@ -84,7 +87,7 @@ struct CableWeightCalculatorView: View {
                                                 .cornerRadius(4)
                                         }
                                     }
-                                    Text(config.stackDescription(unit: gymSettings.preferredWeightUnit))
+                                    Text(config.stackDescription(unit: weightUnit))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -128,6 +131,7 @@ struct CableWeightCalculatorView: View {
                                         pinNumber: breakdown?.pin,
                                         freeWeight: breakdown?.freeWeight ?? 0,
                                         isSelected: weight == nearestWeight,
+                                        weightUnit: weightUnit,
                                         gymSettings: gymSettings
                                     )
                                 }
@@ -207,7 +211,7 @@ struct CableWeightCalculatorView: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+        WeightConverter.format(w, unit: weightUnit, includeUnit: false)
     }
 }
 
@@ -219,6 +223,7 @@ struct CableWeightButton: View {
     let pinNumber: Int?
     let freeWeight: Double
     let isSelected: Bool
+    let weightUnit: WeightUnit
 
     private let gymSettings: GymSettingsProviding
 
@@ -227,17 +232,19 @@ struct CableWeightButton: View {
         pinNumber: Int?,
         freeWeight: Double = 0,
         isSelected: Bool,
+        weightUnit: WeightUnit = .pounds,
         gymSettings: GymSettingsProviding? = nil
     ) {
         self.weight = weight
         self.pinNumber = pinNumber
         self.freeWeight = freeWeight
         self.isSelected = isSelected
+        self.weightUnit = weightUnit
         self.gymSettings = gymSettings ?? GymSettings.shared
     }
 
     private var unit: String {
-        gymSettings.preferredWeightUnit.abbreviation
+        weightUnit.abbreviation
     }
 
     var body: some View {
@@ -283,7 +290,7 @@ struct CableWeightButton: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+        WeightConverter.format(w, unit: weightUnit, includeUnit: false)
     }
 }
 
@@ -323,6 +330,6 @@ struct WeightOptionRow: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+        WeightConverter.format(w, unit: weightUnit, includeUnit: false)
     }
 }

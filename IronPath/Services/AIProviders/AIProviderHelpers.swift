@@ -428,10 +428,12 @@ enum AIProviderHelpers {
                             pauseDuration: TimeInterval(advSet.pauseDuration ?? 15)
                         )
                     case .timed:
-                        // AI should not typically generate timed sets, but handle it gracefully
-                        return ExerciseSet.createTimedSet(
+                        AppLogger.ai.warning("AI advanced set '\(advSet.type)' is unsupported; falling back to standard set for \(exerciseJSON.name)")
+                        return ExerciseSet(
                             setNumber: advSet.setNumber,
-                            targetDuration: 30, // Default 30 seconds
+                            setType: .standard,
+                            targetReps: setReps,
+                            weight: setWeight,
                             restPeriod: TimeInterval(exerciseJSON.restSeconds)
                         )
                     }

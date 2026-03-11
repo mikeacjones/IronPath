@@ -383,8 +383,5 @@ private struct HistorySetRow: View {
 // MARK: - Helper Functions
 
 private func formatHistoryWeight(_ weight: Double) -> String {
-    if weight.truncatingRemainder(dividingBy: 1) == 0 {
-        return String(format: "%.0f", weight)
-    }
-    return String(format: "%.1f", weight)
+    WeightConverter.format(weight, unit: .pounds, includeUnit: false)
 }

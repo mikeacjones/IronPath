@@ -189,6 +189,7 @@ struct WorkoutDetailView: View {
                     editorViewModel.updateExercise(updatedExercise)
                     selectedExercise = nil
                 },
+                workoutWeightUnit: editorViewModel.workout.weightUnit,
                 isLiveWorkout: false,
                 isPendingWorkout: true,
                 showVideosOverride: false,

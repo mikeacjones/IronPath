@@ -51,6 +51,13 @@ class WorkoutDataManager {
     /// Get the most recent workout containing a specific exercise
     /// - Parameter excludeDeload: If true, skips deload workouts (default: true for progressive overload tracking)
     func getLastWorkoutWith(exerciseName: String, excludeDeload: Bool = true) -> WorkoutExercise? {
+        getLastWorkoutEntryWith(exerciseName: exerciseName, excludeDeload: excludeDeload)?.exercise
+    }
+
+    private func getLastWorkoutEntryWith(
+        exerciseName: String,
+        excludeDeload: Bool = true
+    ) -> (exercise: WorkoutExercise, unit: WeightUnit)? {
         let history = getWorkoutHistory()
 
         // Search from most recent to oldest
@@ -60,7 +67,7 @@ class WorkoutDataManager {
                 continue
             }
             if let exercise = workout.exercises.first(where: { $0.exercise.name == exerciseName }) {
-                return exercise
+                return (exercise, workout.weightUnit)
             }
         }
 
@@ -69,15 +76,19 @@ class WorkoutDataManager {
 
     /// Get suggested weight for progressive overload
     func getSuggestedWeight(for exerciseName: String, targetReps: Int) -> Double? {
-        guard let lastExercise = getLastWorkoutWith(exerciseName: exerciseName) else {
+        let targetUnit = ActiveWorkoutManager.shared.activeWorkout?.weightUnit ?? GymSettings.shared.preferredWeightUnit
+        guard let lastEntry = getLastWorkoutEntryWith(exerciseName: exerciseName) else {
             return nil
         }
 
         // Find the average weight used in completed sets
-        let completedSets = lastExercise.sets.filter { $0.isCompleted }
+        let completedSets = lastEntry.exercise.sets.filter { $0.isCompleted }
         guard !completedSets.isEmpty else { return nil }
 
-        let totalWeight = completedSets.compactMap { $0.weight }.reduce(0, +)
+        let totalWeight = completedSets.compactMap { set -> Double? in
+            guard let weight = set.weight else { return nil }
+            return WeightUnit.convert(weight, from: lastEntry.unit, to: targetUnit)
+        }.reduce(0, +)
         let avgWeight = totalWeight / Double(completedSets.count)
 
         // Suggest 2.5-5% increase for progressive overload
@@ -85,21 +96,25 @@ class WorkoutDataManager {
         let suggestedWeight = avgWeight + increase
 
         // Round to valid weight for the equipment type
-        let equipment = lastExercise.exercise.equipment
+        let equipment = lastEntry.exercise.exercise.equipment
         return GymSettings.shared.roundToValidWeight(suggestedWeight, for: equipment)
     }
 
     /// Get suggested weight with equipment type specified (for when we know the equipment)
     func getSuggestedWeight(for exerciseName: String, targetReps: Int, equipment: Equipment) -> Double? {
-        guard let lastExercise = getLastWorkoutWith(exerciseName: exerciseName) else {
+        let targetUnit = ActiveWorkoutManager.shared.activeWorkout?.weightUnit ?? GymSettings.shared.preferredWeightUnit
+        guard let lastEntry = getLastWorkoutEntryWith(exerciseName: exerciseName) else {
             return nil
         }
 
         // Find the average weight used in completed sets
-        let completedSets = lastExercise.sets.filter { $0.isCompleted }
+        let completedSets = lastEntry.exercise.sets.filter { $0.isCompleted }
         guard !completedSets.isEmpty else { return nil }
 
-        let totalWeight = completedSets.compactMap { $0.weight }.reduce(0, +)
+        let totalWeight = completedSets.compactMap { set -> Double? in
+            guard let weight = set.weight else { return nil }
+            return WeightUnit.convert(weight, from: lastEntry.unit, to: targetUnit)
+        }.reduce(0, +)
         let avgWeight = totalWeight / Double(completedSets.count)
 
         // Suggest 2.5-5% increase for progressive overload
@@ -114,9 +129,12 @@ class WorkoutDataManager {
     func getWorkoutStats() -> WorkoutStats {
         let history = getWorkoutHistory()
         let completed = history.filter { $0.isCompleted }
+        let displayUnit = GymSettings.shared.preferredWeightUnit
 
         let totalWorkouts = completed.count
-        let totalVolume = completed.reduce(0) { $0 + $1.totalVolume }
+        let totalVolume = completed.reduce(0.0) { total, workout in
+            total + WeightUnit.convert(workout.totalVolume, from: workout.weightUnit, to: displayUnit)
+        }
 
         // Calculate this week's workouts
         let calendar = Calendar.current
@@ -128,7 +146,8 @@ class WorkoutDataManager {
                 totalWorkouts: totalWorkouts,
                 totalVolume: totalVolume,
                 workoutsThisWeek: thisWeek.count,
-                averageWorkoutDuration: calculateAverageDuration(completed)
+                averageWorkoutDuration: calculateAverageDuration(completed),
+                weightUnit: displayUnit
             )
         }
 
@@ -138,7 +157,8 @@ class WorkoutDataManager {
             totalWorkouts: totalWorkouts,
             totalVolume: totalVolume,
             workoutsThisWeek: thisWeek.count,
-            averageWorkoutDuration: calculateAverageDuration(completed)
+            averageWorkoutDuration: calculateAverageDuration(completed),
+            weightUnit: displayUnit
         )
     }
 
@@ -180,12 +200,12 @@ class WorkoutDataManager {
                     if set.setType == .timed, let config = set.timedSetConfig {
                         let targetDuration = formatDurationForCSV(config.targetDuration)
                         let actualDuration = config.actualDuration.map { formatDurationForCSV($0) } ?? "N/A"
-                        let weight = config.addedWeight.map { formatWeightForCSV($0) } ?? "N/A"
+                        let weight = config.addedWeight.map { formatWeightForCSV($0, unit: workout.weightUnit) } ?? "N/A"
 
                         csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(setType),N/A,N/A,\(weight),\(targetDuration),\(actualDuration),\(unit),\(completed)\n"
                     } else {
                         // Standard rep-based sets
-                        let weight = set.weight.map { formatWeightForCSV($0) } ?? "N/A"
+                        let weight = set.weight.map { formatWeightForCSV($0, unit: workout.weightUnit) } ?? "N/A"
                         let actualReps = set.actualReps.map { String($0) } ?? "N/A"
 
                         csv += "\"\(workout.name)\",\(dateStr),\"\(exercise.exercise.name)\",\(set.setNumber),\(setType),\(set.targetReps),\(actualReps),\(weight),N/A,N/A,\(unit),\(completed)\n"
@@ -203,12 +223,8 @@ class WorkoutDataManager {
     }
 
     /// Format weight for CSV export (preserves decimals when present)
-    private func formatWeightForCSV(_ weight: Double) -> String {
-        if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", weight)
-        } else {
-            return String(format: "%.1f", weight)
-        }
+    private func formatWeightForCSV(_ weight: Double, unit: WeightUnit) -> String {
+        WeightConverter.format(weight, unit: unit, includeUnit: false)
     }
 
     /// Get workout by ID
@@ -248,6 +264,7 @@ struct WorkoutStats {
     let totalVolume: Double
     let workoutsThisWeek: Int
     let averageWorkoutDuration: TimeInterval
+    let weightUnit: WeightUnit
 }
 
 // MARK: - Workout Personal Records

@@ -26,7 +26,7 @@ struct Workout: Codable, Identifiable, Hashable {
 
     var totalVolume: Double {
         exercises.reduce(0) { total, exercise in
-            total + (exercise.totalVolume * exercise.exercise.multiplier)
+            total + exercise.totalVolume
         }
     }
 
@@ -200,6 +200,28 @@ struct ExerciseSet: Codable, Identifiable, Hashable {
             let addedWeight = config.addedWeight ?? 0
             return addedWeight * durationMinutes
         }
+    }
+
+    /// Mark a set as completed for manually entered historical workouts.
+    /// Timed sets complete through actualDuration; rep-based sets complete through actualReps.
+    mutating func completeForHistoricalEntry(at date: Date) {
+        switch setType {
+        case .timed:
+            let targetDuration = timedSetConfig?.targetDuration ?? 30
+            if timedSetConfig == nil {
+                timedSetConfig = TimedSetConfig(targetDuration: targetDuration)
+            }
+            if timedSetConfig?.actualDuration == nil {
+                timedSetConfig?.actualDuration = targetDuration
+            }
+            actualReps = nil
+        case .standard, .warmup, .dropSet, .restPause:
+            if actualReps == nil {
+                actualReps = targetReps
+            }
+        }
+
+        completedAt = date
     }
 
     init(

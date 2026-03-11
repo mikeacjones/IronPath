@@ -135,6 +135,7 @@ struct AddHistoricalWorkoutView: View {
                         editorViewModel.updateExercise(updatedExercise)
                         selectedExercise = nil
                     },
+                    workoutWeightUnit: editorViewModel.workout.weightUnit,
                     isLiveWorkout: false,
                     isPendingWorkout: true,
                     showVideosOverride: false,
@@ -165,10 +166,7 @@ struct AddHistoricalWorkoutView: View {
         var completedExercises = editorViewModel.workout.exercises
         for i in 0..<completedExercises.count {
             for j in 0..<completedExercises[i].sets.count {
-                if completedExercises[i].sets[j].actualReps == nil {
-                    completedExercises[i].sets[j].actualReps = completedExercises[i].sets[j].targetReps
-                }
-                completedExercises[i].sets[j].completedAt = workoutDate
+                completedExercises[i].sets[j].completeForHistoricalEntry(at: workoutDate)
             }
         }
 

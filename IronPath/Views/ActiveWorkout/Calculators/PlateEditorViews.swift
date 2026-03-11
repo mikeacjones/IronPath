@@ -215,7 +215,7 @@ struct PlateRowEditor: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+        WeightConverter.format(w, unit: weightUnit, includeUnit: false)
     }
 }
 

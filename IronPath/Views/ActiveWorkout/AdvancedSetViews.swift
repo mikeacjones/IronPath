@@ -22,12 +22,7 @@ struct AdvancedSetRowView: View {
     let workingSetNumber: Int?
     let previousSetWeight: Double?
     let isFirstIncompleteSet: Bool
-
-    @Environment(DependencyContainer.self) private var dependencies
-
-    private var weightUnit: WeightUnit {
-        dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
-    }
+    let weightUnit: WeightUnit
 
     @State private var weight: String
     @State private var reps: String
@@ -56,7 +51,8 @@ struct AdvancedSetRowView: View {
         isPendingWorkout: Bool = false,
         workingSetNumber: Int? = nil,
         previousSetWeight: Double? = nil,
-        isFirstIncompleteSet: Bool = false
+        isFirstIncompleteSet: Bool = false,
+        weightUnit: WeightUnit = .pounds
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -76,6 +72,7 @@ struct AdvancedSetRowView: View {
         self.workingSetNumber = workingSetNumber
         self.previousSetWeight = previousSetWeight
         self.isFirstIncompleteSet = isFirstIncompleteSet
+        self.weightUnit = weightUnit
 
         let suggestedWeight = WorkoutDataManager.shared.getSuggestedWeight(
             for: exerciseName,
@@ -133,7 +130,8 @@ struct AdvancedSetRowView: View {
                     isLiveWorkout: isLiveWorkout,
                     isPendingWorkout: isPendingWorkout,
                     workingSetNumber: workingSetNumber,
-                    previousSetWeight: previousSetWeight
+                    previousSetWeight: previousSetWeight,
+                    weightUnit: weightUnit
                 )
 
             case .warmup:
@@ -150,7 +148,8 @@ struct AdvancedSetRowView: View {
                     isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted,
                     isLiveWorkout: isLiveWorkout,
-                    isPendingWorkout: isPendingWorkout
+                    isPendingWorkout: isPendingWorkout,
+                    weightUnit: weightUnit
                 )
 
             case .dropSet:
@@ -164,7 +163,8 @@ struct AdvancedSetRowView: View {
                     isLastSet: isLastSet,
                     onSetCompleted: onSetCompleted,
                     isLiveWorkout: isLiveWorkout,
-                    isPendingWorkout: isPendingWorkout
+                    isPendingWorkout: isPendingWorkout,
+                    weightUnit: weightUnit
                 )
 
             case .restPause:
@@ -178,7 +178,8 @@ struct AdvancedSetRowView: View {
                     suppressRestTimer: suppressRestTimer,
                     onSetCompleted: onSetCompleted,
                     isLiveWorkout: isLiveWorkout,
-                    isPendingWorkout: isPendingWorkout
+                    isPendingWorkout: isPendingWorkout,
+                    weightUnit: weightUnit
                 )
 
             case .timed:

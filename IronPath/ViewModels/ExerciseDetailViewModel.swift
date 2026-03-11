@@ -77,9 +77,9 @@ final class ExerciseDetailViewModel {
     }
 
     /// Historical sessions for this exercise (most recent first, up to 5)
-    var exerciseHistory: [(date: Date, sets: [ExerciseSet])] {
+    var exerciseHistory: [(date: Date, sets: [ExerciseSet], weightUnit: WeightUnit)] {
         let history = workoutDataManager.getWorkoutHistory()
-        var sessions: [(date: Date, sets: [ExerciseSet])] = []
+        var sessions: [(date: Date, sets: [ExerciseSet], weightUnit: WeightUnit)] = []
 
         for workout in history.reversed() {
             // Skip deload workouts for clearer progression view
@@ -88,7 +88,7 @@ final class ExerciseDetailViewModel {
             if let matchingExercise = workout.exercises.first(where: { $0.exercise.name == exercise.exercise.name }) {
                 let completedSets = matchingExercise.sets.filter { $0.isCompleted }
                 if !completedSets.isEmpty, let date = workout.completedAt {
-                    sessions.append((date: date, sets: completedSets))
+                    sessions.append((date: date, sets: completedSets, weightUnit: workout.weightUnit))
                 }
             }
 

@@ -21,6 +21,7 @@ struct StandardSetRow: View {
     let isPendingWorkout: Bool
     let workingSetNumber: Int?
     let previousSetWeight: Double?
+    let weightUnit: WeightUnit
 
     @State private var showPlateCalculator = false
     @State private var restTimerManager = RestTimerManager.shared
@@ -43,7 +44,8 @@ struct StandardSetRow: View {
         isLiveWorkout: Bool = true,
         isPendingWorkout: Bool = false,
         workingSetNumber: Int? = nil,
-        previousSetWeight: Double? = nil
+        previousSetWeight: Double? = nil,
+        weightUnit: WeightUnit = .pounds
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -63,6 +65,7 @@ struct StandardSetRow: View {
         self.isPendingWorkout = isPendingWorkout
         self.workingSetNumber = workingSetNumber
         self.previousSetWeight = previousSetWeight
+        self.weightUnit = weightUnit
     }
 
     private var displayNumber: Int {
@@ -82,6 +85,7 @@ struct StandardSetRow: View {
                 equipment: equipment,
                 exerciseName: exerciseName,
                 showPlateCalculator: $showPlateCalculator,
+                weightUnitOverride: weightUnit,
                 onWeightChanged: { newWeight in
                     onWeightChanged?(setIndex, newWeight)
                     var updatedSet = set
@@ -126,6 +130,7 @@ struct StandardSetRow: View {
                 CableWeightCalculatorView(
                     targetWeight: Double(weight) ?? 0,
                     exerciseName: exerciseName,
+                    weightUnit: weightUnit,
                     onSelectWeight: { selectedWeight in
                         weight = formatWeight(selectedWeight)
                         showPlateCalculator = false
@@ -136,6 +141,7 @@ struct StandardSetRow: View {
                     totalWeight: Double(weight) ?? 0,
                     equipment: equipment,
                     exerciseName: exerciseName,
+                    weightUnitOverride: weightUnit,
                     previousWeight: previousSetWeight
                 )
             }
@@ -190,6 +196,7 @@ struct WarmupSetRow: View {
     let onSetCompleted: (() -> Void)?
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
+    let weightUnit: WeightUnit
 
     @State private var showPlateCalculator = false
     @State private var restTimerManager = RestTimerManager.shared
@@ -207,7 +214,8 @@ struct WarmupSetRow: View {
         isLastSet: Bool = false,
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
-        isPendingWorkout: Bool = false
+        isPendingWorkout: Bool = false,
+        weightUnit: WeightUnit = .pounds
     ) {
         self.set = set
         self.setIndex = setIndex
@@ -222,6 +230,7 @@ struct WarmupSetRow: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.weightUnit = weightUnit
     }
 
     var body: some View {
@@ -240,6 +249,7 @@ struct WarmupSetRow: View {
                 equipment: equipment,
                 exerciseName: exerciseName,
                 showPlateCalculator: $showPlateCalculator,
+                weightUnitOverride: weightUnit,
                 onWeightChanged: { newWeight in
                     var updatedSet = set
                     updatedSet.weight = newWeight
@@ -282,6 +292,7 @@ struct WarmupSetRow: View {
                 CableWeightCalculatorView(
                     targetWeight: Double(weight) ?? 0,
                     exerciseName: exerciseName,
+                    weightUnit: weightUnit,
                     onSelectWeight: { selectedWeight in
                         weight = formatWeight(selectedWeight)
                         showPlateCalculator = false
@@ -291,7 +302,8 @@ struct WarmupSetRow: View {
                 PlateCalculatorView(
                     totalWeight: Double(weight) ?? 0,
                     equipment: equipment,
-                    exerciseName: exerciseName
+                    exerciseName: exerciseName,
+                    weightUnitOverride: weightUnit
                 )
             }
         }

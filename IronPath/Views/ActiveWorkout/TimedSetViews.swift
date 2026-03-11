@@ -55,6 +55,7 @@ struct TimedSetRow: View {
                 // Show input fields for planning
                 AddedWeightInputView(
                     weight: $addedWeightString,
+                    weightUnitOverride: weightUnit,
                     onWeightChanged: { newWeight in
                         // Propagate to subsequent sets
                         onAddedWeightChanged?(setIndex, newWeight)
@@ -180,11 +181,7 @@ struct TimedSetRow: View {
     }
 
     private func formatWeight(_ weight: Double) -> String {
-        if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", weight)
-        } else {
-            return String(format: "%.1f", weight)
-        }
+        WeightConverter.format(weight, unit: weightUnit, includeUnit: false)
     }
 }
 

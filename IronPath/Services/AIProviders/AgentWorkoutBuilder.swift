@@ -508,11 +508,7 @@ final class AgentWorkoutBuilder {
     // MARK: - Weight Formatting
 
     private func formatWeight(_ weight: Double) -> String {
-        if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", weight)
-        } else {
-            return String(format: "%.1f", weight)
-        }
+        WeightConverter.format(weight, unit: weightUnit, includeUnit: false)
     }
 
     // MARK: - Weight Snapping

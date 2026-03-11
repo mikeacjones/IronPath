@@ -7,6 +7,7 @@ struct ExerciseDetailSheet: View {
     @State private var viewModel: ExerciseDetailViewModel
     @Environment(DependencyContainer.self) private var dependencies
     @Environment(\.dismiss) var dismiss
+    private let workoutWeightUnit: WeightUnit
 
     /// Tracks whether changes have been saved to prevent double-save
     @State private var hasSaved = false
@@ -18,6 +19,7 @@ struct ExerciseDetailSheet: View {
         groupInfo: ExerciseGroupInfo? = nil,
         onNavigateToNextInGroup: (() -> Void)? = nil,
         nextExerciseInGroup: WorkoutExercise? = nil,
+        workoutWeightUnit: WeightUnit? = nil,
         isLiveWorkout: Bool = true,
         isPendingWorkout: Bool = false,
         showVideosOverride: Bool? = nil,
@@ -36,6 +38,7 @@ struct ExerciseDetailSheet: View {
         vm.onUpdateWithoutDismiss = onUpdateWithoutDismiss
         vm.onNavigateToNextInGroup = onNavigateToNextInGroup
         _viewModel = State(initialValue: vm)
+        self.workoutWeightUnit = workoutWeightUnit ?? .pounds
     }
 
     var body: some View {
@@ -166,11 +169,9 @@ struct ExerciseDetailSheet: View {
     @ViewBuilder
     private var historySection: some View {
         if !viewModel.exerciseHistory.isEmpty {
-            let weightUnit = dependencies.gymProfileManager.activeProfile?.preferredWeightUnit ?? .pounds
             ExerciseHistorySection(
                 history: viewModel.exerciseHistory,
-                isExpanded: $viewModel.showHistory,
-                weightUnit: weightUnit
+                isExpanded: $viewModel.showHistory
             )
             .padding(.horizontal)
         }
@@ -235,7 +236,8 @@ struct ExerciseDetailSheet: View {
                     isPendingWorkout: viewModel.isPendingWorkout,
                     workingSetNumber: viewModel.workingSetNumber(forSetIndex: setIndex),
                     previousSetWeight: viewModel.previousSetWeight(forSetIndex: setIndex),
-                    isFirstIncompleteSet: isFirstIncompleteSet(at: setIndex)
+                    isFirstIncompleteSet: isFirstIncompleteSet(at: setIndex),
+                    weightUnit: workoutWeightUnit
                 )
 
                 if viewModel.exercise.sets.count > 1 {

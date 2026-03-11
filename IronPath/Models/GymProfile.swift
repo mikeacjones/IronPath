@@ -672,10 +672,6 @@ final class GymSettings {
 
     /// Format weight for display (removes .0 for whole numbers)
     private func formatWeight(_ weight: Double) -> String {
-        if weight.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", weight)
-        } else {
-            return String(format: "%.1f", weight)
-        }
+        WeightConverter.format(weight, unit: preferredWeightUnit, includeUnit: false)
     }
 }

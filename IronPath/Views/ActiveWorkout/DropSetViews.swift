@@ -13,6 +13,7 @@ struct DropSetRow: View {
     let onSetCompleted: (() -> Void)?
     let isLiveWorkout: Bool
     let isPendingWorkout: Bool
+    let weightUnit: WeightUnit
 
     private let gymSettings: GymSettingsProviding
 
@@ -31,6 +32,7 @@ struct DropSetRow: View {
         onSetCompleted: (() -> Void)? = nil,
         isLiveWorkout: Bool = true,
         isPendingWorkout: Bool = false,
+        weightUnit: WeightUnit = .pounds,
         gymSettings: GymSettingsProviding? = nil
     ) {
         self.set = set
@@ -43,6 +45,7 @@ struct DropSetRow: View {
         self.onSetCompleted = onSetCompleted
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
+        self.weightUnit = weightUnit
         self.gymSettings = gymSettings ?? GymSettings.shared
         _localConfig = State(initialValue: set.dropSetConfig ?? DropSetConfig())
     }
@@ -102,6 +105,7 @@ struct DropSetRow: View {
                             onSetCompleted?()
                         }
                     },
+                    weightUnit: weightUnit,
                     gymSettings: gymSettings
                 )
             }
@@ -124,6 +128,7 @@ struct DropSetRow: View {
                 config: $localConfig,
                 startingWeight: set.weight,
                 onSave: saveConfig,
+                weightUnit: weightUnit,
                 gymSettings: gymSettings
             )
         }
@@ -157,6 +162,7 @@ struct DropEntryRow: View {
     let onUpdate: (DropSetEntry) -> Void
 
     private let gymSettings: GymSettingsProviding
+    private let weightUnit: WeightUnit
 
     @State private var weight: String
     @State private var reps: String
@@ -167,6 +173,7 @@ struct DropEntryRow: View {
         isLiveWorkout: Bool = true,
         isPendingWorkout: Bool = false,
         onUpdate: @escaping (DropSetEntry) -> Void,
+        weightUnit: WeightUnit = .pounds,
         gymSettings: GymSettingsProviding? = nil
     ) {
         self.drop = drop
@@ -174,6 +181,7 @@ struct DropEntryRow: View {
         self.isLiveWorkout = isLiveWorkout
         self.isPendingWorkout = isPendingWorkout
         self.onUpdate = onUpdate
+        self.weightUnit = weightUnit
         self.gymSettings = gymSettings ?? GymSettings.shared
 
         _weight = State(initialValue: (drop.actualWeight ?? drop.targetWeight).map { formatWeight($0) } ?? "")
@@ -198,7 +206,7 @@ struct DropEntryRow: View {
             }
             .frame(width: 40)
 
-            TextField(gymSettings.preferredWeightUnit.abbreviation, text: $weight)
+            TextField(weightUnit.abbreviation, text: $weight)
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 60)
@@ -268,6 +276,7 @@ struct DropSetConfigEditor: View {
     @Binding var config: DropSetConfig
     let startingWeight: Double?
     let onSave: () -> Void
+    let weightUnit: WeightUnit
 
     private let gymSettings: GymSettingsProviding
 
@@ -280,11 +289,13 @@ struct DropSetConfigEditor: View {
         config: Binding<DropSetConfig>,
         startingWeight: Double?,
         onSave: @escaping () -> Void,
+        weightUnit: WeightUnit = .pounds,
         gymSettings: GymSettingsProviding? = nil
     ) {
         self._config = config
         self.startingWeight = startingWeight
         self.onSave = onSave
+        self.weightUnit = weightUnit
         self.gymSettings = gymSettings ?? GymSettings.shared
         _numberOfDrops = State(initialValue: config.wrappedValue.numberOfDrops)
         _dropPercentage = State(initialValue: config.wrappedValue.dropPercentage * 100)
@@ -318,7 +329,7 @@ struct DropSetConfigEditor: View {
                                 Text(index == 0 ? "Starting" : "Drop \(index)")
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Text(gymSettings.preferredWeightUnit.format(suggestedWeights[index]))
+                                Text(weightUnit.format(suggestedWeights[index]))
                                     .fontWeight(.medium)
                             }
                         }

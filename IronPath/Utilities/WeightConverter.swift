@@ -25,8 +25,15 @@ struct WeightConverter {
         if let decimalPlaces = decimalPlaces {
             places = decimalPlaces
         } else {
-            // Show decimals only if needed
-            places = weight.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1
+            // Preserve common gym increments like 2.5 and 1.25 without trailing zeros.
+            let roundedToHundredths = (weight * 100).rounded() / 100
+            if roundedToHundredths.truncatingRemainder(dividingBy: 1) == 0 {
+                places = 0
+            } else if roundedToHundredths * 10 == (roundedToHundredths * 10).rounded() {
+                places = 1
+            } else {
+                places = 2
+            }
         }
 
         let formatter = NumberFormatter()

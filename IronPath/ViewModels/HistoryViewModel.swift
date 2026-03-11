@@ -73,6 +73,11 @@ final class HistoryViewModel {
         workoutDataManager.getWorkoutStats()
     }
 
+    /// Shared unit across all completed workouts, if one exists
+    var statsWeightUnit: WeightUnit? {
+        stats.weightUnit
+    }
+
     /// Whether there are any workouts
     var hasWorkouts: Bool {
         !workouts.isEmpty

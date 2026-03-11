@@ -73,10 +73,7 @@ enum WeightUnit: String, Codable, CaseIterable, Sendable {
     /// - Parameter weight: The weight value to format
     /// - Returns: Formatted string with weight and unit
     func format(_ weight: Double) -> String {
-        let formattedWeight = weight.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", weight)
-            : String(format: "%.1f", weight)
-        return "\(formattedWeight)\(rawValue)"
+        "\(WeightConverter.format(weight, unit: self, includeUnit: false))\(rawValue)"
     }
 
     /// Format a weight value with a space before the unit
@@ -84,9 +81,6 @@ enum WeightUnit: String, Codable, CaseIterable, Sendable {
     /// - Parameter weight: The weight value to format
     /// - Returns: Formatted string with weight and unit separated by space
     func formatWithSpace(_ weight: Double) -> String {
-        let formattedWeight = weight.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", weight)
-            : String(format: "%.1f", weight)
-        return "\(formattedWeight) \(rawValue)"
+        WeightConverter.format(weight, unit: self)
     }
 }

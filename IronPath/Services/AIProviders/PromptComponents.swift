@@ -162,6 +162,7 @@ enum PromptComponents {
         // Add format hint
         content += "\n\nAdvanced sets use advancedSets array: [{setNumber, type, reps, weight, ...}]"
         content += "\nTypes: standard, warmup, dropSet (add numberOfDrops), restPause (add numberOfPauses)"
+        content += "\nDo not generate timed sets or time-based rep formats like '30-60s'."
 
         // Add beginner note
         if fitnessLevel == .beginner && required.isEmpty {

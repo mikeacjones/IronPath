@@ -28,7 +28,7 @@ struct WeightInputField: View {
 
         // Initialize text value from weight
         if let weightValue = weight.wrappedValue {
-            _textValue = State(initialValue: String(format: "%.1f", weightValue).replacingOccurrences(of: ".0", with: ""))
+            _textValue = State(initialValue: WeightConverter.format(weightValue, unit: unit, includeUnit: false))
         } else {
             _textValue = State(initialValue: "")
         }
@@ -86,9 +86,7 @@ struct WeightInputField: View {
     }
 
     private func formatWeightForDisplay(_ weight: Double) -> String {
-        // Remove trailing .0 for whole numbers
-        let formatted = String(format: "%.1f", weight)
-        return formatted.hasSuffix(".0") ? String(formatted.dropLast(2)) : formatted
+        WeightConverter.format(weight, unit: unit, includeUnit: false)
     }
 }
 

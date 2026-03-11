@@ -8,9 +8,29 @@ struct WeightInputView: View {
     let equipment: Equipment
     let exerciseName: String
     @Binding var showPlateCalculator: Bool
+    let weightUnitOverride: WeightUnit?
     let onWeightChanged: (Double) -> Void
 
+    init(
+        weight: Binding<String>,
+        equipment: Equipment,
+        exerciseName: String,
+        showPlateCalculator: Binding<Bool>,
+        weightUnitOverride: WeightUnit? = nil,
+        onWeightChanged: @escaping (Double) -> Void
+    ) {
+        self._weight = weight
+        self.equipment = equipment
+        self.exerciseName = exerciseName
+        self._showPlateCalculator = showPlateCalculator
+        self.onWeightChanged = onWeightChanged
+        self.weightUnitOverride = weightUnitOverride
+    }
+
     private var weightUnit: WeightUnit {
+        if let weightUnitOverride {
+            return weightUnitOverride
+        }
         // Use active workout unit if available, otherwise use gym profile unit
         if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit
@@ -144,9 +164,23 @@ struct CompleteButton: View {
 struct AddedWeightInputView: View {
     @Environment(DependencyContainer.self) private var dependencies
     @Binding var weight: String
+    let weightUnitOverride: WeightUnit?
     let onWeightChanged: (Double?) -> Void
 
+    init(
+        weight: Binding<String>,
+        weightUnitOverride: WeightUnit? = nil,
+        onWeightChanged: @escaping (Double?) -> Void
+    ) {
+        self._weight = weight
+        self.weightUnitOverride = weightUnitOverride
+        self.onWeightChanged = onWeightChanged
+    }
+
     private var weightUnit: WeightUnit {
+        if let weightUnitOverride {
+            return weightUnitOverride
+        }
         // Use active workout unit if available, otherwise use gym profile unit
         if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit

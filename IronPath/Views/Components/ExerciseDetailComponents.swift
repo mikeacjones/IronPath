@@ -97,9 +97,8 @@ private struct SetTypeButton: View {
 // MARK: - Exercise History Section
 
 struct ExerciseHistorySection: View {
-    let history: [(date: Date, sets: [ExerciseSet])]
+    let history: [(date: Date, sets: [ExerciseSet], weightUnit: WeightUnit)]
     @Binding var isExpanded: Bool
-    let weightUnit: WeightUnit
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -151,8 +150,7 @@ struct ExerciseHistorySection: View {
             ForEach(Array(history.enumerated()), id: \.offset) { index, session in
                 HistorySessionRow(
                     session: session,
-                    dateFormatter: dateFormatter,
-                    weightUnit: weightUnit
+                    dateFormatter: dateFormatter
                 )
 
                 if index < history.count - 1 {
@@ -169,9 +167,8 @@ struct ExerciseHistorySection: View {
 // MARK: - History Session Row
 
 private struct HistorySessionRow: View {
-    let session: (date: Date, sets: [ExerciseSet])
+    let session: (date: Date, sets: [ExerciseSet], weightUnit: WeightUnit)
     let dateFormatter: DateFormatter
-    let weightUnit: WeightUnit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -185,7 +182,7 @@ private struct HistorySessionRow: View {
                         Text("Max")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("\(formatWeight(maxWeight)) \(weightUnit.abbreviation)")
+                        Text("\(formatWeight(maxWeight)) \(session.weightUnit.abbreviation)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                     }
@@ -207,7 +204,7 @@ private struct HistorySessionRow: View {
 
     /// Format sets as "195lbs×10, 195lbs×10" style showing weight×reps for each set
     private func setsBreakdown(_ sets: [ExerciseSet]) -> String {
-        let unit = weightUnit.abbreviation
+        let unit = session.weightUnit.abbreviation
         var breakdown: [String] = []
 
         for set in sets {

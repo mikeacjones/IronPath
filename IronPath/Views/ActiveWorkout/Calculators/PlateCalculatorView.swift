@@ -6,7 +6,22 @@ struct PlateCalculatorView: View {
     let totalWeight: Double
     let equipment: Equipment
     let exerciseName: String
-    var previousWeight: Double? = nil
+    let weightUnitOverride: WeightUnit?
+    let previousWeight: Double?
+
+    init(
+        totalWeight: Double,
+        equipment: Equipment,
+        exerciseName: String,
+        weightUnitOverride: WeightUnit? = nil,
+        previousWeight: Double? = nil
+    ) {
+        self.totalWeight = totalWeight
+        self.equipment = equipment
+        self.exerciseName = exerciseName
+        self.weightUnitOverride = weightUnitOverride
+        self.previousWeight = previousWeight
+    }
 
     @Environment(\.dismiss) var dismiss
     @Environment(DependencyContainer.self) private var dependencies
@@ -17,6 +32,9 @@ struct PlateCalculatorView: View {
     @State private var localIsSingleSided: Bool = false
 
     private var weightUnit: WeightUnit {
+        if let weightUnitOverride {
+            return weightUnitOverride
+        }
         // Use active workout unit if available, otherwise use gym profile unit
         if let activeWorkout = dependencies.activeWorkoutManager.activeWorkout {
             return activeWorkout.weightUnit
@@ -267,7 +285,7 @@ struct PlateCalculatorView: View {
             Text(localIsSingleSided ? "Total Plate Weight" : "Each Side")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(String(format: "%.1f", weightPerSide)) \(weightUnit.abbreviation)")
+            Text("\(WeightConverter.format(weightPerSide, unit: weightUnit, includeUnit: false)) \(weightUnit.abbreviation)")
                 .font(.title)
                 .fontWeight(.semibold)
         }
@@ -396,6 +414,6 @@ struct PlateCalculatorView: View {
     }
 
     private func formatWeight(_ w: Double) -> String {
-        w.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(w)) : String(format: "%.1f", w)
+        WeightConverter.format(w, unit: weightUnit, includeUnit: false)
     }
 }

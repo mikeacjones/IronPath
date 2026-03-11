@@ -25,6 +25,10 @@ struct SetRowView: View {
     // Cached suggested weight for display purposes
     private let suggestedWeight: Double?
 
+    private var resolvedWeightUnit: WeightUnit {
+        ActiveWorkoutManager.shared.activeWorkout?.weightUnit ?? gymSettings.preferredWeightUnit
+    }
+
     init(
         set: ExerciseSet,
         setIndex: Int,
@@ -46,7 +50,8 @@ struct SetRowView: View {
         self.onRepsChanged = onRepsChanged
         self.workoutDataManager = workoutDataManager ?? WorkoutDataManager.shared
         self.restTimerManager = restTimerManager ?? RestTimerManager.shared
-        self.gymSettings = gymSettings ?? GymSettings.shared
+        let resolvedGymSettings = gymSettings ?? GymSettings.shared
+        self.gymSettings = resolvedGymSettings
 
         // Get suggested weight from history if available
         let suggested = self.workoutDataManager.getSuggestedWeight(
@@ -55,7 +60,15 @@ struct SetRowView: View {
         )
         self.suggestedWeight = suggested
 
-        _weight = State(initialValue: set.weight.map { String(format: "%.0f", $0) } ?? suggested.map { String(format: "%.0f", $0) } ?? "")
+        let formatInitialWeight: (Double) -> String = { weight in
+            WeightConverter.format(
+                weight,
+                unit: ActiveWorkoutManager.shared.activeWorkout?.weightUnit ?? resolvedGymSettings.preferredWeightUnit,
+                includeUnit: false
+            )
+        }
+
+        _weight = State(initialValue: set.weight.map(formatInitialWeight) ?? suggested.map(formatInitialWeight) ?? "")
         _reps = State(initialValue: set.actualReps.map { String($0) } ?? String(set.targetReps))
         _isCompleted = State(initialValue: set.isCompleted)
     }
@@ -130,7 +143,7 @@ struct SetRowView: View {
                                     onWeightChanged?(setIndex, weightValue)
                                 }
                             }
-                        Text(gymSettings.preferredWeightUnit.abbreviation)
+                        Text(resolvedWeightUnit.abbreviation)
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -235,14 +248,16 @@ struct SetRowView: View {
                 PlateCalculatorView(
                     totalWeight: Double(weight) ?? 0,
                     equipment: equipment,
-                    exerciseName: exerciseName
+                    exerciseName: exerciseName,
+                    weightUnitOverride: resolvedWeightUnit
                 )
             } else {
                 CableWeightCalculatorView(
                     targetWeight: Double(weight) ?? 0,
                     exerciseName: exerciseName,
+                    weightUnit: resolvedWeightUnit,
                     onSelectWeight: { selectedWeight in
-                        weight = String(format: "%.0f", selectedWeight)
+                        weight = formatWeightValue(selectedWeight)
                         showPlateCalculator = false
                     }
                 )
@@ -251,7 +266,7 @@ struct SetRowView: View {
         .onChange(of: set.weight) { _, newWeight in
             // Update local state when external weight changes (propagation from set 1)
             if let newWeight = newWeight {
-                weight = String(format: "%.0f", newWeight)
+                weight = formatWeightValue(newWeight)
             }
         }
         .onChange(of: set.actualReps) { _, newReps in
@@ -292,5 +307,13 @@ struct SetRowView: View {
 
         isCompleted.toggle()
         onUpdate(updatedSet)
+    }
+
+    private func formatWeightValue(_ weight: Double) -> String {
+        WeightConverter.format(
+            weight,
+            unit: resolvedWeightUnit,
+            includeUnit: false
+        )
     }
 }

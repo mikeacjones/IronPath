@@ -199,7 +199,8 @@ struct ActiveWorkoutView: View {
                 },
                 groupInfo: groupInfo,
                 onNavigateToNextInGroup: nil, // Navigation now handled by onUpdateWithoutDismiss
-                nextExerciseInGroup: nextExercise
+                nextExerciseInGroup: nextExercise,
+                workoutWeightUnit: viewModel.workout.weightUnit
             )
             .id(currentExercise.id) // Force SwiftUI to recreate view when exercise changes
         }

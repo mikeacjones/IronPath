@@ -146,14 +146,21 @@ struct CalendarDayView: View {
 
 struct WorkoutStatsSummaryView: View {
     let stats: WorkoutStats
-    let weightUnit: WeightUnit
+    let weightUnit: WeightUnit?
 
     var body: some View {
         HStack(spacing: 16) {
             StatCard(title: "Total", value: "\(stats.totalWorkouts)", subtitle: "workouts")
             StatCard(title: "This Week", value: "\(stats.workoutsThisWeek)", subtitle: "workouts")
-            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: "\(weightUnit.abbreviation) lifted")
+            StatCard(title: "Volume", value: formatVolume(stats.totalVolume), subtitle: volumeSubtitle)
         }
+    }
+
+    private var volumeSubtitle: String {
+        if let weightUnit {
+            return "\(weightUnit.abbreviation) lifted"
+        }
+        return "mixed units"
     }
 
     private func formatVolume(_ volume: Double) -> String {

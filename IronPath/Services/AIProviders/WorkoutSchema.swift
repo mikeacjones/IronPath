@@ -46,7 +46,7 @@ enum WorkoutSchema {
             ],
             "reps": [
                 "type": "string",
-                "description": "Target reps per set. Can be a number ('8'), range ('8-12'), or special format ('AMRAP', '30-60s')"
+                "description": "Target reps per set. Use rep-based formats only: a number ('8'), range ('8-12'), or 'AMRAP'. Do not use time-based prescriptions like '30-60s'."
             ],
             "weight": [
                 "type": "number",
@@ -172,7 +172,7 @@ enum WorkoutSchema {
             {
               "name": "string (exercise name from database)",
               "sets": integer (number of sets),
-              "reps": "string (e.g., '8', '8-12', 'AMRAP')",
+              "reps": "string (e.g., '8', '8-12', 'AMRAP'; never use time-based formats like '30-60s')",
               "weight": number (optional, suggested weight),
               "restSeconds": integer (rest between sets),
               "equipment": "string (e.g., 'barbell', 'dumbbells', 'cable')",
